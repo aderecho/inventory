@@ -23,22 +23,22 @@ class InventoryStoreRequest extends FormRequest
     {
         return [
             'item_classification_id' => 'required|integer',
-            'supplier_id' => 'required|integer',
-            'invoice' => 'required|string|max:50',
-            'fund_source' => 'required|string|max:50',
-            'item_name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'quantity' => 'required|integer|min:1',
             'unit' => 'required|string|max:50',
+            'status' => 'required|string|max:50',
+            'date_acquired' => 'required|date',
+            'quantity' => 'required|integer|min:1',
             'unit_cost' => 'required|numeric',
-            'serial_numbers' => 'required|array|min:1',
-            'serial_numbers.*' => 'required|string|max:50',
-            'property_number' => 'required|string|max:50',
+            'item_name' => 'required|string|max:255',
+            'supplier_id' => 'required|integer',
             'pr_number' => 'required|string|max:50',
             'po_number' => 'required|string|max:50',
             'remarks' => 'required|string|max:50',
-            'date_acquired' => 'required|date',
-            'status' => 'nullable|string|max:50',
+            'invoice' => 'required|string|max:50',
+            'fund_source' => 'required|string|max:50',
+            'description' => 'nullable|string',
+            'serial_number' => 'nullable|array|min:1',
+            'serial_numbers.*' => 'nullable|max:50',
+            'property_number' => 'required|string|max:50',
         ];
     }
 }

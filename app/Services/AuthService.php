@@ -38,7 +38,6 @@ class AuthService
 
             'email'              => ['required', 'email', 'unique:users,email'],
             'password'           => ['required', 'min:8', 'confirmed'],
-            'role_id'            => ['required', 'in:1,2'],
         ]);
 
         DB::transaction(function () use ($validated) {
@@ -46,7 +45,6 @@ class AuthService
             $user = User::create([
                 'email'    => $validated['email'],
                 'password' => Hash::make($validated['password']),
-                'role_id'  => $validated['role_id'],
             ]);
 
             UserProfile::create([

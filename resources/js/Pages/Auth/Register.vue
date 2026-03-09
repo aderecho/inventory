@@ -15,7 +15,6 @@ const form = useForm({
   last_name: "",
   middle_name: "",
   contact_number: "",
-
   email: "",
   password: "",
   password_confirmation: "",
@@ -178,6 +177,8 @@ const submit = () => {
     title="Account Created"
     message="Your account has been successfully created. You can now log in."
     buttonConfirm="Go to Login"
+    icon='<i class="fa-solid fa-circle-check text-6xl text-green-500"></i>'
     @close="() => router.visit(route('login'))"
   />
+ 
 </template>

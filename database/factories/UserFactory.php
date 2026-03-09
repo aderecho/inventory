@@ -4,7 +4,6 @@ namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
-use App\Models\Role;
 
 class UserFactory extends Factory
 {
@@ -14,10 +13,9 @@ class UserFactory extends Factory
             'email' => $this->faker->unique()->safeEmail(),
             'password' => Hash::make('password'),
             'status' => 1,
-            'role_id' => Role::inRandomOrder()->first()->id, // pick a real seeded role
         ];
     }
-     public function withProfile(): static
+    public function withProfile(): static
     {
         return $this->has(
             \App\Models\UserProfile::factory(),

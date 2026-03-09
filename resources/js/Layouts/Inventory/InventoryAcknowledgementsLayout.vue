@@ -26,7 +26,7 @@ const userProfiles = computed(() => {
 
 const columns = [
   { label: "", key: "select_all" },
-  { label: "Item Name", key: "item_name"},
+  { label: "Item Name", key: "item_name" },
   { label: "Unit", key: "unit" },
   { label: "Unit Cost", key: "unit_cost", format: (val) => val ? `₱${val}` : 'N/A' },
   { label: "Property Number", key: "property_number" },
@@ -87,7 +87,7 @@ const inputFields = [
 ];
 
 const itemSelectedField = [
-  { label: "Item Selected", model: "item_name"},
+  { label: "Item Selected", model: "item_name" },
 ];
 
 const search = ref('');
@@ -99,13 +99,15 @@ const showFormModal = ref(false);
 const showSuccessModal = ref(false);
 
 const selectedIds = ref([]);
+const currentItem = ref(null);
 
 function openAdd() {
   formMode.value = 'create';
   showFormModal.value = true;
 }
 
-function handleView() {
+function handleView(item) {
+  currentItem.value = item;
   formMode.value = 'view';
   showFormModal.value = true;
 }
@@ -127,21 +129,21 @@ const toggleSidebar = () => {
 
 
 <template>
-   <div class="h-screen flex flex-col bg-gray-100 overflow-hidden">
+  <div class="h-screen flex flex-col bg-gray-100 overflow-hidden">
     <!-- Pass toggle event -->
     <NavHeader class="flex-shrink-0" @toggleSidebar="toggleSidebar" />
 
     <div class="flex flex-1 overflow-hidden">
       <!-- Sidebar -->
-      <aside  class="transition-all duration-600 ease-in-out transform"
-    :class="isSidebarOpen ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0 w-0'">
-        <SideBar/>
+      <aside class="transition-all duration-600 ease-in-out transform"
+        :class="isSidebarOpen ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0 w-0'">
+        <SideBar />
       </aside>
 
-      <!-- Main --> 
+      <!-- Main -->
       <main class="flex-1 sm:p-5 md:p-6 overflow-y-auto">
         <!-- HEAD TITLE -->
-       <div class="m-2">
+        <div class="m-2">
           <PageHeader title="Acknowledgements" />
           <div class="w-full h-full">
             <div class="flex flex-col md:flex-row justify-between mt-12">
@@ -150,50 +152,25 @@ const toggleSidebar = () => {
                 <span> Assign </span>
               </PrimaryButton>
 
-            <ItemFilterControls 
-              :search="search"
-              :status="status"
-              @update:search="search = $event"
-              @update:status="status = $event"
-              :mode="'acknowledgements'"
-            />
+              <ItemFilterControls :search="search" :status="status" @update:search="search = $event"
+                @update:status="status = $event" :mode="'acknowledgements'" />
 
             </div>
-            <AcknowledgementFormModal 
-              v-if="showFormModal"
-              :mode="formMode"
-              :accountableField="accountableField"
-              :inputFields="inputFields"
-              :accPerson="accPerson"
-              :users="users"
-              :userProfiles="userProfiles"
-              :itemSelectedField="itemSelectedField"
-              :selectedIDs="selectedIds.value"
-              :items="items"
-              :viewItem="viewItem"
-              @submit="handleSubmit"
-              @close="() => showFormModal = false"
-            />
+            <AcknowledgementFormModal v-if="showFormModal" :mode="formMode" :accountableField="accountableField"
+              :inputFields="inputFields" :accPerson="accPerson" :users="users" :userProfiles="userProfiles"
+              :itemSelectedField="itemSelectedField" :selectedIDs="selectedIds.value" :items="items" :item="currentItem"
+              :viewItem="viewItem" @submit="handleSubmit" @close="() => showFormModal = false" />
 
-            <SuccessModal 
-              v-if="showSuccessModal"
-              :icon="successIcon"
+            <SuccessModal v-if="showSuccessModal" :icon="successIcon"
               :title="formMode === 'edit' ? 'Edit Success' : 'Added Success'"
-              :message="formMode === 'edit' ? 'Edit successfully!' : 'Assign successfully!'"
-              @action="handleAction"
-              @close="showSuccessModal = false" 
-            />
+              :message="formMode === 'edit' ? 'Edit successfully!' : 'Assign successfully!'" @action="handleAction"
+              @close="showSuccessModal = false" />
 
-            <InventoryTable
-              :rows="items"
-              :columns="columns"
-              :actions="['view', 'edit']"
-              @view="handleView"
+            <InventoryTable :rows="items" :columns="columns" :actions="['view']" @view="handleView"
               @update:selected="ids => selectedIds.value = ids"
-              @selection-changed="ids => console.log('Item Selected', ids)"
-            />  
+              @selection-changed="ids => console.log('Item Selected', ids)" />
+          </div>
         </div>
-       </div>
       </main>
     </div>
   </div>

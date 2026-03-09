@@ -1,51 +1,90 @@
 <?php
+
 namespace App\Services;
 
-use App\Repositories\UserRepository;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\UserCreated;
+use App\Models\User;
+use App\Models\UserProfile;
 
 class UserService
 {
-    protected $repository;
+    public function filterAndPaginateUsers(
+        ?string $search = null,
+        int|string|null $status = null,
+        int $perPage = 10
+    ) {
+        return User::with('userProfiles', 'roles', 'permissions')
+            ->when(
+                $search,
+                fn($query, $search) =>
+                $query->search($search)
+            )
+            ->when(
+                !is_null($status),
+                fn($query) =>
+                $query->where('status', $status)
+            )
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage)
+            ->withQueryString();
+    }
 
-    public function __construct(UserRepository $repository)
+    public function createUser(array $data): User
     {
-        $this->repository = $repository;
-    }
+        $user = User::create([
+            'email'    => $data['email'],
+            'password' => bcrypt($data['password']),
+            'status'   => $data['status'],
+        ]);
 
-    public function getAllUsers() {
-        return $this->repository->all();
-    }
+        $user->userProfiles()->create($data['user_profiles'] ?? []);
 
-    public function getPaginatedUsers($search = null)
-    {
-    return $this->repository->query()
-        ->when($search, function ($query, $search) {
-            $query->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
-        })
-        ->orderBy('name')
-        ->paginate(10);
-    }
+        if (!empty($data['role'])) {
+            $user->assignRole($data['role']);
+        }
 
-    public function getUserById($id) {
-        return $this->repository->find($id);
-    }
+        if (!empty($data['permissions'])) {
+            $user->syncPermissions($data['permissions']);
+        }
 
-    public function createUser(array $data) {
-        $data['password'] = Hash::make($data['password']);
-        $user = $this->repository->create($data);
-        Mail::to($user->email)->send(new UserCreated($user));
         return $user;
     }
 
-    public function updateUser($user, array $data) {
-        return $this->repository->update($user, $data);
-    }
+    public function updateUser(User $user, array $data): User
+    {
+        $updateData = [
+            'email'  => $data['email'],
+            'status' => $data['status'],
+        ];
 
-    public function deleteUser($user) {
-        return $this->repository->delete($user);
+        if (!empty($data['password'])) {
+            $updateData['password'] = bcrypt($data['password']);
+        }
+
+        $user->update($updateData);
+
+        $profileData = $data['user_profiles'] ?? [];
+
+        UserProfile::updateOrCreate(
+            ['user_id' => $user->id],
+            array_merge($profileData, ['user_id' => $user->id])
+        );
+
+        if (!empty($data['role'])) {
+            $user->syncRoles([$data['role']]);
+        } else {
+            $user->roles()->detach();
+        }
+
+        if (!empty($data['permissions'])) {
+            $user->syncPermissions($data['permissions']);
+        } else {
+            $user->permissions()->detach();
+        }
+
+        return $user;
+    }
+    public function deleteUser(User $user): void
+    {
+        $user->delete();
     }
 }

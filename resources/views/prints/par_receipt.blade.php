@@ -252,7 +252,7 @@
                     <h1>PROPERTY ACKNOWLEDGEMENT RECEIPT</h1>
                 </div>
 
-                <!-- TEST META -->
+                <!-- META -->
                 <div class="meta-section">
                     <table class="meta-table">
                         <tr>

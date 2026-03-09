@@ -15,8 +15,9 @@ return new class extends Migration {
             $table->string('last_name', 100);
             $table->string('contact_number', 100);
             $table->tinyInteger('status')->default(0);
+            $table->timestamps();
 
-            $table->foreign('user_id')->references('id')->on('users');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });
     }
 

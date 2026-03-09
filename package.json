@@ -22,9 +22,11 @@
         "vue": "^3.4.0"
     },
     "dependencies": {
+        "@primevue/themes": "^4.5.4",
         "chart.js": "^4.5.1",
         "dayjs": "^1.11.19",
         "lodash": "^4.17.21",
-        "primevue": "^4.4.1"
+        "primeicons": "^7.0.0",
+        "primevue": "^4.5.4"
     }
 }

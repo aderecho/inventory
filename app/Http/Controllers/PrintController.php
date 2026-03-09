@@ -18,6 +18,6 @@ class PrintController extends Controller
 
         $fileName = $result['type'] . '_' . now()->format('Y_m_d_His') . '.pdf';
 
-        return $result['pdf']->download($fileName);
+        return $result['pdf']->stream($fileName);
     }
 }

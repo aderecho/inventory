@@ -219,7 +219,7 @@ const searchPlaceholder = computed(() => {
 
         <!-- UNIT COST -->
         <div class="flex flex-col w-full sm:w-auto" v-for="(group, gIndex) in unitCostOptions" :key="gIndex">
-            <label class="text-xs font-bold mb-1 sm:mb-0">{{ group.label }}</label>
+            <label class="text-xs font-bold text-[#3B3B3B] mb-1 sm:mb-0">{{ group.label }}</label>
             <select
                 v-model="cost_range"
                 class="h-8 sm:h-9 w-full sm:w-36 text-xs rounded-md text-gray-600 border focus:ring-[#850038] focus:outline-none focus:border-[#850038]">
@@ -236,7 +236,7 @@ const searchPlaceholder = computed(() => {
 
         <!-- STATUS -->
         <div class="flex flex-col w-full sm:w-auto" v-for="(stats, gIndex) in filterStatus" :key="gIndex">
-            <label class="text-xs font-bold mb-1 sm:mb-0">{{ stats.label }}</label>
+            <label class="text-xs text-[#3B3B3B] font-bold mb-1 sm:mb-0">{{ stats.label }}</label>
             <select
                 v-model="status"
                 class="h-8 sm:h-9 w-full sm:w-36 text-xs rounded-md text-gray-600 border focus:ring-[#850038] focus:outline-none focus:border-[#850038]"
@@ -261,7 +261,7 @@ const searchPlaceholder = computed(() => {
                 v-model="search"
                 type="search"
                 :placeholder="searchPlaceholder"
-                class="w-full sm:w-64 md:w-96 h-9 sm:h-10 rounded-full pl-10 pr-3 border text-sm 
+                class="w-full sm:w-64 md:w-96 h-9 sm:h-10 text-[#3B3B3B] rounded-full pl-10 pr-3 border text-sm 
                 focus:ring-[#850038] focus:outline-none focus:border-[#850038]"
             />
         </div>

@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -10,15 +9,24 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        // Ensure roles exist
-        $roles = ['admin', 'staff'];
-        foreach ($roles as $role) {
-            Role::firstOrCreate(['name' => $role]);
-        }
-
-        // Create users WITH profiles
-        User::factory(10)
+        $admin = User::factory()
             ->withProfile()
-            ->create();
+            ->create(['email' => 'admin@example.com']);
+
+        $admin->assignRole('admin');
+
+        $specialStaff = User::factory()
+            ->withProfile()
+            ->create(['email' => 'special@example.com']);
+
+        $specialStaff->assignRole('staff');
+        $specialStaff->givePermissionTo('delete');
+
+        User::factory(18)
+            ->withProfile()
+            ->create()
+            ->each(function ($user) {
+                $user->assignRole('staff');
+            });
     }
 }

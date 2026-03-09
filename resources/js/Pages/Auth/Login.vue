@@ -40,43 +40,38 @@ const submit = () => {
     <form @submit.prevent="submit">
       <div class="px-16 py-6">
         <div class="text-center mb-8">
-          <h1 class="font-bold text-2xl text-[#332B2B]">Welcome Back!</h1>
-          <span class="text-[#A6A6A6] text-sm font-semibold"
-            >We missed you! Please enter your details.</span
-          >
+          <h1 class="font-bold text-3xl text-[#332B2B]">Log In</h1>
         </div>
 
         <div>
-          <InputLabel class="text-bold text-lg" for="email" value="Email" />
+          <InputLabel class="text-bold text-[#3B3B3B]" for="email" value="Email" />
 
           <TextInput
             id="email"
             type="email"
             placeholder="Enter your email"
-            class="mt-1 block w-full py-3 text-md"
+            class="mt-1 block w-full text-[#850038] py-3"
             v-model="form.email"
             required
             autofocus
             autocomplete="username"
           />
-
-          <InputError class="mt-2" :message="form.errors.email" />
         </div>
 
         <div class="mt-4">
-          <InputLabel text-bold text-lg for="password" value="Password" />
+          <InputLabel class="text-bold text-[#3B3B3B]" for="password" value="Password" />
 
           <TextInput
             id="password"
             type="password"
             placeholder="Enter your password"
-            class="mt-1 block w-full py-3 text-md"
+            class="mt-1 block w-full text-[#850038] py-3 "
             v-model="form.password"
             required
             autocomplete="current-password"
           />
 
-          <InputError class="mt-2" :message="form.errors.password" />
+          <InputError class="mt-2" :message="form.errors.email" />
         </div>
 
         <div class="mt-4 flex items-center justify-between">

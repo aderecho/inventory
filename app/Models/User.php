@@ -2,22 +2,16 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasFactory;
-    protected $fillable = ['email', 'password', 'status', 'role_id'];
+    use HasFactory, HasRoles;
+    protected $fillable = ['email', 'password', 'status'];
 
     protected $hidden = ['password'];
-
-    // Relationships
-    public function role()
-    {
-        return $this->belongsTo(Role::class);
-    }
 
     public function accountableReceipts()
     {
@@ -41,6 +35,23 @@ class User extends Authenticatable
 
     public function userProfiles()
     {
-        return $this->hasOne(UserProfile::class);
+        return $this->hasOne(UserProfile::class, 'user_id', 'id');
+    }
+
+    public function scopeSearch($query, $term)
+    {
+        if (!$term) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($term) {
+            $q->where('email', 'like', "%{$term}%")
+                ->orWhereHas('userProfiles', function ($profile) use ($term) {
+                    $profile->where('first_name', 'like', "%{$term}%")
+                        ->orWhere('last_name', 'like', "%{$term}%")
+                        ->orWhere('middle_name', 'like', "%{$term}%")
+                        ->orWhere('contact_number', 'like', "%{$term}%");
+                });
+        });
     }
 }

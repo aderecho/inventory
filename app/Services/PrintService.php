@@ -9,7 +9,6 @@ class PrintService
 {
     public function generateReceiptPdf(int|array $ids): array
     {
-        // Normalize IDs
         if (!is_array($ids)) {
             $ids = [$ids];
         }
@@ -33,7 +32,6 @@ class PrintService
             throw new \Exception('Item(s) not found');
         }
 
-        // 🔑 Determine receipt type
         $hasParItem = $acknowledgementItems->contains(function ($item) {
             return ($item->inventoryItems->unit_cost ?? 0) > 50000;
         });
