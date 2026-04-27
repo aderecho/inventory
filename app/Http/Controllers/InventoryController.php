@@ -2,26 +2,30 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
-use App\Models\Supplier;
-use App\Models\UserProfile;
-use Illuminate\Http\Request;
-use App\Models\InventoryItem;
-use App\Services\RoomApiService;
-use App\Models\AccountablePerson;
-use App\Models\ItemClassification;
-use App\Services\InventoryService;
+use App\Http\Requests\InventoryAcknowledgementStoreRequest;
 use App\Http\Requests\InventoryStoreRequest;
 use App\Http\Requests\InventoryUpdateRequest;
-use App\Services\AcknowledgementReceiptService;
 use App\Http\Requests\UpdateInventoryCategoryRequest;
-use App\Http\Requests\InventoryAcknowledgementStoreRequest;
+use App\Http\Resources\InventoryApiResource;
+use App\Http\Resources\InventoryResource;
+use App\Models\AccountablePerson;
+use App\Models\InventoryItem;
+use App\Models\ItemClassification;
+use App\Models\Supplier;
+use App\Models\User;
+use App\Models\UserProfile;
+use App\Services\AcknowledgementReceiptService;
+use App\Services\Api\InventoryApiService;
+use App\Services\InventoryService;
+use App\Services\RoomApiService;
+use Illuminate\Http\Request;
 
 class InventoryController extends Controller
 {
     public function __construct(
         protected InventoryService $inventoryService,
         protected AcknowledgementReceiptService $acknowledgementReceiptService,
+        protected InventoryApiService $inventoryApiService,
     ) {}
     public function InventoryItems(Request $request, RoomApiService $roomsApi)
     {
@@ -41,6 +45,7 @@ class InventoryController extends Controller
         ]);
     }
 
+    
     public function InventoryTransactions(Request $request)
     {
         $search = $request->input('search');
@@ -60,6 +65,19 @@ class InventoryController extends Controller
         ]);
     }
 
+    public function apiIndex()
+    {
+        $items = $this->inventoryApiService->getInventory();
+
+        return InventoryApiResource::collection($items);
+    }
+
+    public function apiShow($id)
+    {
+        return new InventoryApiResource(
+        $this->inventoryApiService->getById($id)
+        );
+    }
 
     public function InventoryAcknowledgements(Request $request)
     {
