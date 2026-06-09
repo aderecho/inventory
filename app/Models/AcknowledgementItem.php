@@ -11,10 +11,22 @@ class AcknowledgementItem extends Model
     protected $fillable = [
         'acknowledgement_id',
         'inventory_item_id',
+        'accountable_person_id',
+        'issued_by_id',
         'status'
     ];
 
     public $timestamps = true;
+
+    public function accountablePerson()
+    {
+        return $this->belongsTo(UserProfile::class, 'accountable_person_id');
+    }
+
+    public function issuedBy()
+    {
+        return $this->belongsTo(UserProfile::class, 'issued_by_id');
+    }
 
     public function acknowledgementReceipts()
     {

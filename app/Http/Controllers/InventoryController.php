@@ -65,6 +65,25 @@ class InventoryController extends Controller
         ]);
     }
 
+     public function InventoryTransactionsHistory(Request $request)
+    {
+        $search = $request->input('search');
+        $status = $request->input('status');
+
+        $costRange = $request->input('cost_range', '0-50000');
+
+        return inertia('Inventory/InventoryTransaction', [
+            'items' => $this->inventoryService
+                ->filterAndPaginateTransactionHistory($search, $costRange, $status),
+
+            'filters' => [
+                'search' => $search,
+                'status' => $status,
+                'cost_range' => $costRange,
+            ],
+        ]);
+    }
+
     public function apiIndex()
     {
         $items = $this->inventoryApiService->getInventory();
@@ -85,11 +104,9 @@ class InventoryController extends Controller
         $costRange = $request->input('cost_range');
         $users = User::all();
         $userProfiles = UserProfile::all();
-        $accPerson = AccountablePerson::all();
 
         return inertia('Inventory/InventoryAcknowledgements', [
             'items' => $this->acknowledgementReceiptService->filterAndPaginateAcknowledgementReceipt($search, $costRange),
-            'accPerson' => $accPerson,
             'userProfiles' => $userProfiles,
             'users' => $users,
         ]);

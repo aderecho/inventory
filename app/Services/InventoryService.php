@@ -55,9 +55,12 @@ class InventoryService
             ->withQueryString();
     }
 
-    public function filterAndPaginateTransaction($search = null, $costRange = null, $status)
+    private function baseTransactionQuery($search = null, $costRange = null)
     {
-        return AcknowledgementItem::with('inventoryItems', 'acknowledgementReceipts.accountablePerson', 'acknowledgementReceipts.issuedBy.userProfiles')
+        return AcknowledgementItem::with(
+            'inventoryItems',
+            'acknowledgementReceipts.issuedBy.userProfiles', 'issuedBy',
+        )
             ->when($search, fn($query, $search) => $query->search($search))
             ->when($costRange, function ($query, $costRange) {
                 [$min, $max] = explode('-', $costRange);
@@ -71,10 +74,22 @@ class InventoryService
                         $q->where('unit_cost', '<=', (float) $max);
                     }
                 });
-            })
-            ->when(!is_null(value: $status), function ($query) use ($status) {
-                $query->where('status', $status);
-            })
+            });
+    }
+
+    public function filterAndPaginateTransaction($search = null, $costRange = null)
+    {
+        return $this->baseTransactionQuery($search, $costRange)
+            ->where('status', 1)
+            ->orderBy('created_at', 'desc')
+            ->paginate(10)
+            ->withQueryString();
+    }
+
+    public function filterAndPaginateTransactionHistory($search = null, $costRange = null)
+    {
+        return $this->baseTransactionQuery($search, $costRange)
+            ->where('status', 0)
             ->orderBy('created_at', 'desc')
             ->paginate(10)
             ->withQueryString();

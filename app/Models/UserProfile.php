@@ -15,6 +15,16 @@ class UserProfile extends Model
         return $this->belongsTo(User::class);
     }
 
+      public function accountable_person()
+    {
+        return $this->hasMany(AcknowledgementItem::class, 'accountable_person_id');
+    }
+
+    public function issued_by_id()
+    {
+        return $this->hasMany(AcknowledgementItem::class, 'issued_by_id');
+    }
+
     public function scopeSearch($query, $term)
     {
         if (!$term) {

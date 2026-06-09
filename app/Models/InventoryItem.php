@@ -28,6 +28,11 @@ class InventoryItem extends Model
         'status'
     ];
 
+      public function inventory_item_user()
+    {
+        return $this->hasMany(InventoryItemUser::class, 'inventory_item_id');
+    }
+
     public function supplier()
     {
         return $this->belongsTo(Supplier::class);

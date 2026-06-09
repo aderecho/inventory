@@ -22,11 +22,6 @@ class AcknowledgementReceipt extends Model
         return $this->belongsTo(InventoryItem::class, 'inventory_item_id');
     }
 
-    public function accountablePerson()
-    {
-        return $this->belongsTo(AccountablePerson::class, 'accountable_persons_id');
-    }
-
     public function issuedBy()
     {
         return $this->belongsTo(User::class, 'issued_by_id');

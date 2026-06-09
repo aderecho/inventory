@@ -11,11 +11,15 @@ return new class extends Migration {
             $table->increments('id');
             $table->unsignedInteger('acknowledgement_id')->nullable();
             $table->unsignedBigInteger('inventory_item_id')->nullable();
+            $table->unsignedInteger('accountable_person_id');
+            $table->unsignedInteger('issued_by_id');
             $table->tinyInteger('status')->nullable();
             $table->timestamps();
 
             $table->foreign('acknowledgement_id')->references('id')->on('acknowledgement_receipts')->cascadeOnDelete()->cascadeOnUpdate();
             $table->foreign('inventory_item_id')->references('id')->on('inventory_items')->cascadeOnDelete()->cascadeOnUpdate();
+            $table->foreign('accountable_person_id')->references('id')->on('user_profiles')->cascadeOnDelete()->cascadeOnUpdate();
+            $table->foreign('issued_by_id')->references('id')->on('user_profiles')->cascadeOnDelete()->cascadeOnUpdate();
         });
     }
 

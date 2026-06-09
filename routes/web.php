@@ -32,6 +32,7 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:admin|staff'])->group(function () {
         Route::get('/inventory/items', [InventoryController::class, 'InventoryItems'])->name('inventory.items');
         Route::get('/inventory/transactions', [InventoryController::class, 'InventoryTransactions'])->name('inventory.transactions');
+        Route::get('/inventory/transactions-history', [InventoryController::class, 'InventoryTransactionsHistory'])->name('inventory.transactions.history');
         Route::get('/inventory/acknowledgements', [InventoryController::class, 'InventoryAcknowledgements'])->name('inventory.acknowledgements');
         Route::post('/inventory/acknowledgements/store', [InventoryController::class, 'InventoryAcknowledgementsStore'])->name('inventory.acknowledgements.store');
         Route::get('/export-csv', [InventoryController::class, 'exportCsv']);
@@ -49,14 +50,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/suppliers', [SupplierController::class, 'store'])->name('suppliers.store');
         Route::put('/suppliers/{id}', [SupplierController::class, 'update'])->name('suppliers.update');
         Route::delete('/suppliers/{id}', [SupplierController::class, 'destroy'])->name('suppliers.destroy');
-    });
-
-    // Accountable Person
-    Route::middleware(['role:admin|staff'])->group(function () {
-        Route::get('/accountable-person', [AccountablePersonController::class, 'accountablePerson'])->name('accountable.index');
-        Route::post('/accountable-person', [AccountablePersonController::class, 'store'])->name('accountable.store');
-        Route::put('/accountable-person{id}', [AccountablePersonController::class, 'update'])->name('accountable.update');
-        Route::delete('/accountable-person{id}', [AccountablePersonController::class, 'destroy'])->name('accountable.destroy');
     });
 
     // Categories

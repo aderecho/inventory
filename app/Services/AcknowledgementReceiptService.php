@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AcknowledgementItem;
 use App\Models\InventoryItem;
 use App\Models\AcknowledgementReceipt;
+use App\Models\InventoryItemUser;
 
 class AcknowledgementReceiptService
 {
@@ -44,9 +45,7 @@ class AcknowledgementReceiptService
 
     public function createAcknowledgements(array $data)
     {
-        foreach ($data['inventory_item_id'] as $itemId) {
         $ack = AcknowledgementReceipt::create([
-            'accountable_persons_id' => $data['accountable_persons_id'],
             'issued_by_id' => $data['issued_by_id'],
             'category' => $data['category'],
             'created_by' => $data['created_by'],
@@ -54,11 +53,43 @@ class AcknowledgementReceiptService
             'remarks' => $data['remarks'] ?? null,
         ]);
 
-        
+        foreach ($data['inventory_item_id'] as $itemId) {
+
             AcknowledgementItem::create([
                 'acknowledgement_id' => $ack->id,
-                'inventory_item_id' => $itemId
+                'inventory_item_id' => $itemId,
+                'accountable_person_id' => $data['accountable_persons_id'],
+                'issued_by_id' => $data['issued_by_id'],
+                'status' => 1,
             ]);
         }
     }
+
+    // public function createAcknowledgements(array $data)
+    // {
+    //     foreach ($data['receipts'] as $receiptData) {
+
+    //         $ack = AcknowledgementReceipt::create([
+    //             'issued_by_id' => $receiptData['issued_by_id'],
+    //             'category' => $receiptData['category'],
+    //             'created_by' => $receiptData['created_by'],
+    //             'par_date' => $receiptData['par_date'],
+    //             'remarks' => $receiptData['remarks'] ?? null,
+    //         ]);
+
+    //         foreach ($receiptData['inventory_item_ids'] as $itemId) {
+
+    //             InventoryItemUser::create([
+    //                 'acknowledgement_id' => $ack->id,
+    //                 'inventory_item_id' => $itemId,
+    //                 'accountable_persons_id' => $receiptData['accountable_persons_id'],
+    //             ]);
+
+    //             AcknowledgementItem::create([
+    //                 'acknowledgement_id' => $ack->id,
+    //                 'inventory_item_id' => $itemId,
+    //             ]);
+    //         }
+    //     }
+    // }
 }

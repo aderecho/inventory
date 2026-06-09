@@ -17,7 +17,8 @@ const allMenuItems = [
     children: [
       { name: "Items", route: "inventory.items" },
       { name: "Acknowledgements", route: "inventory.acknowledgements" },
-      { name: "Transactions", route: "inventory.transactions" },
+      { name: "Assigned Item", route: "inventory.transactions" },
+      { name: "Assigned Item History", route: "inventory.transactions.history" },
     ],
   },
   {
@@ -29,7 +30,6 @@ const allMenuItems = [
         icon: "fa-solid fa-handshake",
         route: "suppliers.index",
       },
-      { name: "Accountable Persons", route: "accountable.index" },
       { name: "Categories", route: "categories.index" },
     ],
   },

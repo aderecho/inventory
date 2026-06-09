@@ -14,7 +14,6 @@ import SuccessModal from '@/Components/Modals/SuccessModal.vue';
 const page = usePage();
 
 const items = computed(() => page.props.items ?? []);
-const accPerson = computed(() => page.props.accPerson ?? []);
 const users = computed(() => page.props.users ?? []);
 
 const userProfiles = computed(() => {
@@ -69,7 +68,7 @@ const accountableField = [
   {
     label: "Accountable Person",
     model: "accountable_persons_id",
-    name: "accPerson",
+    name: "userProfiles",
     option: "full_name",
     value: "id"
   },
@@ -157,7 +156,7 @@ const toggleSidebar = () => {
 
             </div>
             <AcknowledgementFormModal v-if="showFormModal" :mode="formMode" :accountableField="accountableField"
-              :inputFields="inputFields" :accPerson="accPerson" :users="users" :userProfiles="userProfiles"
+              :inputFields="inputFields" :users="users" :userProfiles="userProfiles"
               :itemSelectedField="itemSelectedField" :selectedIDs="selectedIds.value" :items="items" :item="currentItem"
               :viewItem="viewItem" @submit="handleSubmit" @close="() => showFormModal = false" />
 
