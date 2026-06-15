@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\ItemClassification;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\Sequence;
 
 class ItemClassificationFactory extends Factory
 {
@@ -11,31 +12,36 @@ class ItemClassificationFactory extends Factory
 
     public function definition()
     {
-        // Optional: you can keep some example names
-        $classificationNames = [
-            'Office Equipment',
-            'Furnitures',
-            'IT/Software',
-            'Comm.Egpt',
-            'Tech./Scientific Egpt.',
-            'Firefighting Egpt.',
-            'Hospital Egpt',
-            'Medical, Dental and Lab Egpt',
-            'Sport Egpt',
-            'Other Machineries & Egpt.',
-            'Library Books',
-            'Motor Vehicles',
-            'Other PPE',
-        ];
-
-        $classificationCodes = [
-            '221', '222', '223', '229', '236', '231', '232', '233', '235', '240', '224', '241', '250',
-        ];
-
         return [
-            'classification_code' => $this->faker->randomElement($classificationCodes),
-            'classification_name' => $this->faker->randomElement($classificationNames),
+            'classification_code' => '000',
+            'classification_name' => 'Placeholder',
             'status' => $this->faker->boolean(80),
         ];
+    }
+
+    public function configure()
+    {
+        $pairs = [
+            ['221', 'Office Equipment'],
+            ['222', 'Furnitures'],
+            ['223', 'IT/Software'],
+            ['229', 'Comm.Egpt'],
+            ['236', 'Tech./Scientific Egpt.'],
+            ['231', 'Firefighting Egpt.'],
+            ['232', 'Hospital Egpt'],
+            ['233', 'Medical, Dental and Lab Egpt'],
+            ['235', 'Sport Egpt'],
+            ['240', 'Other Machineries & Egpt.'],
+            ['224', 'Library Books'],
+            ['241', 'Motor Vehicles'],
+            ['250', 'Other PPE'],
+        ];
+
+        return $this->state(new Sequence(
+            ...array_map(fn($pair) => [
+                'classification_code' => $pair[0],
+                'classification_name' => $pair[1],
+            ], $pairs)
+        ));
     }
 }

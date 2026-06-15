@@ -8,29 +8,78 @@ use Spatie\Permission\Models\Permission;
 
 class RolePermissionSeeder extends Seeder
 {
+    // --- JUST ADD NEW MODULES HERE ---
+    protected array $modules = [
+        'inventory',
+        'suppliers',
+        'categories',
+        'reports',
+        'acknowledgements',
+        'users',
+        'roles',
+        // 'assets',        👈 just uncomment or add new modules here
+        // 'procurement',
+    ];
+
+    // --- DEFINE WHICH ACTIONS EACH MODULE SUPPORTS ---
+    protected array $actions = [
+        'inventory'       => ['view', 'create', 'edit', 'delete', 'import', 'export', 'print'],
+        'suppliers'       => ['view', 'create', 'edit', 'delete'],
+        'categories'      => ['view', 'create', 'edit', 'delete'],
+        'reports'         => ['view', 'export'],
+        'acknowledgements'=> ['view', 'create'],
+        'users'           => ['view', 'create', 'edit', 'delete'],
+        'roles'           => ['view', 'create', 'edit', 'delete'],
+        // 'assets'       => ['view', 'create', 'edit', 'delete'],
+    ];
+
+    // --- DEFINE WHAT EACH ROLE CAN DO PER MODULE ---
+    protected array $rolePermissions = [
+        'admin' => '*', // wildcard = all permissions
+
+        'staff' => [
+            'inventory'        => ['view', 'create', 'edit', 'import', 'export', 'print'],
+            'suppliers'        => ['view', 'create', 'edit'],
+            'categories'       => ['view', 'create', 'edit'],
+            'reports'          => ['view'],
+            'acknowledgements' => ['view', 'create'],
+            // 'assets'        => ['view'],   👈 just add here when new module comes
+        ],
+    ];
+
     public function run(): void
     {
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        $permissions = [
-            'view',
-            'edit',
-            'delete',
-        ];
+        // Auto-generate and create all permissions
+        $allPermissions = [];
 
-        foreach ($permissions as $permission) {
-            Permission::firstOrCreate(['name' => $permission]);
+        foreach ($this->modules as $module) {
+            $actions = $this->actions[$module] ?? ['view', 'create', 'edit', 'delete'];
+            foreach ($actions as $action) {
+                $name = "{$action} {$module}";
+                Permission::firstOrCreate(['name' => $name]);
+                $allPermissions[] = $name;
+            }
         }
 
-        // Create roles
-        $adminRole = Role::firstOrCreate(['name' => 'admin']);
-        $staffRole = Role::firstOrCreate(['name' => 'staff']);
+        // Assign permissions to roles
+        foreach ($this->rolePermissions as $roleName => $access) {
+            $role = Role::firstOrCreate(['name' => $roleName]);
 
-        // Assign permissions
-        $adminRole->givePermissionTo(Permission::all());
+            if ($access === '*') {
+                $role->syncPermissions($allPermissions);
+                continue;
+            }
 
-        $staffRole->givePermissionTo([
-            'view',
-            'edit',
-        ]);
+            $rolePerms = [];
+            foreach ($access as $module => $actions) {
+                foreach ($actions as $action) {
+                    $rolePerms[] = "{$action} {$module}";
+                }
+            }
+
+            $role->syncPermissions($rolePerms);
+        }
     }
 }

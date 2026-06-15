@@ -14,298 +14,399 @@ import ConvertButton from "@/Components/Buttons/ConvertButton.vue";
 import DeleteModal from "@/Components/Modals/DeleteModal.vue";
 import SuccessModal from "@/Components/Modals/SuccessModal.vue";
 import SuccessDeleteModal from "@/Components/Modals/SuccessDeleteModal.vue";
+import SecondaryButton from "@/Components/Buttons/SecondaryButton.vue";
+import ThirdButton from "@/Components/Buttons/ThirdButton.vue";
+import AcknowledgementFormModal from "@/Components/Modals/AcknowledgementFormModal.vue";
+import Toast from "primevue/toast";
+import { useToast } from "primevue/usetoast";
+import LoadingOverlay from "@/Components/LoadingOverlay.vue";
 
 const columns = [
-  { label: "Item Name", key: "item_name" },
-  { label: "Unit", key: "unit", format: (val) => val ?? "N/A" },
-  {
-    label: "Unit Cost",
-    key: "unit_cost",
-    format: (val) => (val ? `₱${val}` : "N/A"),
-  },
-  { label: "Property Number", key: "property_number" },
-  { label: "Serial Number", key: "serial_number" },
-  { label: "Invoice", key: "invoice" },
-  {
-    label: "Supplier Name",
-    key: "supplier",
-    format: (val) => val?.supplier_name ?? "N/A",
-  },
-  {
-    label: "Status",
-    key: "status",
-    format: (status) => {
-      let label = "Unknown",
-        cls = "text-gray-500",
-        icon = "";
-      if (status === 0) {
-        label = "Cancelled";
-        cls = "text-[#D32F2F] font-bold bg-[#F8D4D4] py-2 px-4 rounded-full";
-        icon = '<i class="fa-solid fa-ban"></i>';
-      } else if (status === 1) {
-        label = "Received";
-        cls = "text-[#2E7D32] font-bold bg-[#D4F8D4] py-2 px-4 rounded-full";
-        icon = '<i class="fa-solid fa-circle-check"></i>';
-      }
-      return `<span class="${cls}">${icon} ${label}</span>`;
+    { label: "", key: "select_all" },
+    { label: "Item Name", key: "item_name" },
+    { label: "Unit", key: "unit", format: (val) => val ?? "N/A" },
+    {
+        label: "Unit Cost",
+        key: "unit_cost",
+        format: (val) => (val ? `₱${val}` : "N/A"),
     },
-  },
-  { label: "Action", key: "action" },
+    { label: "Property Number", key: "property_number" },
+    { label: "Serial Number", key: "serial_number" },
+    { label: "Invoice", key: "invoice" },
+    { label: "Location", key: "location" },
+    {
+        label: "Supplier Name",
+        key: "supplier",
+        format: (val) => val?.supplier_name ?? "N/A",
+    },
+    {
+        label: "Status",
+        key: "status",
+        format: (status) => {
+            let label = "Unknown",
+                cls = "text-gray-500",
+                icon = "";
+            if (status === 0) {
+                label = "Unserviceable";
+                cls =
+                    "text-[#D32F2F] font-bold bg-[#F8D4D4] py-1 px-2 rounded-md";
+            } else if (status === 1) {
+                label = "Serviceable";
+                cls =
+                    "text-[#2E7D32] font-bold bg-[#D4F8D4] py-2 px-2 rounded-md";
+            }
+            return `<span class="${cls}">${icon} ${label}</span>`;
+        },
+    },
+    { label: "Action", key: "action" },
 ];
 
 const viewItem = [
-  { label: "Item Name", key: "item_name" },
-  { label: "Property Number", key: "property_number" },
-  { label: "Unit", key: "unit", format: (val) => val ?? "N/A" },
-  { label: "Serial Number", key: "serial_number" },
-  {
-    label: "Unit Cost",
-    key: "unit_cost",
-    format: (val) =>
-      val !== null && val !== undefined
-        ? `₱${Number(val).toLocaleString()}`
-        : "N/A",
-  },
-  { label: "PO Number", key: "po_number" },
-  { label: "Supplier", key: "supplier.supplier_name" },
-  { label: "PR Number", key: "pr_number" },
-  { label: "Description", key: "description" },
-  { label: "Invoice", key: "invoice" },
-  { label: "Remarks", key: "remarks" },
-  { label: "Fund Source", key: "fund_source" },
-  { label: "Date Acquired", key: "date_acquired" },
-  {
-    label: "Status",
-    key: "status",
-    format: (status) => {
-      let label = "Unknown",
-        cls = "text-gray-500",
-        icon = "";
-      if (status === 0) {
-        label = "Inactive";
-        cls = "text-[#D32F2F] font-bold bg-[#F8D4D4] py-2 px-4 rounded-full";
-        icon = '<i class="fa-solid fa-ban"></i>';
-      } else if (status === 1) {
-        label = "Active";
-        cls = "text-[#2E7D32] font-bold bg-[#D4F8D4] py-2 px-4 rounded-full";
-        icon = '<i class="fa-solid fa-circle-check"></i>';
-      } else if (status === 2) {
-        label = "Pending";
-        cls = "text-[#8D6E00] font-bold bg-[#FFF3CD] py-2 px-4 rounded-full";
-        icon = '<i class="fa-solid fa-clock"></i>';
-      }
-      return `<span class="${cls}">${icon} ${label}</span>`;
+    { label: "Item Name", key: "item_name" },
+    { label: "Property Number", key: "property_number" },
+    { label: "Unit", key: "unit", format: (val) => val ?? "N/A" },
+    { label: "Serial Number", key: "serial_number" },
+    {
+        label: "Unit Cost",
+        key: "unit_cost",
+        format: (val) =>
+            val !== null && val !== undefined
+                ? `₱${Number(val).toLocaleString()}`
+                : "N/A",
     },
-  },
+    { label: "PO Number", key: "po_number" },
+    { label: "Supplier", key: "supplier.supplier_name" },
+    { label: "PR Number", key: "pr_number" },
+    { label: "Description", key: "description" },
+    { label: "Invoice", key: "invoice" },
+    { label: "Remarks", key: "remarks" },
+    { label: "Fund Source", key: "fund_source" },
+    { label: "Date Acquired", key: "date_acquired" },
+    {
+        label: "Status",
+        key: "status",
+        format: (status) => {
+            let label = "Unknown",
+                cls = "text-gray-500",
+                icon = "";
+            if (status === 0) {
+                label = "Inactive";
+                cls =
+                    "text-[#D32F2F] font-bold bg-[#F8D4D4] py-2 px-4 rounded-full";
+                icon = '<i class="fa-solid fa-ban"></i>';
+            } else if (status === 1) {
+                label = "Active";
+                cls =
+                    "text-[#2E7D32] font-bold bg-[#D4F8D4] py-2 px-4 rounded-full";
+                icon = '<i class="fa-solid fa-circle-check"></i>';
+            } else if (status === 2) {
+                label = "Pending";
+                cls =
+                    "text-[#8D6E00] font-bold bg-[#FFF3CD] py-2 px-4 rounded-full";
+                icon = '<i class="fa-solid fa-clock"></i>';
+            }
+            return `<span class="${cls}">${icon} ${label}</span>`;
+        },
+    },
 ];
 
+const isLoading = ref(false);
+const loadingTitle = ref("");
+const loadingMessage = ref("");
+
+router.on("start", () => {
+    isLoading.value = true;
+    loadingTitle.value = "Fetching Data...";
+    loadingMessage.value = "Please wait while we load the results.";
+});
+
+router.on("finish", () => {
+    isLoading.value = false;
+});
+
 const quantityCostFields = [
-  { label: "Quantity", model: "quantity", placeholder: "0", type: "number" },
-  { label: "Unit Cost", model: "unit_cost", placeholder: "0", type: "number" },
+    { label: "Quantity", model: "quantity", placeholder: "0", type: "number" },
+    {
+        label: "Unit Cost",
+        model: "unit_cost",
+        placeholder: "0",
+        type: "number",
+    },
 ];
 
 const inputFields = [
-  {
-    label: "Item Name",
-    model: "item_name",
-    placeholder: "Laptops, Ceiling Fan...",
-    type: "text",
-  },
+    {
+        label: "Item Name",
+        model: "item_name",
+        placeholder: "Laptops, Ceiling Fan...",
+        type: "text",
+    },
 ];
 
 const inputFieldsEdit = [
-  {
-    label: "Serial Number",
-    model: "serial_number",
-    placeholder: "SER-####.",
-    type: "text",
-    readonly: false,
-  },
-  {
-    label: "Item Name",
-    model: "item_name",
-    placeholder: "Laptops, Ceiling Fan...",
-    type: "text",
-    readonly: false,
-  },
+    {
+        label: "Serial Number",
+        model: "serial_number",
+        placeholder: "SER-####.",
+        type: "text",
+        readonly: false,
+    },
+    {
+        label: "Item Name",
+        model: "item_name",
+        placeholder: "Laptops, Ceiling Fan...",
+        type: "text",
+        readonly: false,
+    },
 ];
 
 const supplierOptions = [
-  {
-    label: "Supplier",
-    model: "supplier_id",
-    name: "suppliers",
-    option: "supplier_name",
-    value: "id",
-  },
+    {
+        label: "Supplier",
+        model: "supplier_id",
+        name: "suppliers",
+        option: "supplier_name",
+        value: "id",
+    },
 ];
 
 const requestFields = [
-  {
-    label: "Purchase Request",
-    model: "pr_number",
-    placeholder: "PR-###",
-    type: "text",
-  },
-  {
-    label: "Purchase Order",
-    model: "po_number",
-    placeholder: "PO-###",
-    type: "text",
-  },
-  { label: "Remarks", model: "remarks", placeholder: "RM-###", type: "text" },
+    {
+        label: "Purchase Request",
+        model: "pr_number",
+        placeholder: "PR-###",
+        type: "text",
+    },
+    {
+        label: "Purchase Order",
+        model: "po_number",
+        placeholder: "PO-###",
+        type: "text",
+    },
+    { label: "Remarks", model: "remarks", placeholder: "RM-###", type: "text" },
 ];
 
 const invoicesFundFields = [
-  {
-    label: "Invoice Number",
-    model: "invoice",
-    placeholder: "0000",
-    type: "text",
-    readonly: false,
-  },
-  {
-    label: "Fund Source",
-    model: "fund_source",
-    placeholder: "000",
-    type: "text",
-    readonly: false,
-  },
+    {
+        label: "Invoice Number",
+        model: "invoice",
+        placeholder: "0000",
+        type: "text",
+        readonly: false,
+    },
+    {
+        label: "Fund Source",
+        model: "fund_source",
+        placeholder: "000",
+        type: "text",
+        readonly: false,
+    },
+];
+
+const roomDropdown = [
+    {
+        label: "Location",
+        model: "room_id",
+        name: "rooms",
+        option: "location",
+        value: "id",
+    },
 ];
 
 const firstDropdown = [
-  {
-    label: "Classifications",
-    model: "item_classification_id",
-    name: "itemClass",
-    option: "classification_name",
-    value: "id",
-  },
+    {
+        label: "Classifications",
+        model: "item_classification_id",
+        name: "itemClass",
+        option: "classification_name",
+        value: "id",
+    },
 ];
 
 const firstInputField = [
-  {
-    label: "Property Number",
-    model: "property_number",
-    placeholder: "PROP-####.",
-    type: "text",
-  },
+    {
+        label: "Property Number",
+        model: "property_number",
+        placeholder: "PROP-####.",
+        type: "text",
+    },
 ];
 
 const secondDropdown = [
-  {
-    label: "Unit",
-    model: "unit",
-    options: [
-      { label: "unit", value: "unit" },
-      { label: "pcs", value: "pcs" },
-      { label: "box", value: "box" },
-    ],
-  },
-  {
-    label: "Status",
-    model: "status",
-    options: [
-      { label: "Received", value: "1" },
-      { label: "Cancelled", value: "0" },
-    ],
-  },
+    {
+        label: "Unit",
+        model: "unit",
+        options: [
+            { label: "unit", value: "unit" },
+            { label: "pcs", value: "pcs" },
+            { label: "box", value: "box" },
+        ],
+    },
+    {
+        label: "Status",
+        model: "status",
+        options: [
+            { label: "Serviceable", value: "1" },
+            { label: "Unserviceable", value: "0" },
+        ],
+    },
 ];
 
 const totalCost = [{ label: "Total Cost" }];
 
 const unitCostOptions = [
-  {
-    label: "Unit Cost",
-    options: [
-      { label: "Select All", value: "" },
-      { label: "₱50,000 Below", value: "0-50000" },
-      { label: "₱50,000 Above", value: "50000-99999999" },
-    ],
-  },
+    {
+        label: "Unit Cost",
+        options: [
+            { label: "Select All", value: "" },
+            { label: "₱50,000 Below", value: "0-50000" },
+            { label: "₱50,000 Above", value: "50000-99999999" },
+        ],
+    },
 ];
 
 const filterStatus = [
-  {
-    label: "Status",
-    options: [
-      { label: "Received", value: 1 },
-      { label: "Cancelled", value: 0 },
-    ],
-  },
+    {
+        label: "Status",
+        options: [
+            { label: "Serviceable", value: 1 },
+            { label: "Unserviceable", value: 0 },
+        ],
+    },
+];
+
+const acknowledgementFilter = [
+    {
+        label: "Accountable Person",
+        options: [
+            { label: "All Items", value: "" },
+            { label: "Assigned", value: "with_acknowledgement" },
+            {
+                label: "Unassigned",
+                value: "without_acknowledgement",
+            },
+        ],
+    },
 ];
 
 const page = usePage();
-const items = computed(() => page.props.items || []);
+
+const items = computed(() => page.props.items || { data: [] });
+const rooms = computed(() => page.props.rooms || []);
+
 const itemClassifications = computed(
-  () => page.props.itemClassifications || []
+    () => page.props.itemClassifications || [],
 );
 const suppliers = computed(() => page.props.suppliers || []);
-// const rooms = computed(() => page.props.rooms?.rooms || []);
-
-//INVENTORY FILTER
+// INVENTORY FILTER
 let search = ref("");
 let status = ref(null);
 let cost_range = ref(null);
+let acknowledgement_status = ref("");
 
-// MODAL FUNCTION
-let formMode = ref("create"); // CREATE || EDIT || VIEW || DELETE
+// MODAL STATE
+let formMode = ref("create");
 let showFormModal = ref(false);
 let showDeleteModal = ref(false);
+let showAssignModal = ref(false);
 let currentItem = ref({});
 
 const showSuccessModal = ref(false);
 const successMessage = ref("");
 const showDeleteSuccessModal = ref(false);
+const isPrinting = ref(false);
+const toast = useToast();
 
 function openAdd(item) {
-  formMode.value = "create";
-  currentItem.value = item;
-  showFormModal.value = true;
+    formMode.value = "create";
+    currentItem.value = item;
+    showFormModal.value = true;
+}
+
+function openAss() {
+    if (!tempSelectedIds.value.length) {
+        toast.add({
+            severity: "error",
+            summary: "No Items Selected",
+            detail: "Please select at least one item.",
+            life: 3000,
+        });
+        return;
+    }
+    showAssignModal.value = true;
 }
 
 function handleView(item) {
-  formMode.value = "view";
-  currentItem.value = item;
-  showFormModal.value = true;
+    formMode.value = "view";
+    currentItem.value = item;
+    showFormModal.value = true;
 }
 
 function handleEdit(item) {
-  formMode.value = "edit";
-  currentItem.value = item;
-  showFormModal.value = true;
+    formMode.value = "edit";
+    currentItem.value = item;
+    showFormModal.value = true;
 }
 
 function handleDelete(item) {
-  currentItem.value = item;
-  showDeleteModal.value = true;
+    currentItem.value = item;
+    showDeleteModal.value = true;
 }
 
 function handleSubmit() {
-  showSuccessModal.value = true;
-  successMessage.value =
-    formMode.value === "edit"
-      ? "Item updated successfully!"
-      : "Item added successfully!";
+    showSuccessModal.value = true;
+    successMessage.value =
+        formMode.value === "edit"
+            ? "Item updated successfully!"
+            : "Item added successfully!";
+    showFormModal.value = false;
 
-  showFormModal.value = false;
+    router.get(
+        "/inventory/items",
+        {
+            search: search.value,
+            cost_range: cost_range.value,
+            status: status.value,
+            acknowledgement_status: acknowledgement_status.value,
+        },
+        {
+            preserveState: true,
+            preserveScroll: true,
+            only: ["items"],
+        },
+    );
 }
 
 function confirmDelete(item) {
-  router.delete(route("items.destroy", item.id), {
-    preserveScroll: true,
-    onSuccess: () => {
-      showDeleteModal.value = false;
-      showDeleteSuccessModal.value = true;
-    },
-  });
+    router.delete(route("items.destroy", item.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showDeleteModal.value = false;
+            showDeleteSuccessModal.value = true;
+
+            router.get(
+                "/inventory/items",
+                {
+                    search: search.value,
+                    cost_range: cost_range.value,
+                    status: status.value,
+                    acknowledgement_status: acknowledgement_status.value,
+                },
+                {
+                    preserveState: true,
+                    preserveScroll: true,
+                    only: ["items"],
+                },
+            );
+        },
+    });
 }
 
 function handleAction() {
-  router.visit("/inventory/acknowledgements");
+    router.visit("/inventory/acknowledgements");
 }
 
-//-----------DYNAMIC ICON-------------------
+// ICONS
 const iconAdded = `
   <svg class="w-16 h-16" viewBox="0 0 50 50" fill="none">
     <rect width="50" height="50" rx="25" fill="#C8EFD4"/>
@@ -325,75 +426,360 @@ const iconDelete = `
   </svg>`;
 
 const successIcon = computed(() => {
-  return formMode.value === "edit" ? iconEdit : iconAdded;
+    return formMode.value === "edit" ? iconEdit : iconAdded;
 });
 
 const isSidebarOpen = ref(true);
 const toggleSidebar = () => {
-  isSidebarOpen.value = !isSidebarOpen.value;
+    isSidebarOpen.value = !isSidebarOpen.value;
 };
+
+// PRINTING
+const tempSelectedIds = ref([]);
+
+const handleSelectionChanged = (ids) => {
+    console.count("handleSelectionChanged");
+    tempSelectedIds.value = ids;
+};
+
+const printSelected = async () => {
+    if (!tempSelectedIds.value.length) {
+        toast.add({
+            severity: "error",
+            summary: "No Items Selected",
+            detail: "Please select at least one item to print.",
+            life: 3000,
+        });
+        return;
+    }
+
+    isLoading.value = true;
+    loadingTitle.value = "Printing Receipt...";
+    loadingMessage.value = "Please wait while we prepare your document.";
+
+    try {
+        const response = await axios.post(
+            route("print.receipt"),
+            { ids: tempSelectedIds.value },
+            { responseType: "blob" },
+        );
+
+        const url = window.URL.createObjectURL(
+            new Blob([response.data], { type: "application/pdf" }),
+        );
+        window.open(url);
+    } catch (error) {
+        const text = await error.response.data.text();
+        const json = JSON.parse(text);
+        toast.add({
+            severity: "error",
+            summary: "Error",
+            detail: json.message,
+            life: 10000,
+        });
+        toast.add({
+            severity: "info",
+            summary: "Tip",
+            detail: "Use the Assigned/Unassigned filter to check accountable persons.",
+            life: 5000,
+        });
+    } finally {
+        isLoading.value = false;
+    }
+};
+
+const handlePrint = async (id) => {
+    isLoading.value = true;
+    loadingTitle.value = "Printing Receipt...";
+    loadingMessage.value = "Please wait while we prepare your document.";
+
+    try {
+        const response = await axios.post(
+            route("print.receipt"),
+            { ids: [id] },
+            { responseType: "blob" },
+        );
+
+        const url = window.URL.createObjectURL(
+            new Blob([response.data], { type: "application/pdf" }),
+        );
+        window.open(url);
+    } catch (error) {
+        const text = await error.response.data.text();
+        const json = JSON.parse(text);
+        toast.add({
+            severity: "error",
+            summary: "Error",
+            detail: json.message,
+            life: 10000,
+        });
+        toast.add({
+            severity: "info",
+            summary: "Tip",
+            detail: "Use the Assigned/Unassigned filter to check accountable persons.",
+            life: 5000,
+        });
+    } finally {
+        isLoading.value = false;
+    }
+};
+
+const printQrCodes = async () => {
+    if (!tempSelectedIds.value.length) {
+        toast.add({
+            severity: "error",
+            summary: "No Items Selected",
+            detail: "Please select at least one item.",
+            life: 3000,
+        });
+        return;
+    }
+
+    isLoading.value = true;
+    loadingTitle.value = "Generating QR Codes...";
+    loadingMessage.value = "Please wait while we prepare your files.";
+
+    try {
+        const response = await axios.post(
+            route("inventory.qr.pngs"),
+            { ids: tempSelectedIds.value },
+            { responseType: "blob" },
+        );
+
+        // Download the zip
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", "qr-codes.zip");
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    } catch (error) {
+        if (error.response?.status === 422) {
+            const text = await error.response.data.text();
+            const json = JSON.parse(text);
+            toast.add({
+                severity: "error",
+                summary: "Error",
+                detail: json.message,
+                life: 10000,
+            });
+            toast.add({
+                severity: "info",
+                summary: "Tip",
+                detail: "Use the Assigned/Unassigned filter to check accountable persons.",
+                life: 5000,
+            });
+        } else {
+            toast.add({
+                severity: "error",
+                summary: "Error",
+                detail: "Something went wrong.",
+                life: 3000,
+            });
+        }
+    } finally {
+        isLoading.value = false;
+    }
+};
+
+const userProfiles = computed(() => {
+    return (page.props.userProfiles ?? []).map((u) => ({
+        ...u,
+        full_name: `${u.last_name}, ${u.first_name}`.trim(),
+    }));
+});
+
+const accountableField = [
+    {
+        label: "Accountable Person",
+        model: "accountable_persons_id",
+        name: "userProfiles",
+        option: "full_name",
+        value: "id",
+    },
+    {
+        label: "Issued By",
+        model: "issued_by_id",
+        name: "userProfiles",
+        option: "full_name",
+        value: "id",
+    },
+];
+
+const itemSelectedField = [{ label: "Item Selected", model: "item_name" }];
+
+// console.log(page.props.auth.permissions);
+
 </script>
 
 <template>
-  <div class="h-screen flex flex-col bg-gray-100 overflow-hidden">
-    <!-- Pass toggle event -->
-    <NavHeader class="flex-shrink-0" @toggleSidebar="toggleSidebar" />
+    <Toast />
+    <LoadingOverlay
+        :show="isLoading"
+        :title="loadingTitle"
+        :message="loadingMessage"
+    />
 
-    <div class="flex flex-1 overflow-hidden">
-      <!-- Sidebar -->
-      <aside class="transition-all duration-600 ease-in-out transform" :class="isSidebarOpen
-          ? 'translate-x-0 opacity-100'
-          : '-translate-x-full opacity-0 w-0'
-        ">
-        <SideBar />
-      </aside>
+    <div class="h-screen flex flex-col bg-gray-100 overflow-hidden">
+        <NavHeader class="flex-shrink-0" @toggleSidebar="toggleSidebar" />
 
-      <!-- Main -->
-      <main class="flex-1 sm:p-5 md:p-6 md:mx-0 overflow-y-auto">
-        <div class="m-2">
-          <PageHeader title="Items" />
-          <div class="w-full h-full">
-            <div class="flex flex-col md:flex-row gap-2 justify-end mt-6">
-              <ConvertButton />
-              <ImportButton />
-              <ExportButton />
-            </div>
+        <div class="flex flex-1 overflow-hidden">
+            <aside
+                class="transition-all duration-600 ease-in-out transform"
+                :class="
+                    isSidebarOpen
+                        ? 'translate-x-0 opacity-100'
+                        : '-translate-x-full opacity-0 w-0'
+                "
+            >
+                <SideBar />
+            </aside>
 
-            <div class="flex flex-col md:flex-row justify-between mt-10">
-              <PrimaryButton @click="openAdd">
-                <i class="fa-solid fa-plus"></i>
-                <span> Add Item</span>
-              </PrimaryButton>
+            <main class="flex-1 sm:p-5 md:p-6 md:mx-0 overflow-y-auto">
+                <div class="m-2">
+                    <PageHeader title="Items" />
+                    <div class="w-full h-full">
+                        <div
+                            class="flex flex-col md:flex-row gap-2 justify-between mt-6"
+                        >
+                            <div class="flex flex-col sm:flex-row gap-2">
+                                <PrimaryButton @click="openAdd">
+                                    <i class="fa-solid fa-plus"></i>
+                                    <span>Add Item</span>
+                                </PrimaryButton>
 
-              <ItemFilterControls :search="search" :cost_range="cost_range" :status="status"
-                :unitCostOptions="unitCostOptions" :filterStatus="filterStatus" @update:search="search = $event"
-                @update:status="status = $event" @update:cost_range="cost_range = $event" :mode="'inventory'" />
-            </div>
+                                <ThirdButton @click="openAss">
+                                    <i class="fa-solid fa-user-plus"></i>
+                                    <span>Assign</span>
+                                </ThirdButton>
 
-            <InventoryFormModal v-if="showFormModal" :mode="formMode" :firstDropdown="firstDropdown"
-              :firstInputField="firstInputField" :secondDropdown="secondDropdown"
-              :quantityCostFields="quantityCostFields" :input-fields="inputFields"
-              :invoicesFundFields="invoicesFundFields" :supplierOptions="supplierOptions" :requestFields="requestFields"
-              :inputFieldsEdit="inputFieldsEdit" :totalCost="totalCost" :itemClass="itemClassifications"
-              :initialValues="currentItem" :suppliers="suppliers" :item="currentItem" :viewItem="viewItem"
-              @submit="handleSubmit" @close="() => (showFormModal = false)" />
+                                <ThirdButton @click="printQrCodes">
+                                    <i class="fa-solid fa-qrcode"></i>
+                                    <span>Generate QR</span>
+                                </ThirdButton>
 
-            <SuccessModal v-if="showSuccessModal" :icon="successIcon"
-              :title="formMode === 'edit' ? 'Edit Success' : 'Added Success'" :message="successMessage"
-              :actionButtonLabel="formMode === 'edit' ? 'View Item' : 'Assign'" @action="handleAction"
-              @close="showSuccessModal = false" />
+                                <SecondaryButton
+                                    :disabled="isPrinting"
+                                    @click="printSelected"
+                                    class="gap-2 text-white text-xs sm:text-sm"
+                                >
+                                    <i class="fa-solid fa-print"></i>
+                                    <span>{{
+                                        isPrinting ? "Printing..." : "Print"
+                                    }}</span>
+                                </SecondaryButton>
+                            </div>
+                            <div class="flex flex-col sm:flex-row gap-2">
+                                <ConvertButton />
+                                <ImportButton />
+                                <ExportButton />
+                            </div>
+                        </div>
 
-            <SuccessDeleteModal v-if="showDeleteSuccessModal" :icon="iconDelete" title="Delete Success"
-              message="Item deleted successfully!" buttonText="Confirm" @close="showDeleteSuccessModal = false" />
+                        <div class="flex md:flex-row justify-between mt-5">
+                            <ItemFilterControls
+                                :search="search"
+                                :cost_range="cost_range"
+                                :status="status"
+                                :acknowledgement_status="acknowledgement_status"
+                                :unitCostOptions="unitCostOptions"
+                                :filterStatus="filterStatus"
+                                :acknowledgementFilter="acknowledgementFilter"
+                                @update:search="search = $event"
+                                @update:status="status = $event"
+                                @update:cost_range="cost_range = $event"
+                                @update:acknowledgement_status="
+                                    acknowledgement_status = $event
+                                "
+                                :mode="'inventory'"
+                            />
+                        </div>
 
-            <DeleteModal v-if="showDeleteModal" :item="currentItem" @confirm="confirmDelete"
-              @close="() => (showDeleteModal = false)" />
+                        <AcknowledgementFormModal
+                            v-if="showAssignModal"
+                            :mode="'create'"
+                            :accountableField="accountableField"
+                            :itemSelectedField="itemSelectedField"
+                            :selectedIDs="tempSelectedIds"
+                            :items="items"
+                            :userProfiles="userProfiles"
+                            :users="users"
+                            @close="() => (showAssignModal = false)"
+                            @submit="handleSubmit"
+                        />
 
-            <InventoryTable :columns="columns" :rows="items" @view="handleView" @edit="handleEdit"
-              @delete="handleDelete" :actions="['view', 'delete', 'edit']" />
-          </div>
+                        <InventoryFormModal
+                            v-if="showFormModal"
+                            :mode="formMode"
+                            :firstDropdown="firstDropdown"
+                            :firstInputField="firstInputField"
+                            :secondDropdown="secondDropdown"
+                            :quantityCostFields="quantityCostFields"
+                            :input-fields="inputFields"
+                            :invoicesFundFields="invoicesFundFields"
+                            :supplierOptions="supplierOptions"
+                            :requestFields="requestFields"
+                            :inputFieldsEdit="inputFieldsEdit"
+                            :totalCost="totalCost"
+                            :itemClass="itemClassifications"
+                            :rooms="rooms"
+                            :roomDropdown="roomDropdown"
+                            :initialValues="currentItem"
+                            :suppliers="suppliers"
+                            :item="currentItem"
+                            :viewItem="viewItem"
+                            @submit="handleSubmit"
+                            @close="() => (showFormModal = false)"
+                        />
+
+                        <SuccessModal
+                            v-if="showSuccessModal"
+                            :icon="successIcon"
+                            :title="
+                                formMode === 'edit'
+                                    ? 'Edit Success'
+                                    : 'Added Success'
+                            "
+                            :message="successMessage"
+                            :actionButtonLabel="
+                                formMode === 'edit' ? 'View Item' : 'Assign'
+                            "
+                            @action="handleAction"
+                            @close="showSuccessModal = false"
+                        />
+
+                        <SuccessDeleteModal
+                            v-if="showDeleteSuccessModal"
+                            :icon="iconDelete"
+                            title="Delete Success"
+                            message="Item deleted successfully!"
+                            buttonText="Confirm"
+                            @close="showDeleteSuccessModal = false"
+                        />
+
+                        <DeleteModal
+                            v-if="showDeleteModal"
+                            :item="currentItem"
+                            @confirm="confirmDelete"
+                            @close="() => (showDeleteModal = false)"
+                        />
+
+                        <InventoryTable
+                            :columns="columns"
+                            :rows="items"
+                            :rooms="rooms"
+                            :module="'inventory'"
+                            :actions="['view', 'edit', 'delete', 'print']"
+                            @selection-changed="handleSelectionChanged"
+                            @view="handleView"
+                            @edit="handleEdit"
+                            @delete="handleDelete"
+                            @print="handlePrint"
+                        />
+                    </div>
+                </div>
+            </main>
         </div>
-      </main>
     </div>
-  </div>
 </template>

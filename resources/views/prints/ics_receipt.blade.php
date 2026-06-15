@@ -273,10 +273,13 @@
 </head>
 
 <body>
-    @foreach ($acknowledgementItems->groupBy('acknowledgement_receipts_id') as $receiptItems)
+    @php $acknowledgementItems = $acknowledgementItems ?? $parItems ?? $icsItems; @endphp
+    @foreach ($acknowledgementItems->groupBy('acknowledgement_id') as $receiptItems)
         @php
-            $receipt = $receiptItems->first()->acknowledgementReceipts;
-            $firstItem = $receiptItems->first()->inventoryItems;
+            $firstAckItem = $receiptItems->first();
+            $receipt = $firstAckItem->acknowledgementReceipts;
+            $firstItem = $firstAckItem->inventoryItems;
+            $lastItem = $receiptItems->last()->inventoryItems;
         @endphp
 
         <div class="a4-page">
@@ -287,12 +290,10 @@
                     <div class="header-left">
                         <img src="{{ public_path('images/uplogo-2.png') }}">
                     </div>
-
                     <div class="header-center">
                         <h1>University of the Philippines</h1>
                         <p>Region VII - Central Visayas</p>
                     </div>
-
                     <div class="header-right">
                         <img src="{{ public_path('images/uplogo-1.png') }}">
                     </div>
@@ -321,31 +322,6 @@
                     </table>
                 </div>
 
-                <!-- META -->
-                <!-- <div class="meta">
-                        <div class="meta-row">
-                            <div>
-                                <strong>Entity Name:</strong>
-                                {{ $firstItem->item_name ?? 'N/A' }}
-                            </div>
-                            <div>
-                                <strong>ICS No.:</strong>
-                                {{ $firstItem->property_number ?? 'N/A' }}
-                            </div>
-                        </div>
-
-                        <div class="meta-row">
-                            <div>
-                                <strong>Fund Cluster:</strong>
-                                {{ $receiptItems->first()->inventoryItems->fund_source ?? 'N/A' }}
-                            </div>
-                            <div>
-                                <strong>Date:</strong>
-                                {{ optional($receipt->created_at)->format('m/d/Y') }}
-                            </div>
-                        </div>
-                    </div> -->
-
                 <!-- ITEMS TABLE -->
                 <table class="ics-table">
                     <thead>
@@ -362,7 +338,6 @@
                             <th>Total Cost</th>
                         </tr>
                     </thead>
-
                     <tbody>
                         @foreach ($receiptItems as $item)
                             <tr>
@@ -387,41 +362,34 @@
                                 <div class="purchase-info">
                                     <div>
                                         <span class="label">Purchase From:</span>
-                                        <span class="value">
-                                            {{ $item->inventoryItems->supplier->supplier_name ?? 'N/A' }}
-                                        </span>
+                                        <span class="value">{{ $lastItem->supplier->supplier_name ?? 'N/A' }}</span>
                                     </div>
-
                                     <div class="purchase-second-content">
                                         <div>
                                             <span class="label">Invoice No.:</span>
-                                            <span class="value">{{ $item->inventoryItems->invoice ?? 'N/A' }}</span>
+                                            <span class="value">{{ $lastItem->invoice ?? 'N/A' }}</span>
                                         </div>
-
                                         <div>
                                             <span class="label">PO No.:</span>
-                                            <span class="value">{{ $item->inventoryItems->po_number ?? 'N/A' }}</span>
+                                            <span class="value">{{ $lastItem->po_number ?? 'N/A' }}</span>
                                         </div>
-
                                         <div>
                                             <span class="label">PR No.:</span>
-                                            <span class="value">{{ $item->inventoryItems->pr_number ?? 'N/A' }}</span>
+                                            <span class="value">{{ $lastItem->pr_number ?? 'N/A' }}</span>
                                         </div>
                                     </div>
                                 </div>
                             </td>
-
                             <td width="40%">
                                 <div class="purchase-info">
                                     <div class="purchase-right-content">
                                         <div>
                                             <span class="label">Serial No.:</span>
-                                            <span class="value">{{ $item->inventoryItems->serial_number ?? 'N/A' }}</span>
+                                            <span class="value">{{ $lastItem->serial_number ?? 'N/A' }}</span>
                                         </div>
-
                                         <div class="second-right-content">
                                             <span class="label">Location:</span>
-                                            {{ $receipt->accountablePerson->department ?? 'N/A' }}
+                                            {{ $firstAckItem->accountablePerson->department ?? 'N/A' }}
                                         </div>
                                     </div>
                                 </div>
@@ -439,7 +407,9 @@
                             <strong>Received From:</strong>
                             <div class="name-container">
                                 <div class="underline">
-                                    {{ optional($receipt->issuedBy->userProfiles)->first_name }} {{ optional($receipt->issuedBy->userProfiles)->middle_name }} {{ optional($receipt->issuedBy->userProfiles)->last_name }}
+                                    {{ $firstAckItem->issuedBy->first_name ?? '' }}
+                                    {{ $firstAckItem->issuedBy->middle_name ?? '' }}
+                                    {{ $firstAckItem->issuedBy->last_name ?? '' }}
                                 </div>
                             </div>
                             <span>Signature over Printed Name</span>
@@ -448,7 +418,7 @@
                             <strong>Received By:</strong>
                             <div class="name-container">
                                 <div class="underline">
-                                    {{ $receipt->accountablePerson->full_name ?? ' ' }}
+                                    {{ $firstAckItem->accountablePerson->full_name ?? ' ' }}
                                 </div>
                             </div>
                             <span>Signature over Printed Name</span>
@@ -459,5 +429,4 @@
         </div>
     @endforeach
 </body>
-
 </html>

@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref, computed } from "vue";
-import { usePage } from "@inertiajs/vue3";
+import { usePage, router } from "@inertiajs/vue3";
 import NavHeader from "@/Components/NavHeader.vue";
 import SideBar from "@/Components/SideBar.vue";
 import ItemOverview from "@/Components/ItemOverview.vue";
@@ -10,6 +10,10 @@ import ItemFilterControls from "@/Components/Filters/ItemFilterControls.vue";
 import InventoryTable from "@/Components/InventoryTable.vue";
 import SupplierChartCard from "@/Components/SupplierChartCard.vue";
 import UserActivity from "@/Components/UserActivity.vue";
+import { useLoading } from '@/Composables/useLoading';
+import LoadingOverlay from "@/Components/LoadingOverlay.vue";
+
+const { isLoading, loadingTitle, loadingMessage, startLoading, stopLoading } = useLoading();
 
 const columns = [
   { label: "Item Name", key: 'item_name' },
@@ -25,12 +29,10 @@ const columns = [
       if (status === 0) {
         label = 'Cancelled';
         cls = 'text-[#D32F2F] font-bold bg-[#F8D4D4] py-2 px-4 rounded-full';
-        icon = '<i class="fa-solid fa-ban"></i>';
       }
       else if (status === 1) {
         label = 'Recieved';
         cls = 'text-[#2E7D32] font-bold bg-[#D4F8D4] py-2 px-4 rounded-full';
-        icon = '<i class="fa-solid fa-circle-check"></i>';
       }
       return `<span class="${cls}">${icon} ${label}</span>`;
     }
@@ -70,6 +72,12 @@ const toggleSidebar = () => { isSidebarOpen.value = !isSidebarOpen.value; };
 </script>
 
 <template>
+      <LoadingOverlay
+        :show="isLoading"
+        :title="loadingTitle"
+        :message="loadingMessage"
+    />
+
   <div class="h-screen flex flex-col bg-gray-100">
   <!-- NAVHEADER -->
   <NavHeader class="flex-shrink-0" @toggleSidebar="toggleSidebar" />

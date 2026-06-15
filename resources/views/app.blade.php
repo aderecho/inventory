@@ -13,7 +13,7 @@
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
         <!-- Font Awesome 6 (Free CDN) -->
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
-
+        <link rel="preload" as="image" href="/images/uplogo-1.png" />
 
         <!-- Scripts -->
         @routes

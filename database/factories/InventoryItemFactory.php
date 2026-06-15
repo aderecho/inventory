@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Supplier;
+use App\Models\InventoryItem;
 use App\Models\ItemClassification;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -13,47 +14,32 @@ class InventoryItemFactory extends Factory
         $unitCost = $this->faker->randomFloat(2, 30000, 99000);
         $qty = $this->faker->numberBetween(1, 20);
 
-        static $groupCounters = []; // Keeps track of last "group" for each classification code
+        $data = require database_path('factories/factory_data/inventory_faker.php');
+        $item = fake()->randomElement($data);
+
+        $code = $this->faker->randomElement(['250', '451', '320', '150']);
+        $group = 1;
+
+        $count = InventoryItem::where('property_number', 'like', "{$code}-{$group}-%")->count();
+        $propertyNumber = "{$code}-{$group}-" . ($count + 1);
 
         return [
-            'item_classification_id' => ItemClassification::factory(),
+            'room_id' => $this->faker->numberBetween(1, 30),
             'fund_source' => strtoupper($this->faker->unique()->bothify('FS-###')),
             'invoice' => strtoupper($this->faker->unique()->bothify('INV-###')),
-            'supplier_id' => Supplier::factory(),
-            'item_name' => $this->faker->word(),
-            'description' => $this->faker->sentence(),
+            'item_name' => $item['item_name'],
+            'description' => $item['description'],
             'quantity' => 1,
-            'unit' => $this->faker->randomElement(['pcs', 'box', 'unit']),
-            'unit_cost' => $unitCost = $this->faker->randomFloat(2, 30000, 99000),
-            'total_amount' => $qty * $unitCost,
+            'unit' => $item['unit'],
+            'unit_cost' => $item['unit_cost'],
+            'total_amount' => $qty * $item['unit_cost'],
             'pr_number' => strtoupper($this->faker->unique()->bothify('PR-###')),
             'po_number' => strtoupper($this->faker->unique()->bothify('PO-###')),
-            // Property number format: 250-1-1, 250-1-2, ...
-            'property_number' => function () use (&$groupCounters) {
-                $code = $this->faker->randomElement(['250', '451', '320', '150']);
-
-                // Initialize if not set yet
-                if (!isset($groupCounters[$code])) {
-                    $groupCounters[$code] = [
-                        'group' => 1,
-                        'counter' => 1,
-                    ];
-                }
-
-                // Get current group and counter
-                $group = $groupCounters[$code]['group'];
-                $itemNum = $groupCounters[$code]['counter']++;
-
-                // Example output: 250-1-1
-                return "{$code}-{$group}-{$itemNum}";
-            },
-
-
+            'property_number' => $propertyNumber,
             'serial_number' => strtoupper($this->faker->unique()->bothify('SER-###')),
             'remarks' => strtoupper($this->faker->unique()->bothify('RM-###')),
             'date_acquired' => $this->faker->date('Y-m-d', 'now'),
             'status' => $this->faker->numberBetween(0, 1),
         ];
-
     }
 }

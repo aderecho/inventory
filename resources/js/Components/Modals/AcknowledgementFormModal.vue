@@ -7,7 +7,6 @@ import { useToast } from "primevue/usetoast";
 const props = defineProps({
   mode: { type: String, default: "create" },
   accountableField: { type: Array, default: () => [] },
-  inputFields: { type: Array, default: () => [] },
   itemSelectedField: { type: Array, default: () => [] },
   selectedIDs: { type: Array, default: () => [] },
   items: { type: Object, default: () => ({ data: [] }) },
@@ -59,7 +58,7 @@ function submit() {
   }
 
   form.inventory_item_id = props.selectedIDs;
-  form.created_by = props.users[0]?.id ?? null;
+  form.created_by = props.userProfiles[0]?.id ?? null;
 
   let updateCategoryPromise;
 
@@ -101,6 +100,7 @@ function submit() {
           emit("submit", form);
         },
         onError: (errors) => {
+          console.log("Validation errors:", errors);
           toast.add({
             severity: "warn",
             summary: "Validation Failed",
@@ -279,7 +279,7 @@ function getViewValue(view) {
                 </div>
 
                 <div>
-                  <label class="block text-sm text-[#3B3B3B] font-bold mb-1">Date Acquired</label>
+                  <label class="block text-sm text-[#3B3B3B] font-bold mb-1">PAR Date</label>
                   <input v-model="form.par_date" :class="[
                     'w-full rounded-md px-3 py-3 bg-[#F8F8F8] text-gray-500 text-sm focus:ring-1 focus:outline-none',
                     form.errors.par_date
@@ -290,16 +290,6 @@ function getViewValue(view) {
                     {{ form.errors.par_date }}
                   </div>
                 </div>
-              </div>
-            </div>
-
-            <!-- ROOMS -->
-            <div v-for="ip in inputFields" :key="ip.model">
-              <label class="block text-sm text-[#3B3B3B] font-bold mb-1">{{ ip.label }}</label>
-              <input :placeholder="ip.placeholder"
-                class="w-full rounded-md border border-gray-300 px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:ring-[#850038] focus:outline-none focus:border-[#850038]" />
-              <div v-if="form.errors[ip.model]" class="text-red-500 text-sm">
-                {{ form.errors[ip.model] }}
               </div>
             </div>
 
@@ -363,7 +353,7 @@ function getViewValue(view) {
           </button>
           <button type="submit"
             class="bg-[#0E6021] text-white px-8 py-4 rounded-full text-sm font-semibold hover:bg-green-800">
-            {{ mode === "edit" ? "Update" : "Assign" }}
+            {{ mode === 'edit' ? 'Update' : mode === 'view' ? 'Assigned Details' : 'Assign' }}
           </button>
         </div>
       </form>

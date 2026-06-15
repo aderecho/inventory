@@ -11,6 +11,10 @@
   import DeleteModal from "@/Components/Modals/DeleteModal.vue";
   import SuccessModal from "@/Components/Modals/SuccessModal.vue";
   import SuccessDeleteModal from "@/Components/Modals/SuccessDeleteModal.vue";
+  import LoadingOverlay from "@/Components/LoadingOverlay.vue";
+  import { useLoading } from '@/Composables/useLoading';
+
+const { isLoading, loadingTitle, loadingMessage, startLoading, stopLoading } = useLoading();
 
   const columns = [
     { label: "Supplier Name", key: "supplier_name" },
@@ -127,6 +131,11 @@
 </script>
 
   <template>
+    <LoadingOverlay
+        :show="isLoading"
+        :title="loadingTitle"
+        :message="loadingMessage"
+    />
     <div class="h-screen flex flex-col bg-gray-100 overflow-hidden">
       <!-- Pass toggle event -->
       <NavHeader class="flex-shrink-0" @toggleSidebar="toggleSidebar" />
@@ -165,7 +174,7 @@
             <SuccessDeleteModal v-if="showDeleteSuccessModal" title="Delete Success"
               message="Supplier deleted successfully!" buttonText="Confirm" @close="showDeleteSuccessModal = false" />
 
-            <InventoryTable :columns="columns" :rows="suppliers" :actions="['edit', 'delete']" @edit="handleEdit"
+            <InventoryTable :module="'suppliers'" :columns="columns" :rows="suppliers" :actions="['edit', 'delete']" @edit="handleEdit"
               @delete="handleDelete" />
           </div>
         </main>

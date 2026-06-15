@@ -13,7 +13,13 @@ class AcknowledgementItemFactory extends Factory
     {
         return [
             'acknowledgement_id' => AcknowledgementReceipt::factory(),
-            'inventory_item_id' => InventoryItem::factory(),
+            'inventory_item_id' => InventoryItem::inRandomOrder()->value('id')
+                ?? InventoryItem::factory()->state(function () {
+                    return [
+                        'item_classification_id' => \App\Models\ItemClassification::inRandomOrder()->value('id'),
+                        'supplier_id' => \App\Models\Supplier::inRandomOrder()->value('id'),
+                    ];
+                }),
             'accountable_person_id' => UserProfile::inRandomOrder()->value('id'),
             'issued_by_id' => UserProfile::inRandomOrder()->value('id'),
             'status' => $this->faker->boolean ? 1 : 0,

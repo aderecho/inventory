@@ -13,30 +13,33 @@ use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use Illuminate\Support\Facades\Validator;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 
+
 class InventoryService
 {
     public function filterAndPaginateInventory(
         ?string $search = null,
         ?string $costRange = null,
         int|string|null $status = null,
+        ?string $acknowledgementStatus = null,
         int $perPage = 10
     ) {
-        return InventoryItem::with('itemClassification', 'supplier')
+        return InventoryItem::with([
+            'itemClassification',
+            'supplier',
+            'latestAcknowledgementItem.accountablePerson',
+            'acknowledgementHistory.accountablePerson',
+            'acknowledgementHistory.acknowledgementReceipts',
+        ])
             ->when(
                 $search,
-                fn($query, $search) =>
-                $query->search($search)
+                fn($query, $search) => $query->search($search)
             )
             ->when($costRange, function ($query, $costRange) {
-
-                // Always return 2 values; fill missing ones as null
                 [$min, $max] = array_pad(explode('-', $costRange), 2, null);
 
-                // Convert empty strings to null
                 $min = $min !== '' ? $min : null;
                 $max = $max !== '' ? $max : null;
 
-                // Apply correct filter rules
                 if ($min !== null && $max !== null) {
                     $query->whereBetween('unit_cost', [(float) $min, (float) $max]);
                 } elseif ($min !== null) {
@@ -47,52 +50,45 @@ class InventoryService
             })
             ->when(
                 !is_null($status),
-                fn($query) =>
-                $query->where('status', $status)
+                fn($query) => $query->where('status', $status)
             )
+            ->when($acknowledgementStatus, function ($query, $acknowledgementStatus) {
+
+                // Currently assigned
+                if ($acknowledgementStatus === 'with_acknowledgement') {
+                    $query->whereHas('latestAcknowledgementItem');
+                }
+
+                // Never assigned
+                if ($acknowledgementStatus === 'without_acknowledgement') {
+                    $query->whereDoesntHave('latestAcknowledgementItem');
+                }
+            })
             ->orderBy('created_at', 'desc')
             ->paginate($perPage)
             ->withQueryString();
     }
 
-    private function baseTransactionQuery($search = null, $costRange = null)
+    public function createAcknowledgements(array $data)
     {
-        return AcknowledgementItem::with(
-            'inventoryItems',
-            'acknowledgementReceipts.issuedBy.userProfiles', 'issuedBy',
-        )
-            ->when($search, fn($query, $search) => $query->search($search))
-            ->when($costRange, function ($query, $costRange) {
-                [$min, $max] = explode('-', $costRange);
+        $ack = AcknowledgementReceipt::create([
+            'issued_by_id' => $data['issued_by_id'],
+            'category' => $data['category'],
+            'created_by' => $data['created_by'],
+            'par_date' => $data['par_date'],
+            'remarks' => $data['remarks'] ?? null,
+        ]);
 
-                $query->whereHas('inventoryItems', function ($q) use ($min, $max) {
-                    if ($min !== '' && $max !== '') {
-                        $q->whereBetween('unit_cost', [(float) $min, (float) $max]);
-                    } elseif ($min !== '' && $max === '') {
-                        $q->where('unit_cost', '>=', (float) $min);
-                    } elseif ($min === '' && $max !== '') {
-                        $q->where('unit_cost', '<=', (float) $max);
-                    }
-                });
-            });
-    }
+        foreach ($data['inventory_item_id'] as $itemId) {
 
-    public function filterAndPaginateTransaction($search = null, $costRange = null)
-    {
-        return $this->baseTransactionQuery($search, $costRange)
-            ->where('status', 1)
-            ->orderBy('created_at', 'desc')
-            ->paginate(10)
-            ->withQueryString();
-    }
-
-    public function filterAndPaginateTransactionHistory($search = null, $costRange = null)
-    {
-        return $this->baseTransactionQuery($search, $costRange)
-            ->where('status', 0)
-            ->orderBy('created_at', 'desc')
-            ->paginate(10)
-            ->withQueryString();
+            AcknowledgementItem::create([
+                'acknowledgement_id' => $ack->id,
+                'inventory_item_id' => $itemId,
+                'accountable_person_id' => $data['accountable_persons_id'],
+                'issued_by_id' => $data['issued_by_id'],
+                'status' => 1,
+            ]);
+        }
     }
 
     public function createInventoryItems(array $data): void
@@ -103,6 +99,7 @@ class InventoryService
             $inventoryItem = InventoryItem::create([
                 'item_classification_id' => $data['item_classification_id'],
                 'supplier_id' => $data['supplier_id'],
+                'room_id' => $data['room_id'],
                 'invoice' => $data['invoice'],
                 'fund_source' => $data['fund_source'],
                 'item_name' => $data['item_name'],
@@ -131,6 +128,7 @@ class InventoryService
         $item->update([
             'item_classification_id' => $data['item_classification_id'],
             'supplier_id' => $data['supplier_id'],
+            'room_id' => $data['room_id'],
             'invoice' => $data['invoice'],
             'fund_source' => $data['fund_source'],
             'item_name' => $data['item_name'],

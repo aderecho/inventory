@@ -202,7 +202,7 @@ const toggleSidebar = () => {
           <SuccessDeleteModal v-if="showDeleteSuccessModal" title="Delete Success" message="User deleted successfully!"
             buttonText="Confirm" @close="showDeleteSuccessModal = false" />
 
-          <InventoryTable :columns="columns" :rows="users" :actions="['edit', 'delete']" @edit="handleEdit"
+          <InventoryTable :columns="columns" :module="'users'" :rows="users" :actions="['edit', 'delete']" @edit="handleEdit"
             @delete="handleDelete" />
 
         </div>
