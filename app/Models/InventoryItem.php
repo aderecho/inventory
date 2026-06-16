@@ -13,6 +13,7 @@ class InventoryItem extends Model
         'fund_source',
         'invoice',
         'supplier_id',
+        'room_id',
         'item_name',
         'description',
         'quantity',
@@ -33,14 +34,32 @@ class InventoryItem extends Model
         return $this->belongsTo(Supplier::class);
     }
 
+    public function acknowledgementItems()
+    {
+        return $this->hasMany(
+            AcknowledgementItem::class,
+            'inventory_item_id'
+        );
+    }
+
     public function acknowledgementReceipts()
     {
         return $this->hasMany(AcknowledgementReceipt::class);
     }
 
-    public function acknowledgementItems()
+    public function latestAcknowledgementItem()
     {
-        return $this->hasMany(AcknowledgementItem::class);
+        return $this->hasOne(AcknowledgementItem::class)
+            ->latestOfMany();
+    }
+
+    public function acknowledgementHistory()
+    {
+        return $this->hasMany(
+            AcknowledgementItem::class,
+            'inventory_item_id'
+        )->with('accountablePerson')
+            ->latest();
     }
 
     public function itemClassification()
@@ -70,5 +89,4 @@ class InventoryItem extends Model
                 });
         });
     }
-
 }

@@ -23,13 +23,14 @@ class InventoryStoreRequest extends FormRequest
     {
         return [
             'item_classification_id' => 'required|integer',
+            'supplier_id' => 'required|integer',
+            'room_id' => 'required|integer',
             'unit' => 'required|string|max:50',
             'status' => 'required|string|max:50',
             'date_acquired' => 'required|date',
             'quantity' => 'required|integer|min:1',
             'unit_cost' => 'required|numeric',
             'item_name' => 'required|string|max:255',
-            'supplier_id' => 'required|integer',
             'pr_number' => 'required|string|max:50',
             'po_number' => 'required|string|max:50',
             'remarks' => 'required|string|max:50',

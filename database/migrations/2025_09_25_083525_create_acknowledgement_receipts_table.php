@@ -10,14 +10,12 @@ return new class extends Migration {
         Schema::create('acknowledgement_receipts', function (Blueprint $table) {
             $table->increments('id');
             $table->date('par_date');
-            $table->unsignedInteger('accountable_persons_id');
             $table->unsignedInteger('issued_by_id');
             $table->string('category', 20)->nullable();
             $table->string('remarks', 255)->nullable();
             $table->unsignedInteger('created_by');
             $table->timestamps();
 
-            $table->foreign('accountable_persons_id')->references('id')->on('accountable_persons')->cascadeOnDelete()->cascadeOnUpdate();
             $table->foreign('issued_by_id')->references('id')->on('users')->cascadeOnDelete()->cascadeOnUpdate();
             $table->foreign('created_by')->references('id')->on('users')->cascadeOnDelete()->cascadeOnUpdate();
         });

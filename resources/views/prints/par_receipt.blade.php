@@ -24,7 +24,6 @@
             color: #000;
         }
 
-        /* A4 PAGE */
         .a4-page {
             width: 210mm;
             height: 297mm;
@@ -34,12 +33,10 @@
             overflow: hidden;
         }
 
-        /* CONTENT */
         .content-area {
-            padding: 15mm 20mm 45mm 20mm;
+            padding: 15mm 20mm 32mm 20mm;
         }
 
-        /* HEADER */
         .header {
             display: table;
             width: 100%;
@@ -77,7 +74,6 @@
             font-size: 10pt;
         }
 
-        /* TITLE */
         .title-header {
             text-align: center;
             margin: 6mm 0 10mm;
@@ -89,7 +85,6 @@
             letter-spacing: 0.5px;
         }
 
-        /* META */
         .meta-section {
             margin-bottom: 3mm;
         }
@@ -104,20 +99,16 @@
             padding: 4px 0;
             vertical-align: top;
             line-height: 1.6;
-            /* 👈 spacing between Entity Name / Fund Cluster */
         }
 
         .meta-table td span {
             color: #363636;
         }
 
-        /* spacing between left (Entity) and right (PAR / Date) */
         .meta-table td:first-child {
             padding-right: 10mm;
         }
 
-
-        /* ITEMS TABLE */
         .ics-table {
             width: 100%;
             border-collapse: collapse;
@@ -131,7 +122,6 @@
             text-align: center;
         }
 
-        /* PURCHASE TABLE */
         .purchase-table {
             width: 100%;
             border-collapse: collapse;
@@ -155,7 +145,6 @@
             font-weight: bold;
         }
 
-        /* REMARKS/LOCATION */
         .second-content-table {
             width: 100%;
             border-collapse: collapse;
@@ -170,7 +159,15 @@
             vertical-align: top;
         }
 
-        /* SIGNATURE */
+        /* ✅ Same as ICS — position absolute outside content-area */
+        .signature-section {
+            position: absolute;
+            display: flex;
+            margin-top: -8.3em;
+            left: 20mm;
+            right: 20mm;
+        }
+
         .signature-table {
             width: 100%;
             border-collapse: collapse;
@@ -184,13 +181,15 @@
             padding-top: 15px;
             padding-left: 6px;
             vertical-align: top;
+            position: relative;
         }
 
         .signature-table td span {
             display: block;
             text-align: center;
-            margin-top: 2mm;
+            margin-top: 4px;
             position: relative;
+            top: -4px;
         }
 
         .name-container {
@@ -199,20 +198,17 @@
             align-items: center;
             justify-content: center;
             min-height: 40px;
-            margin-top: 10px;
-            /* Reduced bottom margin to bring text up */
+            margin: 12px 0 8px 0;
         }
 
         .underline {
             border-bottom: 1px solid #000;
             width: 250px;
-            padding-bottom: 2px;
+            padding-bottom: 4px;
             text-align: center;
             margin: 0 auto;
         }
 
-
-        /* PRINT */
         @media print {
             body {
                 margin: 0;
@@ -222,10 +218,11 @@
 </head>
 
 <body>
-    @foreach ($acknowledgementItems->groupBy('acknowledgement_receipts_id') as $receiptItems)
+    @foreach ($groupedParItems as $propertyGroup => $receiptItems)
         @php
-            $receipt = $receiptItems->first()->acknowledgementReceipts;
-            $firstItem = $receiptItems->first()->inventoryItems;
+            $firstAckItem = $receiptItems->first();
+            $receipt = $firstAckItem->acknowledgementReceipts;
+            $firstItem = $firstAckItem->inventoryItems;
         @endphp
 
         <div class="a4-page">
@@ -236,12 +233,10 @@
                     <div class="header-left">
                         <img src="{{ public_path('images/uplogo-2.png') }}">
                     </div>
-
                     <div class="header-center">
                         <h1>University of the Philippines</h1>
                         <p>Region VII - Central Visayas</p>
                     </div>
-
                     <div class="header-right">
                         <img src="{{ public_path('images/uplogo-1.png') }}">
                     </div>
@@ -270,19 +265,6 @@
                     </table>
                 </div>
 
-                <!-- META -->
-                <!-- <div class="meta">
-                            <div class="meta-row-one">
-                                <div><strong>Entity Name:</strong> {{ $firstItem->item_name ?? 'N/A' }}</div>
-                                <div><strong>PAR No.:</strong> {{ $firstItem->property_number ?? 'N/A' }}</div>
-                            </div>
-
-                            <div class="meta-row-two">
-                                <div><strong>Fund Cluster:</strong> {{ $firstItem->fund_source ?? 'N/A' }}</div>
-                                <div><strong>Date:</strong> {{ optional($receipt->created_at)->format('m/d/Y') }}</div>
-                            </div>
-                        </div> -->
-
                 <!-- ITEMS -->
                 <table class="ics-table">
                     <thead>
@@ -303,8 +285,7 @@
                                 <td>{{ $item->inventoryItems->description }}</td>
                                 <td>{{ $item->inventoryItems->property_number }}</td>
                                 <td>{{ number_format($item->inventoryItems->unit_cost, 2) }}</td>
-                                <td>{{ number_format($item->inventoryItems->unit_cost * ($item->inventoryItems->quantity ?? 1), 2) }}
-                                </td>
+                                <td>{{ number_format($item->inventoryItems->unit_cost * ($item->inventoryItems->quantity ?? 1), 2) }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -315,12 +296,14 @@
                     <tr>
                         <td width="60%">
                             <div class="purchase-info">
-                                <div><span class="label">Purchase From:</span>
-                                    {{ $firstItem->supplier->supplier_name ?? 'N/A' }}</div>
+                                <div>
+                                    <span class="label">Purchase From:</span>
+                                    {{ $firstItem->supplier->supplier_name ?? 'N/A' }}
+                                </div>
                                 <div><span class="label">Invoice No.:</span> {{ $firstItem->invoice ?? 'N/A' }}</div>
                                 <div><span class="label">PO No.:</span> {{ $firstItem->po_number ?? 'N/A' }}</div>
                                 <div><span class="label">PR No.:</span> {{ $firstItem->pr_number ?? 'N/A' }}</div>
-                                <div><span class="label">Date of Issuance: </span> {{ $receipt->par_date ?? 'N/A' }}</div>
+                                <div><span class="label">Date of Issuance:</span> {{ $receipt->par_date ?? 'N/A' }}</div>
                             </div>
                         </td>
                     </tr>
@@ -332,42 +315,47 @@
                         <tr>
                             <td width="50%">
                                 <strong>Remarks:</strong>
+                                {{ $receipt->remarks ?? 'N/A' }}
                             </td>
                             <td width="50%">
                                 <strong>Location:</strong>
+                                {{ $firstAckItem->accountablePerson->department ?? 'N/A' }}
                             </td>
                         </tr>
                     </table>
                 </div>
 
-                <!-- SIGNATURE -->
-                <div class="signature-section">
-                    <table class="signature-table">
-                        <tr>
-                            <td width="50%">
-                                <strong>Received From:</strong>
-                                <div class="name-container">
-                                    <div class="underline">
-                                        {{ optional($receipt->issuedBy->userProfiles)->first_name }} {{ optional($receipt->issuedBy->userProfiles)->middle_name }} {{ optional($receipt->issuedBy->userProfiles)->last_name }}
-                                    </div>
-                                </div>
-                                <span>Signature over Printed Name</span>
-                            </td>
-                            <td width="50%">
-                                <strong>Received By:</strong>
-                                <div class="name-container">
-                                    <div class="underline">
-                                        {{ $receipt->accountablePerson->full_name ?? ' ' }}
-                                    </div>
-                                </div>
-                                <span>Signature over Printed Name</span>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
             </div>
+
+            {{-- ✅ Moved OUTSIDE content-area, same as ICS --}}
+            <div class="signature-section">
+                <table class="signature-table">
+                    <tr>
+                        <td width="50%">
+                            <strong>Received From:</strong>
+                            <div class="name-container">
+                                <div class="underline">
+                                    {{ $firstAckItem->issuedBy->first_name ?? '' }}
+                                    {{ $firstAckItem->issuedBy->middle_name ?? '' }}
+                                    {{ $firstAckItem->issuedBy->last_name ?? '' }}
+                                </div>
+                            </div>
+                            <span>Signature over Printed Name</span>
+                        </td>
+                        <td width="50%">
+                            <strong>Received By:</strong>
+                            <div class="name-container">
+                                <div class="underline">
+                                    {{ $firstAckItem->accountablePerson->full_name ?? ' ' }}
+                                </div>
+                            </div>
+                            <span>Signature over Printed Name</span>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
         </div>
     @endforeach
 </body>
-
 </html>

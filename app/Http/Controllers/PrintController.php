@@ -12,12 +12,18 @@ class PrintController extends Controller
     ) {}
     public function printReceipt(Request $request)
     {
-        $ids = $request->input('ids');
+        try {
+            $ids = $request->input('ids');
 
-        $result = $this->printService->generateReceiptPdf($ids);
+            $result = $this->printService->generateReceiptPdf($ids);
 
-        $fileName = $result['type'] . '_' . now()->format('Y_m_d_His') . '.pdf';
+            $fileName = $result['type'] . '_' . now()->format('Y_m_d_His') . '.pdf';
 
-        return $result['pdf']->stream($fileName);
+            return $result['pdf']->stream($fileName);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 422);
+        }
     }
 }

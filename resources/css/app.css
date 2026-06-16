@@ -1,25 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
 @font-face {
   font-family: 'Optima';
   src: url('/fonts/OPTIMA.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
 }
 
 @font-face {
   font-family: 'Palatino';
   src: url('/fonts/palr45w.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
 }
 
 .font-optima {
   font-family: 'Optima', sans-serif;
 }
 
-.font-palatino {
-  font-family: 'Palatino', serif;
+.font-optima {
+  font-family: 'Palatino', sans-serif;
 }
-

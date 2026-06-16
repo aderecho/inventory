@@ -16,8 +16,6 @@ const allMenuItems = [
     icon: "fa-solid fa-boxes-packing",
     children: [
       { name: "Items", route: "inventory.items" },
-      { name: "Acknowledgements", route: "inventory.acknowledgements" },
-      { name: "Transactions", route: "inventory.transactions" },
     ],
   },
   {
@@ -29,7 +27,6 @@ const allMenuItems = [
         icon: "fa-solid fa-handshake",
         route: "suppliers.index",
       },
-      { name: "Accountable Persons", route: "accountable.index" },
       { name: "Categories", route: "categories.index" },
     ],
   },

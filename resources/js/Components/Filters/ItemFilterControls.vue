@@ -1,47 +1,104 @@
 <script setup>
-import { router } from '@inertiajs/vue3';
-import { watch, ref, computed } from 'vue';
-import { debounce } from 'lodash';
+import { router } from "@inertiajs/vue3";
+import { watch, ref, computed, onMounted } from "vue";
+import { debounce } from "lodash";
 
 const props = defineProps({
     unitCostOptions: { type: Array, default: () => [] },
     filterStatus: { type: Array, default: () => [] },
-    search: { type: String, default: '' },
-    status: { type: String, default: '' },
-    cost_range: { type: String, default: '' },
-    mode: { type: String, default: 'inventory' },
+    acknowledgementFilter: { type: Array, default: () => [] },
+    search: { type: String, default: "" },
+    status: { type: String, default: "" },
+    cost_range: { type: String, default: "" },
+    mode: { type: String, default: "inventory" },
 });
 
-const search = ref(props.search || '');
-const cost_range = ref(props.cost_range || '');
-const status = ref(props.status || '');
+const search = ref(props.search || "");
+const cost_range = ref(props.cost_range || "");
+const status = ref(props.status || "");
+const acknowledgement_status = ref(props.acknowledgement_status || "");
 
-const emit = defineEmits(['update:search', 'update:status', 'update:cost_range']);
+const emit = defineEmits([
+    "update:search",
+    "update:status",
+    "update:cost_range",
+    "update:acknowledgement_status",
+]);
+
+// Local storage for filters & searching
+const storageKey = `filters-${props.mode}`;
+
+onMounted(() => {
+    const saved = localStorage.getItem(storageKey);
+
+    if (!saved) return;
+
+    const filters = JSON.parse(saved);
+
+    search.value = filters.search ?? "";
+    status.value = filters.status ?? "";
+    cost_range.value = filters.cost_range ?? "";
+    acknowledgement_status.value = filters.acknowledgement_status ?? "";
+
+    if (props.mode === "inventory") {
+        fetchInventory({
+            search: search.value,
+            cost_range: cost_range.value,
+            status: status.value,
+            acknowledgement_status: acknowledgement_status.value,
+        });
+    }
+});
+
+function saveFilters() {
+    localStorage.setItem(
+        storageKey,
+        JSON.stringify({
+            search: search.value,
+            status: status.value,
+            cost_range: cost_range.value,
+            acknowledgement_status: acknowledgement_status.value,
+        }),
+    );
+}
+
+watch(
+    [search, status, cost_range, acknowledgement_status],
+    () => {
+        saveFilters();
+    },
+    { deep: true },
+);
+// End local storage
 
 //-----------------INVENTORY---------------------------
 function fetchInventory(params = {}) {
-    router.get('/inventory/items', params, {
+    router.get("/inventory/items", params, {
         preserveState: true,
         preserveScroll: true,
-        only: ['items'],
+        only: ["items"],
     });
 }
-const debouncedFetchInventory = debounce(fetchInventory, 300);
+const debouncedFetchInventory = debounce(fetchInventory, 1000);
 
 //-----------------DASHBOARD----------------------------
 function fetchDashboardSearch(searchValue) {
-    router.get('/dashboard', { search: searchValue }, {
-        preserveState: true,
-        replace: true,
-        preserveScroll: true,
-    });
+    router.get(
+        "/dashboard",
+        { search: searchValue },
+        {
+            preserveState: true,
+            replace: true,
+            preserveScroll: true,
+        },
+    );
 }
-const debouncedFetchDashboard = debounce(fetchDashboardSearch, 300);
+const debouncedFetchDashboard = debounce(fetchDashboardSearch, 1000);
 
 //----------------ACKNOWLEDGEMENT FETCH-----------------
 function fetchAcknowledgmentSearch(searchValue, cost, stat) {
     router.get(
-        '/inventory/acknowledgements',
+        "/inventory/acknowledgements",
         {
             search: searchValue,
             cost_range: cost,
@@ -51,94 +108,95 @@ function fetchAcknowledgmentSearch(searchValue, cost, stat) {
             preserveState: true,
             replace: true,
             preserveScroll: true,
-        }
+        },
     );
 }
-const debouncedFetchAcknowledgement = debounce(fetchAcknowledgmentSearch, 300);
+const debouncedFetchAcknowledgement = debounce(fetchAcknowledgmentSearch, 1000);
 
 //------------------TRANSACTIONS----------------------
 function fetchTransactionSearch(params = {}) {
-    router.get('/inventory/transactions', params, {
+    router.get("/inventory/transactions", params, {
         preserveState: true,
         replace: true,
         preserveScroll: true,
     });
 }
-const debouncedFetchTransaction = debounce(fetchTransactionSearch, 300);
+const debouncedFetchTransaction = debounce(fetchTransactionSearch, 1000);
 
 //------------------REPORTS----------------------
 function fetchReportSearch(params = {}) {
-    router.get('/report', params, {
+    router.get("/report", params, {
         preserveState: true,
         replace: true,
         preserveScroll: true,
     });
 }
 
-const debouncedFetchReport = debounce(fetchReportSearch, 300);
+const debouncedFetchReport = debounce(fetchReportSearch, 1000);
 
 //------------------SUPPLIERS----------------------
 function fetchSuppliersSearch(searchValue) {
-    router.get('/suppliers', { search: searchValue }, { preserveState: true, replace: true, preserveScroll: true });
+    router.get(
+        "/suppliers",
+        { search: searchValue },
+        { preserveState: true, replace: true, preserveScroll: true },
+    );
 }
-const debouncedFetchSuppliers = debounce(fetchSuppliersSearch, 300);
+const debouncedFetchSuppliers = debounce(fetchSuppliersSearch, 1000);
 
 //------------------CATEGORIES----------------------
 function fetchCategoriesSearch(searchValue) {
-    router.get('/categories', { search: searchValue }, { preserveState: true, replace: true, preserveScroll: true });
+    router.get(
+        "/categories",
+        { search: searchValue },
+        { preserveState: true, replace: true, preserveScroll: true },
+    );
 }
-const debouncedFetchCategories = debounce(fetchCategoriesSearch, 300);
+const debouncedFetchCategories = debounce(fetchCategoriesSearch, 1000);
 
 //------------------ACCOUNTABLE PERSON----------------------
 function fetchAccountablePersonSearch(searchValue) {
-    router.get('/accountable-person', { search: searchValue }, { preserveState: true, replace: true, preserveScroll: true });
+    router.get(
+        "/accountable-person",
+        { search: searchValue },
+        { preserveState: true, replace: true, preserveScroll: true },
+    );
 }
-const debouncedFetchAccountablePerson = debounce(fetchAccountablePersonSearch, 300);
+const debouncedFetchAccountablePerson = debounce(
+    fetchAccountablePersonSearch,
+    300,
+);
 
 //------------------SEARCH WATCHER---------------------
 watch(search, (value) => {
-
     if (props.mode === "inventory") {
         debouncedFetchInventory({
             search: value,
             cost_range: cost_range.value,
-            status: status.value
+            status: status.value,
+            acknowledgement_status: acknowledgement_status.value,
         });
-    }
-
-    else if (props.mode === "dashboard") {
+    } else if (props.mode === "dashboard") {
         debouncedFetchDashboard(value);
-    }
-
-    else if (props.mode === "acknowledgements") {
+    } else if (props.mode === "acknowledgements") {
         debouncedFetchAcknowledgement(value, cost_range.value, status.value);
-    }
-
-    else if (props.mode === "transactions") {
+    } else if (props.mode === "transactions") {
         debouncedFetchTransaction({
             search: value,
             cost_range: cost_range.value,
-            status: status.value
+            status: status.value,
         });
-    }
-
-    else if (props.mode === "reports") {
+    } else if (props.mode === "reports") {
         debouncedFetchReport({
             search: value,
             cost_range: cost_range.value,
-            status: status.value
+            status: status.value,
         });
-    }
-
-    else if (props.mode === "suppliers") {
+    } else if (props.mode === "suppliers") {
         debouncedFetchSuppliers(value);
-    }
-
-    else if (props.mode === "accountable-person") {
+    } else if (props.mode === "accountable-person") {
         debouncedFetchAccountablePerson(value);
-    }
-
-    else if (props.mode === "categories") {
+    } else if (props.mode === "categories") {
         debouncedFetchCategories(value);
     }
 
@@ -147,24 +205,20 @@ watch(search, (value) => {
 
 //--------------------STATUS WATCHER----------------------
 watch(status, (value) => {
-
     if (props.mode === "inventory") {
-        debouncedFetchInventory({   
+        debouncedFetchInventory({
             search: search.value,
             cost_range: cost_range.value,
-            status: value
+            status: value,
+            acknowledgement_status: acknowledgement_status.value,
         });
-    }
-
-    else if (props.mode === "transactions") {
+    } else if (props.mode === "transactions") {
         debouncedFetchTransaction({
             search: search.value,
             cost_range: cost_range.value,
-            status: value
+            status: value,
         });
-    }
-
-    else if (props.mode === "acknowledgements") {
+    } else if (props.mode === "acknowledgements") {
         debouncedFetchAcknowledgement(search.value, cost_range.value, value);
     }
 
@@ -173,57 +227,94 @@ watch(status, (value) => {
 
 //-----------------COST RANGE WATCHER-------------------------
 watch(cost_range, (value) => {
-
     if (props.mode === "inventory") {
         debouncedFetchInventory({
             search: search.value,
             cost_range: value,
-            status: status.value
+            status: status.value,
+            acknowledgement_status: acknowledgement_status.value,
         });
-    }
-
-    else if (props.mode === "transactions") {
+    } else if (props.mode === "transactions") {
         debouncedFetchTransaction({
             search: search.value,
             cost_range: value,
-            status: status.value
+            status: status.value,
         });
-    }
-
-    else if (props.mode === "acknowledgements") {
+    } else if (props.mode === "acknowledgements") {
         debouncedFetchAcknowledgement(search.value, value, status.value);
     }
 
     emit("update:cost_range", value);
 });
 
+//-----------------ACKNOWLEDGEMENT RANGE WATCHER-------------------------
+watch(acknowledgement_status, (value) => {
+    if (props.mode === "inventory") {
+        debouncedFetchInventory({
+            search: search.value,
+            cost_range: cost_range.value,
+            status: status.value,
+            acknowledgement_status: value,
+        });
+    }
+
+    emit("update:acknowledgement_status", value);
+});
+
 //-------------------DYNAMIC PLACEHOLDER---------------------
 const searchPlaceholder = computed(() => {
     switch (props.mode) {
-        case 'inventory':
-            return 'Search Item, Property Number, Serial Number...';
-        case 'acknowledgements':
-            return 'Search Item to assign';
-        case 'transactions':
-            return 'Search';
+        case "inventory":
+            return "Search Item, Property Number, Serial Number...";
+        case "acknowledgements":
+            return "Search Item to assign";
+        case "transactions":
+            return "Search";
         default:
-            return 'Search item';
+            return "Search item";
     }
 });
-
 </script>
 
-
 <template>
-    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-end gap-4 w-full sm:w-auto">
+    <div
+        class="flex flex-col sm:flex-row items-start sm:items-center justify-end gap-4 w-full sm:w-auto"
+    >
+        <div
+            class="flex flex-col w-full sm:w-auto"
+            v-for="(group, gIndex) in acknowledgementFilter"
+            :key="'ack-' + gIndex"
+        >
+            <label class="text-xs text-[#3B3B3B] font-bold mb-1 sm:mb-0">
+                {{ group.label }}
+            </label>
 
+            <select
+                v-model="acknowledgement_status"
+                class="h-8 sm:h-9 w-full sm:w-40 text-xs rounded-md text-gray-600 border focus:ring-[#850038] focus:outline-none focus:border-[#850038]"
+            >
+                <option
+                    v-for="(option, index) in group.options"
+                    :key="index"
+                    :value="option.value"
+                >
+                    {{ option.label }}
+                </option>
+            </select>
+        </div>
         <!-- UNIT COST -->
-        <div class="flex flex-col w-full sm:w-auto" v-for="(group, gIndex) in unitCostOptions" :key="gIndex">
-            <label class="text-xs font-bold text-[#3B3B3B] mb-1 sm:mb-0">{{ group.label }}</label>
+        <div
+            class="flex flex-col w-full sm:w-auto"
+            v-for="(group, gIndex) in unitCostOptions"
+            :key="gIndex"
+        >
+            <label class="text-xs font-bold text-[#3B3B3B] mb-1 sm:mb-0">{{
+                group.label
+            }}</label>
             <select
                 v-model="cost_range"
-                class="h-8 sm:h-9 w-full sm:w-36 text-xs rounded-md text-gray-600 border focus:ring-[#850038] focus:outline-none focus:border-[#850038]">
-                
+                class="h-8 sm:h-9 w-full sm:w-36 text-xs rounded-md text-gray-600 border focus:ring-[#850038] focus:outline-none focus:border-[#850038]"
+            >
                 <option
                     v-for="(option, uIndex) in group.options"
                     :key="uIndex"
@@ -235,8 +326,14 @@ const searchPlaceholder = computed(() => {
         </div>
 
         <!-- STATUS -->
-        <div class="flex flex-col w-full sm:w-auto" v-for="(stats, gIndex) in filterStatus" :key="gIndex">
-            <label class="text-xs text-[#3B3B3B] font-bold mb-1 sm:mb-0">{{ stats.label }}</label>
+        <div
+            class="flex flex-col w-full sm:w-auto"
+            v-for="(stats, gIndex) in filterStatus"
+            :key="gIndex"
+        >
+            <label class="text-xs text-[#3B3B3B] font-bold mb-1 sm:mb-0">{{
+                stats.label
+            }}</label>
             <select
                 v-model="status"
                 class="h-8 sm:h-9 w-full sm:w-36 text-xs rounded-md text-gray-600 border focus:ring-[#850038] focus:outline-none focus:border-[#850038]"
@@ -252,19 +349,20 @@ const searchPlaceholder = computed(() => {
             </select>
         </div>
 
-        <!-- SEARCH BAR -->
+       
+    </div>
+     <!-- SEARCH BAR -->
         <div class="w-full sm:w-auto mt-3 relative">
-            <span class="absolute inset-y-0 left-3 flex items-center text-gray-400">
+            <span
+                class="absolute inset-y-0 left-3 flex items-center text-gray-400"
+            >
                 <i class="fa-solid fa-magnifying-glass"></i>
             </span>
             <input
                 v-model="search"
                 type="search"
                 :placeholder="searchPlaceholder"
-                class="w-full sm:w-64 md:w-96 h-9 sm:h-10 text-[#3B3B3B] rounded-full pl-10 pr-3 border text-sm 
-                focus:ring-[#850038] focus:outline-none focus:border-[#850038]"
+                class="w-full sm:w-64 md:w-96 h-9 sm:h-10 text-[#3B3B3B] rounded-full pl-10 pr-3 border text-sm focus:ring-[#850038] focus:outline-none focus:border-[#850038]"
             />
         </div>
-
-    </div>
 </template>

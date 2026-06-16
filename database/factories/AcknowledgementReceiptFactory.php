@@ -14,7 +14,6 @@ class AcknowledgementReceiptFactory extends Factory
     {
         return [
             'par_date' => $this->faker->date(),
-            'accountable_persons_id' => AccountablePerson::factory(),
             'issued_by_id' => User::factory(),
             'category' => function () {
                 $code = $this->faker->randomElement(['250', '451', '320', '150']);

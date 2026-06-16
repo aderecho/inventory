@@ -4,15 +4,41 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class UserProfile extends Model
 {
     use HasFactory;
     protected $fillable = ['user_id', 'first_name', 'middle_name', 'last_name', 'contact_number', 'status'];
-
+    protected $appends = ['full_name'];
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function accountable_person()
+    {
+        return $this->hasMany(AcknowledgementItem::class, 'accountable_person_id');
+    }
+
+    public function issued_by_id()
+    {
+        return $this->hasMany(AcknowledgementItem::class, 'issued_by_id');
+    }
+
+    public function fullName(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                return collect([
+                    $this->first_name,
+                    $this->middle_name,
+                    $this->last_name,
+                ])
+                    ->filter()
+                    ->join(' ');
+            }
+        );
     }
 
     public function scopeSearch($query, $term)

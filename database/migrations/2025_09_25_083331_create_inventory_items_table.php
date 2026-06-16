@@ -11,6 +11,7 @@ return new class extends Migration {
             $table->bigIncrements('id');
             $table->unsignedBigInteger('item_classification_id');
             $table->unsignedInteger('supplier_id');
+            $table->foreignId('room_id')->nullable();
             $table->string('invoice', 50)->nullable();
             $table->string('fund_source', 50)->nullable();
             $table->string('item_name', 255)->nullable();
@@ -23,7 +24,7 @@ return new class extends Migration {
             $table->string('serial_number', 80)->nullable();
             $table->string('pr_number', 60);
             $table->string('po_number', 60);
-            $table->string('remarks', 255)->nullable();
+            $table->text('remarks')->nullable();
             $table->date('date_acquired')->nullable();
             $table->tinyInteger('status')->default(0);
             $table->timestamps();

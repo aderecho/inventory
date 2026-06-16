@@ -14,17 +14,15 @@ class AcknowledgementSeeder extends Seeder
     {
         // Base data (must already exist)
         $users = User::all();
-        $accPersons = AccountablePerson::all();
 
         // Safety checks (avoid empty-table crashes)
-        if ($users->isEmpty() || $accPersons->isEmpty()) {
-            $this->command?->warn('AcknowledgementSeeder skipped: missing users or accountable persons.');
+        if ($users->isEmpty()) {
+            $this->command?->warn('AcknowledgementSeeder skipped: missing users.');
             return;
         }
 
         // Acknowledgement Receipts
         $ackReceipts = AcknowledgementReceipt::factory(30)->create([
-            'accountable_persons_id' => fn () => $accPersons->random()->id,
             'issued_by_id'           => fn () => $users->random()->id,
             'created_by'             => fn () => $users->random()->id,
         ]);

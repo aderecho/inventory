@@ -15,13 +15,6 @@ class UserSeeder extends Seeder
 
         $admin->assignRole('admin');
 
-        $specialStaff = User::factory()
-            ->withProfile()
-            ->create(['email' => 'special@example.com']);
-
-        $specialStaff->assignRole('staff');
-        $specialStaff->givePermissionTo('delete');
-
         User::factory(18)
             ->withProfile()
             ->create()
