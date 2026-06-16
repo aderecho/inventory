@@ -39,7 +39,21 @@ class InventoryStoreRequest extends FormRequest
             'description' => 'nullable|string',
             'serial_number' => 'nullable|array|min:1',
             'serial_numbers.*' => 'nullable|max:50',
-            'property_number' => 'required|string|max:50',
+            'property_number' => [
+                'required',
+                'string',
+                'max:50',
+                function ($attribute, $value, $fail) {
+                    $exists = \App\Models\InventoryItem::query()
+                        ->where('property_number', 'like', $value . '-%')
+                        ->whereNull('deleted_at')
+                        ->exists();
+
+                    if ($exists) {
+                        $fail('The property number base already exists.');
+                    }
+                },
+            ],
         ];
     }
 }

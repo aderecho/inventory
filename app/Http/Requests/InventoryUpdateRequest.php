@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class InventoryUpdateRequest extends FormRequest
 {
@@ -33,13 +34,18 @@ class InventoryUpdateRequest extends FormRequest
             'unit' => 'required|string|max:50',
             'unit_cost' => 'required|numeric',
             'total_amount' => 'nullable|numeric',
-            'property_number' => 'required|string|max:50',
             'serial_number' => 'required|string|max:50',
             'pr_number' => 'required|string|max:50',
             'po_number' => 'required|string|max:50',
             'remarks' => 'required|string|max:50',
             'date_acquired' => 'required|date',
             'status' => 'nullable|integer',
+            'property_number' => [
+                'required',
+                Rule::unique('inventory_items', 'property_number')
+                    ->ignore($this->route('id'))
+                    ->whereNull('deleted_at'),
+            ],
         ];
     }
 }

@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Services\ItemArchivingService;
 use App\Models\InventoryItem;
 
+
 class ItemArchivingController extends Controller
 {
     public function __construct(
@@ -32,6 +33,18 @@ class ItemArchivingController extends Controller
     public function restore($id)
     {
         $item = InventoryItem::onlyTrashed()->findOrFail($id);
+
+        $exists = InventoryItem::query()
+            ->where('property_number', $item->property_number)
+            ->whereNull('deleted_at')
+            ->exists();
+
+        if ($exists) {
+            return back()->withErrors([
+                'restore' => 'Cannot restore. Property number already exists.'
+            ]);
+        }
+
         $item->restore();
 
         return back()->with('success', 'Item restored successfully.');
@@ -39,8 +52,7 @@ class ItemArchivingController extends Controller
 
     public function forceDelete($id)
     {
-        $item = InventoryItem::onlyTrashed()->findOrFail($id);
-        $item->forceDelete();
+        $this->itemArchivingService->forceDelete($id);
 
         return back()->with('success', 'Item permanently deleted.');
     }

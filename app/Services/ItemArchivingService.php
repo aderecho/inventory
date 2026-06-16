@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\InventoryItem;
+use App\Models\AcknowledgementReceipt;
 
 class ItemArchivingService
 {
@@ -21,5 +22,28 @@ class ItemArchivingService
             ->orderBy('deleted_at', 'desc')
             ->paginate($perPage)
             ->withQueryString();
+    }
+
+    public function forceDelete($id)
+    {
+        $item = InventoryItem::onlyTrashed()
+            ->with('acknowledgementItems')
+            ->findOrFail($id);
+
+        $receiptIds = $item->acknowledgementItems
+            ->pluck('acknowledgement_id')
+            ->unique();
+
+        $item->acknowledgementItems()->forceDelete();
+
+        foreach ($receiptIds as $receiptId) {
+            $receipt = AcknowledgementReceipt::withTrashed()->find($receiptId);
+
+            if ($receipt && $receipt->acknowledgementItems()->count() === 0) {
+                $receipt->forceDelete();
+            }
+        }
+
+        $item->forceDelete();
     }
 }

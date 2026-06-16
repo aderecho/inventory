@@ -103,16 +103,33 @@ function handleForceDelete(item) {
 }
 
 function confirmRestore() {
-    startLoading("Restoring Item...", "Please wait while we restore the item.");
+    startLoading(
+        "Restoring Item...",
+        "Please wait while we restore the item."
+    );
+
     router.patch(route("items.restore", currentItem.value.id), {}, {
         preserveScroll: true,
+
         onSuccess: () => {
             showRestoreModal.value = false;
+
             toast.add({
                 severity: "success",
                 summary: "Restored",
                 detail: `${currentItem.value.item_name} has been restored.`,
                 life: 3000,
+            });
+        },
+
+        onError: (errors) => {
+            showRestoreModal.value = false;
+            
+            toast.add({
+                severity: "error",
+                summary: "Restore Failed",
+                detail: errors.restore,
+                life: 5000,
             });
         },
     });
