@@ -77,7 +77,7 @@ function getValue(obj, path) {
                                 </button>
 
                                 <button
-                                    v-if="actions.includes('permanent_delete') && can(`permanent delete ${props.module}`)"
+                                    v-if="actions.includes('force delete') && can(`force delete ${props.module}`)"
                                     @click="$emit('permanent-delete', item)"
                                     class="text-[#D32F2F] hover:text-[#b71c1c]"
                                     title="Permanent Delete"

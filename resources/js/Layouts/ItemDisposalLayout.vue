@@ -133,6 +133,8 @@ function confirmForceDelete() {
         },
     });
 }
+
+console.log(page.props.auth.permissions);
 </script>
 
 <template>
@@ -197,7 +199,7 @@ function confirmForceDelete() {
                         :rows="items"
                         :columns="columns"
                         :module="'archive'"
-                        :actions="['restore', 'permanent_delete']"
+                        :actions="['restore', 'force delete']"
                         @restore="handleRestore"
                         @permanent-delete="handleForceDelete"
                     />
