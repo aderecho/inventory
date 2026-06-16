@@ -4,11 +4,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AcknowledgementReceipt extends Model
 {
-    use HasFactory, softDeletes;
+    use HasFactory;
     protected $fillable = [
         'par_date',
         'accountable_persons_id',
