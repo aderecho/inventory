@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable
 {
-    use HasFactory, HasRoles;
+    use HasFactory, HasRoles, softDeletes;
     protected $fillable = ['email', 'password', 'status'];
 
     protected $hidden = ['password'];
@@ -26,11 +27,6 @@ class User extends Authenticatable
     public function createdReceipts()
     {
         return $this->hasMany(AcknowledgementReceipt::class, 'created_by');
-    }
-
-    public function accountablePersons()
-    {
-        return $this->hasMany(AccountablePerson::class);
     }
 
     public function userProfiles()

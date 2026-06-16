@@ -82,6 +82,7 @@ const viewItem = [
     { label: "Remarks", key: "remarks" },
     { label: "Fund Source", key: "fund_source" },
     { label: "Date Acquired", key: "date_acquired" },
+    { label: "Location", key: "location" },
     {
         label: "Status",
         key: "status",
@@ -90,20 +91,13 @@ const viewItem = [
                 cls = "text-gray-500",
                 icon = "";
             if (status === 0) {
-                label = "Inactive";
+                label = "Unservicable";
                 cls =
-                    "text-[#D32F2F] font-bold bg-[#F8D4D4] py-2 px-4 rounded-full";
-                icon = '<i class="fa-solid fa-ban"></i>';
+                    "text-[#D32F2F] font-bold bg-[#F8D4D4] py-2 px-4 rounded-md";
             } else if (status === 1) {
-                label = "Active";
+                label = "Serviceable";
                 cls =
-                    "text-[#2E7D32] font-bold bg-[#D4F8D4] py-2 px-4 rounded-full";
-                icon = '<i class="fa-solid fa-circle-check"></i>';
-            } else if (status === 2) {
-                label = "Pending";
-                cls =
-                    "text-[#8D6E00] font-bold bg-[#FFF3CD] py-2 px-4 rounded-full";
-                icon = '<i class="fa-solid fa-clock"></i>';
+                    "text-[#2E7D32] font-bold bg-[#D4F8D4] py-2 px-4 rounded-md";
             }
             return `<span class="${cls}">${icon} ${label}</span>`;
         },
@@ -298,6 +292,7 @@ const itemClassifications = computed(
     () => page.props.itemClassifications || [],
 );
 const suppliers = computed(() => page.props.suppliers || []);
+console.log(suppliers.data)
 // INVENTORY FILTER
 let search = ref("");
 let status = ref(null);

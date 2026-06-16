@@ -55,7 +55,11 @@ Route::middleware(['auth'])->group(function () {
 
     // Reports
     Route::get('/report', [ReportController::class, 'searchBar'])->middleware('can:view reports')->name('reports.index');
-    Route::get('/item_archiving', [ItemArchivingController::class, 'index'])->middleware('can:view reports')->name('item_archiving.index');
+
+    // Item Archiving
+    Route::get('/item_archiving', [ItemArchivingController::class, 'index'])->middleware('can:view archive')->name('item_archiving.index');
+    Route::patch('/inventory/items/{id}/restore', [ItemArchivingController::class, 'restore'])->middleware('can:restore archive')->name('items.restore');
+    Route::delete('/inventory/items/{id}/force-delete', [ItemArchivingController::class, 'forceDelete'])->middleware('can:force delete archive')->name('items.forceDelete');
 
     // User Management
     Route::get('/user-management', [UserManagementController::class, 'UserManagement'])->middleware('can:view users')->name('user_management.index');

@@ -17,8 +17,7 @@ class RolePermissionSeeder extends Seeder
         'acknowledgements',
         'users',
         'roles',
-        // 'assets',        👈 just uncomment or add new modules here
-        // 'procurement',
+        'archive'
     ];
 
     // --- DEFINE WHICH ACTIONS EACH MODULE SUPPORTS ---
@@ -30,7 +29,7 @@ class RolePermissionSeeder extends Seeder
         'acknowledgements'=> ['view', 'create'],
         'users'           => ['view', 'create', 'edit', 'delete'],
         'roles'           => ['view', 'create', 'edit', 'delete'],
-        // 'assets'       => ['view', 'create', 'edit', 'delete'],
+        'archive'       => ['view', 'restore', 'force delete'],
     ];
 
     // --- DEFINE WHAT EACH ROLE CAN DO PER MODULE ---
@@ -43,7 +42,6 @@ class RolePermissionSeeder extends Seeder
             'categories'       => ['view', 'create', 'edit'],
             'reports'          => ['view'],
             'acknowledgements' => ['view', 'create'],
-            // 'assets'        => ['view'],   👈 just add here when new module comes
         ],
     ];
 

@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration {
     public function up(): void
@@ -20,7 +21,7 @@ return new class extends Migration {
             $table->string('unit', 40)->nullable();
             $table->decimal('unit_cost', 12, 2)->nullable();
             $table->decimal('total_amount', 14, 2)->nullable();
-            $table->string('property_number', 80)->unique();
+            $table->string('property_number', 80);
             $table->string('serial_number', 80)->nullable();
             $table->string('pr_number', 60);
             $table->string('po_number', 60);
