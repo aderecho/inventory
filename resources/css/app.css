@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -15,10 +13,14 @@
   src: url('/fonts/palr45w.ttf') format('truetype');
 }
 
+@theme {
+  --font-poppins: 'Poppins', sans-serif;
+}
+
 .font-optima {
   font-family: 'Optima', sans-serif;
 }
 
-.font-optima {
+.font-palatino {
   font-family: 'Palatino', sans-serif;
 }

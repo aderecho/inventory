@@ -14,7 +14,6 @@ class InventoryItem extends Model
         'fund_source',
         'invoice',
         'supplier_id',
-        'room_id',
         'item_name',
         'description',
         'quantity',
@@ -71,6 +70,16 @@ class InventoryItem extends Model
     public function inventoryTransaction()
     {
         return $this->hasMany(InventoryTransaction::class);
+    }
+
+    public function historyLocations()
+    {
+        return $this->hasMany(ItemHistoryLocation::class);
+    }
+
+    public function latestHistoryLocation()
+    {
+        return $this->hasOne(ItemHistoryLocation::class)->latestOfMany();
     }
 
     public function scopeSearch($query, $term)

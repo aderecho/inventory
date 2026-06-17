@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             ItemClassificationSeeder::class,
             InventorySeeder::class,
             AcknowledgementSeeder::class,
+            ItemHistoryLocationSeeder::class,
         ]);
     }
 }

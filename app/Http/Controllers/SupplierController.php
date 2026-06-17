@@ -8,6 +8,7 @@ use App\Services\SupplierService;
 use App\Http\Requests\SupplierRequest;
 use App\Http\Requests\SupplierUpdateRequest;
 
+
 class SupplierController extends Controller
 {
     public function __construct(

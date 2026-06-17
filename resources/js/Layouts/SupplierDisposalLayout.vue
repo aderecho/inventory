@@ -14,48 +14,16 @@ import { useLoading } from "@/Composables/useLoading";
 
 const { isLoading, loadingTitle, loadingMessage, startLoading } = useLoading();
 
-router.on("start", () => {
-    isLoading.value = true;
-    loadingTitle.value = "Fetching Data...";
-    loadingMessage.value = "Please wait while we load the results.";
-});
-
-router.on("finish", () => {
-    isLoading.value = false;
-});
-
 const columns = [
-    { label: "Item Name", key: "item_name" },
-    { label: "Unit", key: "unit", format: (val) => val ?? "N/A" },
-    {
-        label: "Unit Cost",
-        key: "unit_cost",
-        format: (val) => (val ? `₱${val}` : "N/A"),
-    },
-    { label: "Property Number", key: "property_number" },
-    { label: "Serial Number", key: "serial_number" },
-    { label: "Invoice", key: "invoice" },
-    {
-        label: "Supplier Name",
-        key: "supplier",
-        format: (val) => val?.supplier_name ?? "N/A",
-    },
-    {
-        label: "Status",
-        key: "status",
-        format: (status) => {
-            if (status === 0)
-                return `<span class="text-[#D32F2F] font-bold bg-[#F8D4D4] py-1 px-2 rounded-md">Unserviceable</span>`;
-            if (status === 1)
-                return `<span class="text-[#2E7D32] font-bold bg-[#D4F8D4] py-1 px-2 rounded-md">Serviceable</span>`;
-            return `<span class="text-gray-500">Unknown</span>`;
-        },
-    },
+    { label: "Supplier Name", key: "supplier_name" },
+    { label: "Contact No.", key: "contact_no" },
+    { label: "Email", key: "email" },
+    { label: "Address", key: "address" },
     { label: "Action", key: "action" },
 ];
 
 const page = usePage();
-const items = computed(() => page.props.items || { data: [] });
+const suppliers = computed(() => page.props.suppliers || { data: [] });
 const toast = useToast();
 
 const isSidebarOpen = ref(true);
@@ -63,38 +31,27 @@ const toggleSidebar = () => {
     isSidebarOpen.value = !isSidebarOpen.value;
 };
 
-const search = ref(page.props.filters?.search ?? "");
-const status = ref(page.props.filters?.status ?? null);
+const search = ref(page.props.search ?? "");
 
 let debounceTimer = null;
 
 watch(search, (value) => {
     clearTimeout(debounceTimer);
+
     debounceTimer = setTimeout(() => {
         router.get(
-            route("items.archive.index"),
-            { search: value, status: status.value ?? "" },
+            route("suppliers.archive.index"),
+            {
+                search: value,
+            },
             {
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
-                only: ["items"],
+                only: ["suppliers"],
             },
         );
     }, 300);
-});
-
-watch(status, (value) => {
-    router.get(
-        route("items.archive.index"),
-        { search: search.value, status: value ?? "" },
-        {
-            preserveState: true,
-            preserveScroll: true,
-            replace: true,
-            only: ["items"],
-        },
-    );
 });
 
 // MODAL STATE
@@ -114,47 +71,45 @@ function handleForceDelete(item) {
 
 function confirmRestore() {
     startLoading(
-        "Restoring Item...",
-        "Please wait while we restore the item."
+        "Restoring Supplier...",
+        "Please wait while we restore the supplier.",
     );
 
-    router.patch(route("items.restore", currentItem.value.id), {}, {
-        preserveScroll: true,
+    router.patch(
+        route("suppliers.restore", currentItem.value.id),
+        {},
+        {
+            preserveScroll: true,
 
-        onSuccess: () => {
-            showRestoreModal.value = false;
+            onSuccess: () => {
+                showRestoreModal.value = false;
 
-            toast.add({
-                severity: "success",
-                summary: "Restored",
-                detail: `${currentItem.value.item_name} has been restored.`,
-                life: 3000,
-            });
+                toast.add({
+                    severity: "success",
+                    summary: "Restored",
+                    detail: `${currentItem.value.supplier_name} has been restored.`,
+                    life: 3000,
+                });
+            },
         },
-
-        onError: (errors) => {
-            showRestoreModal.value = false;
-
-            toast.add({
-                severity: "error",
-                summary: "Restore Failed",
-                detail: errors.restore,
-                life: 5000,
-            });
-        },
-    });
+    );
 }
 
 function confirmForceDelete() {
-    startLoading("Deleting Item...", "Please wait while we permanently delete the item.");
-    router.delete(route("items.forceDelete", currentItem.value.id), {
+    startLoading(
+        "Deleting Supplier...",
+        "Please wait while we permanently delete the supplier.",
+    );
+    router.delete(route("suppliers.forceDelete", currentItem.value.id), {
         preserveScroll: true,
+
         onSuccess: () => {
             showForceDeleteModal.value = false;
+
             toast.add({
                 severity: "success",
                 summary: "Permanently Deleted",
-                detail: `${currentItem.value.item_name} has been permanently deleted.`,
+                detail: `${currentItem.value.supplier_name} has been permanently deleted.`,
                 life: 3000,
             });
         },
@@ -202,37 +157,29 @@ console.log(page.props.auth.permissions);
             </aside>
 
             <main class="flex-1 sm:p-5 md:p-6 m-2">
-                <PageHeader title="Item Disposal" />
+                <PageHeader title="Supplier Archive" />
                 <div class="bg-white h-screen drop-shadow-md mt-[1rem]">
                     <!-- Search + Filter -->
                     <div class="p-4 flex items-center justify-end gap-3">
                         <input
                             v-model="search"
                             type="text"
-                            placeholder="Search items..."
+                            placeholder="Search suppliers..."
                             class="w-80 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#850038]"
                         />
-                        <select
-                            v-model="status"
-                            class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#850038]"
-                        >
-                            <option :value="null">All Status</option>
-                            <option :value="1">Serviceable</option>
-                            <option :value="0">Unserviceable</option>
-                        </select>
                     </div>
 
-                      <div
-                        v-if="!items.data?.length"
+                    <div
+                        v-if="!suppliers.data?.length"
                         class="text-center py-10 text-gray-500"
                     >
-                        No archived items yet.
+                        No archived suppliers yet.
                     </div>
 
                     <InventoryArchiveTable
-                        :rows="items"
+                        :rows="suppliers"
                         :columns="columns"
-                        :module="'archive_item'"
+                        :module="'archive_supplier'"
                         :actions="['restore', 'force delete']"
                         @restore="handleRestore"
                         @permanent-delete="handleForceDelete"

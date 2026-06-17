@@ -270,6 +270,12 @@ const searchPlaceholder = computed(() => {
             return "Search Item to assign";
         case "transactions":
             return "Search";
+        case "users":
+            return "Search user...";
+        case "suppliers":
+            return "Search supplier...";
+        case "categories":
+            return "Search categories...";
         default:
             return "Search item";
     }
@@ -348,21 +354,17 @@ const searchPlaceholder = computed(() => {
                 </option>
             </select>
         </div>
-
-       
     </div>
-     <!-- SEARCH BAR -->
-        <div class="w-full sm:w-auto mt-3 relative">
-            <span
-                class="absolute inset-y-0 left-3 flex items-center text-gray-400"
-            >
-                <i class="fa-solid fa-magnifying-glass"></i>
-            </span>
-            <input
-                v-model="search"
-                type="search"
-                :placeholder="searchPlaceholder"
-                class="w-full sm:w-64 md:w-96 h-9 sm:h-10 text-[#3B3B3B] rounded-full pl-10 pr-3 border text-sm focus:ring-[#850038] focus:outline-none focus:border-[#850038]"
-            />
-        </div>
+    <!-- SEARCH BAR -->
+    <div class="w-full sm:w-auto mt-3 relative">
+        <span class="absolute inset-y-0 left-3 flex items-center text-gray-400">
+            <i class="fa-solid fa-magnifying-glass"></i>
+        </span>
+        <input
+            v-model="search"
+            type="search"
+            :placeholder="searchPlaceholder"
+            class="w-full sm:w-64 md:w-96 h-9 sm:h-10 text-[#3B3B3B] rounded-full pl-10 pr-3 border text-sm focus:ring-[#850038] focus:outline-none focus:border-[#850038]"
+        />
+    </div>
 </template>

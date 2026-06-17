@@ -3,7 +3,10 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Models\InventoryItem;
 use App\Models\UserProfile;
+use App\Models\AcknowledgementItem;
+
 
 class UserService
 {
@@ -26,6 +29,53 @@ class UserService
             ->orderBy('created_at', 'desc')
             ->paginate($perPage)
             ->withQueryString();
+    }
+    public function filterAndPaginateAssignedItems(
+        int $userId,
+        ?string $search = null,
+        int $perPage = 10
+    ) {
+        return InventoryItem::query()
+            ->with([
+                'latestAcknowledgementItem.acknowledgementReceipts:id,par_date',
+            ])
+            ->whereHas('latestAcknowledgementItem', function ($query) use ($userId) {
+                $query->where('accountable_person_id', $userId);
+            })
+            ->when(
+                $search,
+                fn($query, $search) => $query->search($search)
+            )
+            ->orderByDesc('created_at')
+            ->paginate($perPage)
+            ->withQueryString();
+    }
+
+    public function getAuthenticatedUser()
+    {
+        return User::with('userProfiles')
+            ->where('id', auth()->id())
+            ->firstOrFail();
+    }
+
+    public function getDashboardStats(int $userId): array
+    {
+        $assignedItems = AcknowledgementItem::where(
+            'accountable_person_id',
+            $userId
+        )->count('inventory_item_id');
+
+        $receipts = AcknowledgementItem::where(
+            'accountable_person_id',
+            $userId
+        )
+            ->distinct('acknowledgement_id')
+            ->count('acknowledgement_id');
+
+        return [
+            'assigned_items' => $assignedItems,
+            'receipts' => $receipts,
+        ];
     }
 
     public function createUser(array $data): User

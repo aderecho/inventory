@@ -32,9 +32,17 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
-                'role' => $request->user()?->getRoleNames()->first(),
-                'permissions' => $request->user()?->getAllPermissions()->pluck('name'),
+                'user'        => $request->user(),
+                'role'        => $request->user()?->getRoleNames()->first(),
+                'permissions' => $request->user()
+                    ?->getAllPermissions()
+                    ->reject(
+                        fn($p) => $request->user()->permissions()
+                            ->wherePivot('forbidden', true)
+                            ->pluck('name')
+                            ->contains($p->name)
+                    )
+                    ->pluck('name') ?? [],
             ],
         ];
     }

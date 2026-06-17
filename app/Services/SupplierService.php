@@ -43,6 +43,17 @@ class SupplierService
             ->withQueryString();
     }
 
+    public function filterAndPaginateArchiveSuppliers(
+        ?string $search = null,
+        int $perPage = 10
+    ) {
+        return Supplier::onlyTrashed()
+            ->when($search, fn($query, $search) => $query->search($search))
+            ->orderBy('deleted_at', 'desc')
+            ->paginate($perPage)
+            ->withQueryString();
+    }
+
     public function createSupplier(array $data): Supplier
     {
         return Supplier::create([

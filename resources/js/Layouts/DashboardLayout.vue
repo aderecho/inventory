@@ -37,17 +37,37 @@ const columns = [
       return `<span class="${cls}">${icon} ${label}</span>`;
     }
   },
-  { label: "Action", key: "action" }
+  // { label: "Action", key: "action" }
 ]
 
-const totalItems = computed(() => items.value.total);
+const stats = computed(() => page.props.stats);
 
-const itemOverview = [
-  { title: "Total Items", icon: "fa-solid fa-boxes-stacked text-[#06B6D4]", bgColor: "bg-[#06B6D4]", value: totalItems }, 
-  { title: "Item Distribution", icon: "fa-solid fa-hand-holding-hand text-[#8B5CF6]", bgColor: "bg-[#8B5CF6]" },
-  { title: "Low Stock Items", icon: "fa-solid fa-triangle-exclamation text-[#F59E0B]", bgColor: "bg-[#F59E0B]" },
-  { title: "Out of Stock Items", icon: "fa-solid fa-ban text-[#DC2626]", bgColor: "bg-[#DC2626]" },
-];
+const itemOverview = computed(() => [
+    // {
+    //     title: "Total Items",
+    //     icon: "fa-solid fa-boxes-stacked text-[#850038]",
+    //     bgColor: "bg-[#850038]",
+    //     value: stats.value.items,
+    // },
+    {
+        title: "Total Item Classification",
+        icon: "fa-solid fa-layer-group text-[#850038]",
+        bgColor: "bg-[#850038]",
+        value: stats.value.receipts,
+    },
+    {
+        title: "Total Suppliers",
+        icon: "fa-solid fa-truck text-[#850038]",
+        bgColor: "bg-[#850038]",
+        value: stats.value.suppliers,
+    },
+    {
+        title: "Total Users",
+        icon: "fa-solid fa-users text-[#850038]",
+        bgColor: "bg-[#850038]",
+        value: stats.value.users,
+    },
+]);
 
 const supplierChart = [
   { name: 'Supplied', icon: 'fa-solid fa-circle text-[#7E19FA]' },
@@ -100,7 +120,7 @@ const toggleSidebar = () => { isSidebarOpen.value = !isSidebarOpen.value; };
             <div class="flex-1 w-full lg:w-[22rem] xl:w-[25rem]">
               <ItemOverview :item-overview="itemOverview" />
               <div class="mt-3">
-                <BarChartCard />
+                <BarChartCard :stats="stats" />
               </div>
               <div class="my-5">
                 <ItemFilterControls
@@ -123,14 +143,14 @@ const toggleSidebar = () => { isSidebarOpen.value = !isSidebarOpen.value; };
             </div>
 
               <!-- RIGHT SECTION -->
-              <div class="w-full lg:w-[22rem] xl:w-[25rem] space-y-4 flex-shrink-0">
+              <!-- <div class="w-full lg:w-[22rem] xl:w-[25rem] space-y-4 flex-shrink-0">
                 <SupplierChartCard
                   title="Supplier Statistics"
                   :supplier-chart="supplierChart"
                   :dropdown-supplier-list="dropdownSupplierChart"
                 />
                 <UserActivity title="Recent Activity" />
-              </div>
+              </div> -->
           </div>
       </div>
     </main>

@@ -20,6 +20,9 @@ import AcknowledgementFormModal from "@/Components/Modals/AcknowledgementFormMod
 import Toast from "primevue/toast";
 import { useToast } from "primevue/usetoast";
 import LoadingOverlay from "@/Components/LoadingOverlay.vue";
+import { useAuth } from "@/Composables/useAuth";
+
+const { isAdmin, isStaff, can } = useAuth();
 
 const columns = [
     { label: "", key: "select_all" },
@@ -33,7 +36,7 @@ const columns = [
     { label: "Property Number", key: "property_number" },
     { label: "Serial Number", key: "serial_number" },
     { label: "Invoice", key: "invoice" },
-    { label: "Location", key: "location" },
+    { label: "Room Name", key: "room_name" },
     {
         label: "Supplier Name",
         key: "supplier",
@@ -82,7 +85,7 @@ const viewItem = [
     { label: "Remarks", key: "remarks" },
     { label: "Fund Source", key: "fund_source" },
     { label: "Date Acquired", key: "date_acquired" },
-    { label: "Location", key: "location" },
+    { label: "Room Name", key: "room_name" },
     {
         label: "Status",
         key: "status",
@@ -199,11 +202,11 @@ const invoicesFundFields = [
 
 const roomDropdown = [
     {
-        label: "Location",
+        label: "Room",
         model: "room_id",
         name: "rooms",
-        option: "location",
-        value: "id",
+        option: "room_name",
+        value: "room_id",
     },
 ];
 
@@ -604,7 +607,7 @@ const accountableField = [
 
 const itemSelectedField = [{ label: "Item Selected", model: "item_name" }];
 
-// console.log(page.props.auth.permissions);
+console.log(page.props.auth.permissions);
 
 </script>
 
@@ -639,22 +642,22 @@ const itemSelectedField = [{ label: "Item Selected", model: "item_name" }];
                             class="flex flex-col md:flex-row gap-2 justify-between mt-6"
                         >
                             <div class="flex flex-col sm:flex-row gap-2">
-                                <PrimaryButton @click="openAdd">
+                                <PrimaryButton v-if="can(`create inventory`)" @click="openAdd">
                                     <i class="fa-solid fa-plus"></i>
                                     <span>Add Item</span>
                                 </PrimaryButton>
 
-                                <ThirdButton @click="openAss">
+                                <ThirdButton v-if="can(`create acknowledgements`)" @click="openAss">
                                     <i class="fa-solid fa-user-plus"></i>
                                     <span>Assign</span>
                                 </ThirdButton>
 
-                                <ThirdButton @click="printQrCodes">
+                                <ThirdButton v-if="can(`print inventory`)" @click="printQrCodes">
                                     <i class="fa-solid fa-qrcode"></i>
                                     <span>Generate QR</span>
                                 </ThirdButton>
 
-                                <SecondaryButton
+                                <SecondaryButton v-if="can(`print inventory`)"
                                     :disabled="isPrinting"
                                     @click="printSelected"
                                     class="gap-2 text-white text-xs sm:text-sm"
@@ -666,9 +669,9 @@ const itemSelectedField = [{ label: "Item Selected", model: "item_name" }];
                                 </SecondaryButton>
                             </div>
                             <div class="flex flex-col sm:flex-row gap-2">
-                                <ConvertButton />
-                                <ImportButton />
-                                <ExportButton />
+                                <ConvertButton v-if="can(`import inventory`)"/>
+                                <ImportButton v-if="can(`import inventory`)"/>
+                                <ExportButton v-if="can(`export inventory`)"/>
                             </div>
                         </div>
 

@@ -29,7 +29,17 @@ class InventoryController extends Controller
     {
         $roomResult = $roomsApi->fetchRooms();
 
-        $rooms = collect($roomResult['data'])->keyBy('id');
+        $roomsLookup = collect($roomResult['data'])
+            ->keyBy('room_id');
+
+        $rooms = collect($roomResult['data'])
+            ->map(function ($room) {
+                return [
+                    'id' => $room['room_id'],
+                    'room_name' => trim(explode(',', $room['Details'])[0]),
+                ];
+            })
+            ->values();
 
         $search = $request->input('search');
         $costRange = $request->input('cost_range');
@@ -47,14 +57,19 @@ class InventoryController extends Controller
             $acknowledgementStatus
         );
 
-        $items->getCollection()->transform(function ($item) use ($rooms) {
-            $item->location = $rooms[$item->room_id]['location'] ?? 'N/A';
+        $items->getCollection()->transform(function ($item) use ($roomsLookup) {
+
+            $roomId = $item->latestHistoryLocation?->room_id;
+
+            $item->room_name = isset($roomsLookup[$roomId])
+                ? trim(explode(',', $roomsLookup[$roomId]['Details'])[0])
+                : 'N/A';
 
             return $item;
         });
 
         return inertia('Inventory/InventoryItem', [
-            'rooms' => $rooms->values(),
+            'rooms' => $rooms,
             'items' => $items,
             'itemClassifications' => $itemClassifications,
             'suppliers' => $suppliers,

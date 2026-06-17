@@ -27,11 +27,15 @@ class RoomApiService
                 ? $response->json()
                 : [];
 
-            Cache::put('rooms_cache', $data, now()->addHours(24));
+            Cache::put(
+                'rooms_cache',
+                $data['data'] ?? [],
+                now()->addHours(24)
+            );
 
             return [
                 'success' => true,
-                'data' => $data,
+                'data' => $data['data'] ?? [],
             ];
         } catch (ConnectionException $e) {
             Log::error($e->getMessage());
