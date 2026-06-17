@@ -1,7 +1,7 @@
 <template>
     <div
         v-if="show"
-        class="fixed inset-0 bg-black/35 backdrop-blur-sm flex items-center justify-center z-50"
+        class="fixed inset-0 bg-black/35 backdrop-blur-sm flex items-center justify-center z-[9999]"
     >
         <div class="flex flex-col items-center gap-3 rounded-2xl px-10 py-8">
             <img src="/images/uplogo-1.png" alt="Logo" class="w-64 h-64 object-contain mb-1" />

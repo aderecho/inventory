@@ -15,6 +15,11 @@ import SuccessModal from "@/Components/Modals/SuccessModal.vue";
 import SuccessDeleteModal from "@/Components/Modals/SuccessDeleteModal.vue";
 import RoleFormModal from '@/Components/Modals/RoleFormModal.vue';
 import PermissionFormModal from '@/Components/Modals/PermissionFormModal.vue';
+import LoadingOverlay from "@/Components/LoadingOverlay.vue";
+import { useLoading } from "@/Composables/useLoading";
+
+const { isLoading, loadingTitle, loadingMessage, startLoading, stopLoading } =
+    useLoading();
 
 const page = usePage();
 
@@ -139,6 +144,13 @@ const toggleSidebar = () => {
 </script>
 
 <template>
+
+  <LoadingOverlay
+        :show="isLoading"
+        :title="loadingTitle"
+        :message="loadingMessage"
+    />
+    
   <div class="h-screen flex flex-col bg-gray-100 overflow-hidden">
     <NavHeader class="flex-shrink-0" @toggleSidebar="toggleSidebar" />
 
@@ -170,11 +182,11 @@ const toggleSidebar = () => {
               </button>
 
 
-              <button @click="showPermissionModal = true"
+              <!-- <button @click="showPermissionModal = true"
                 class="flex gap-2 bg-[#0E6021] rounded-md text-white px-3 py-2 text-xs sm:text-sm hover:bg-[#19703a] w-full sm:w-auto items-center mt-2 justify-center">
                 <i class="fa-solid fa-key"></i>
                 <span>Manage Permissions</span>
-              </button>
+              </button> -->
             </div>
 
             <ItemFilterControls :search="search" :status="status" :filterStatus="filterStatus"
@@ -185,8 +197,8 @@ const toggleSidebar = () => {
           <RoleFormModal v-if="showRoleModal" :roles="roles" :permissions="permissions"
             @close="showRoleModal = false" />
 
-          <PermissionFormModal v-if="showPermissionModal" :permissions="permissions"
-            @close="showPermissionModal = false" />
+          <!-- <PermissionFormModal v-if="showPermissionModal" :permissions="permissions"
+            @close="showPermissionModal = false" /> -->
 
           <UserFormModal v-if="showFormModal" :mode="formMode" :user="currentUser" :roles="roles"
             :permissions="permissions" @submit="handleSubmit" @close="showFormModal = false" />

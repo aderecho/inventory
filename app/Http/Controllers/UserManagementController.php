@@ -19,8 +19,17 @@ class UserManagementController extends Controller
         $search = $request->input('search');
         $status = $request->input('status');
 
+        $users = $this->userService->filterAndPaginateUsers($search, $status);
+
+        $users->getCollection()->transform(function ($user) {
+            $user->direct_permissions = $user->getDirectPermissions()->pluck('name');
+            $user->forbidden_permissions = $user->permissions()
+                ->wherePivot('forbidden', true)->pluck('name');
+            return $user;
+        });
+
         return inertia('UserManagement', [
-            'users' => $this->userService->filterAndPaginateUsers($search, $status),
+            'users'       => $users,
             'roles'       => Role::with('permissions')->get(['id', 'name']),
             'permissions' => Permission::all(['id', 'name']),
         ]);

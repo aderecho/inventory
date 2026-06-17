@@ -24,7 +24,6 @@ class InventoryItemFactory extends Factory
         $propertyNumber = "{$code}-{$group}-" . ($count + 1);
 
         return [
-            'room_id' => $this->faker->numberBetween(1, 30),
             'fund_source' => strtoupper($this->faker->unique()->bothify('FS-###')),
             'invoice' => strtoupper($this->faker->unique()->bothify('INV-###')),
             'item_name' => $item['item_name'],

@@ -13,7 +13,11 @@ return new class extends Migration
     {
         Schema::create('item_history_location', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('room_id')->nullable();
+            $table->unsignedBigInteger('inventory_item_id')->nullable();
             $table->timestamps();
+
+            $table->foreign('inventory_item_id')->references('id')->on('inventory_items')->cascadeOnDelete()->cascadeOnUpdate();
         });
     }
 

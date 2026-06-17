@@ -6,6 +6,7 @@ use App\Services\RolePermissionService;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use App\Models\User;
 
 class RolePermissionController extends Controller
 {
@@ -73,5 +74,28 @@ class RolePermissionController extends Controller
         $this->service->deletePermission($permission);
 
         return redirect()->back()->with('success', 'Permission deleted successfully.');
+    }
+
+    public function getUserPermissions(User $user)
+    {
+        return response()->json($this->service->getUserPermissions($user));
+    }
+
+    public function updateUserPermissions(Request $request, User $user)
+    {
+        $request->validate([
+            'give'    => 'nullable|array',
+            'give.*'  => 'string|exists:permissions,name',
+            'revoke'  => 'nullable|array',
+            'revoke.*' => 'string|exists:permissions,name',
+        ]);
+
+        $this->service->updateUserPermissions(
+            $user,
+            $request->give ?? [],
+            $request->revoke ?? []
+        );
+
+        return redirect()->back()->with('success', 'User permissions updated.');
     }
 }

@@ -4,14 +4,14 @@ import { Link } from "@inertiajs/vue3";
 </script>
 
 <template>
-  <div class="flex flex-col md:flex-row min-h-screen">
+  <div class="flex flex-col bg-[#E3E3E3] md:flex-row min-h-screen">
     <div
       class="hidden md:flex md:w-1/2 bg-[#E3E3E3] items-center justify-center"
     >
       <div class="flex flex-col items-center justify-center h-full p-12">
         <Logo />
         <h1 class="mt-6 text-3xl font-bold text-center">
-          Welcome to UP Inventory
+          Welcome to UP Cebu Inventory
         </h1>
         <p class="mt-4 font-medium text-center">
           Manage your inventory efficiently and effectively with our

@@ -6,7 +6,7 @@ use App\Models\UserProfile;
 use Illuminate\Http\Request;
 use App\Models\InventoryItem;
 use App\Models\AcknowledgementItem;
-use App\Models\InventoryTransaction;
+use App\Models\ItemHistoryLocation;
 use App\Models\AcknowledgementReceipt;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
@@ -29,6 +29,7 @@ class InventoryService
             'latestAcknowledgementItem.accountablePerson',
             'acknowledgementHistory.accountablePerson',
             'acknowledgementHistory.acknowledgementReceipts',
+            'latestHistoryLocation',
         ])
             ->when(
                 $search,
@@ -54,17 +55,15 @@ class InventoryService
             )
             ->when($acknowledgementStatus, function ($query, $acknowledgementStatus) {
 
-                // Currently assigned
                 if ($acknowledgementStatus === 'with_acknowledgement') {
                     $query->whereHas('latestAcknowledgementItem');
                 }
 
-                // Never assigned
                 if ($acknowledgementStatus === 'without_acknowledgement') {
                     $query->whereDoesntHave('latestAcknowledgementItem');
                 }
             })
-            ->orderBy('created_at', 'desc')
+            ->orderByDesc('created_at')
             ->paginate($perPage)
             ->withQueryString();
     }
@@ -99,7 +98,6 @@ class InventoryService
             $inventoryItem = InventoryItem::create([
                 'item_classification_id' => $data['item_classification_id'],
                 'supplier_id' => $data['supplier_id'],
-                'room_id' => $data['room_id'],
                 'invoice' => $data['invoice'],
                 'fund_source' => $data['fund_source'],
                 'item_name' => $data['item_name'],
@@ -116,6 +114,11 @@ class InventoryService
                 'date_acquired' => $data['date_acquired'],
                 'status' => $data['status'],
             ]);
+
+            ItemHistoryLocation::create([
+                'inventory_item_id' => $inventoryItem->id,
+                'room_id' => $data['room_id'],
+            ]);
         }
     }
 
@@ -128,7 +131,6 @@ class InventoryService
         $item->update([
             'item_classification_id' => $data['item_classification_id'],
             'supplier_id' => $data['supplier_id'],
-            'room_id' => $data['room_id'],
             'invoice' => $data['invoice'],
             'fund_source' => $data['fund_source'],
             'item_name' => $data['item_name'],
@@ -145,6 +147,15 @@ class InventoryService
             'date_acquired' => $data['date_acquired'],
             'status' => $data['status'] ?? 1,
         ]);
+
+        $currentRoomId = $item->latestHistoryLocation?->room_id;
+
+        if ($currentRoomId != $data['room_id']) {
+            ItemHistoryLocation::create([
+                'inventory_item_id' => $item->id,
+                'room_id' => $data['room_id'],
+            ]);
+        }
     }
 
     public function updateCategory(array $itemIds, string $category): void

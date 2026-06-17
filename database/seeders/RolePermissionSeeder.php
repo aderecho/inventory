@@ -13,11 +13,12 @@ class RolePermissionSeeder extends Seeder
         'inventory',
         'suppliers',
         'categories',
-        'reports',
+        // 'reports',
         'acknowledgements',
         'users',
         'roles',
-        'archive'
+        'archive_item',
+        'archive_supplier'
     ];
 
     // --- DEFINE WHICH ACTIONS EACH MODULE SUPPORTS ---
@@ -25,11 +26,12 @@ class RolePermissionSeeder extends Seeder
         'inventory'       => ['view', 'create', 'edit', 'delete', 'import', 'export', 'print'],
         'suppliers'       => ['view', 'create', 'edit', 'delete'],
         'categories'      => ['view', 'create', 'edit', 'delete'],
-        'reports'         => ['view', 'export'],
-        'acknowledgements'=> ['view', 'create'],
+        // 'reports'         => ['view', 'export'],
+        'acknowledgements'=> ['create'],
         'users'           => ['view', 'create', 'edit', 'delete'],
         'roles'           => ['view', 'create', 'edit', 'delete'],
-        'archive'       => ['view', 'restore', 'force delete'],
+        'archive_item'       => ['view', 'restore', 'force delete'],
+        'archive_supplier'       => ['view', 'restore', 'force delete'],
     ];
 
     // --- DEFINE WHAT EACH ROLE CAN DO PER MODULE ---
@@ -40,9 +42,11 @@ class RolePermissionSeeder extends Seeder
             'inventory'        => ['view', 'create', 'edit', 'import', 'export', 'print'],
             'suppliers'        => ['view', 'create', 'edit'],
             'categories'       => ['view', 'create', 'edit'],
-            'reports'          => ['view'],
-            'acknowledgements' => ['view', 'create'],
+            // 'reports'          => ['view'],
+            'acknowledgements' => ['create'],
         ],
+
+        'user' => [],
     ];
 
     public function run(): void
