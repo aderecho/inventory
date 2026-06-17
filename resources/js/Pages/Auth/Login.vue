@@ -98,7 +98,7 @@ const submit = () => {
           </TestButton>
         </div>
 
-        <div>
+        <!-- <div>
           <p class="mt-4 items-center text-[#A6A6A6] justify-center flex gap-2">
             Don't have an account?
             <Link
@@ -108,7 +108,7 @@ const submit = () => {
               Register
             </Link>
           </p>
-        </div>
+        </div> -->
       </div>
     </form>
   </AuthLayout>

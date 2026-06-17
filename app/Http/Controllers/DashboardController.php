@@ -25,6 +25,8 @@ class DashboardController extends Controller
 
             'stats' => [
                 'item_classifications' => ItemClassification::count(),
+                'items' => InventoryItem::count(),
+                'receipts' => AcknowledgementReceipt::count(),
                 'suppliers' => Supplier::count(),
                 'users' => User::count(),
 

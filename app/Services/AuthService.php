@@ -21,7 +21,9 @@ class AuthService
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
 
-            return Auth::user()->hasRole('user')
+            $user = Auth::user();
+
+            return ($user->hasRole('user') || $user->roles->isEmpty())
                 ? redirect()->route('user.dashboard')
                 : redirect()->route('dashboard.index');
         }
