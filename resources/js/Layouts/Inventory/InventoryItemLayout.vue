@@ -206,7 +206,7 @@ const roomDropdown = [
         model: "room_id",
         name: "rooms",
         option: "room_name",
-        value: "room_id",
+        value: "id",
     },
 ];
 
