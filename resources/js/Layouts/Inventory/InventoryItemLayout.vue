@@ -642,22 +642,22 @@ console.log(page.props.auth.permissions);
                             class="flex flex-col md:flex-row gap-2 justify-between mt-6"
                         >
                             <div class="flex flex-col sm:flex-row gap-2">
-                                <PrimaryButton v-if="can(`create inventory`)" @click="openAdd">
+                                <PrimaryButton @click="openAdd">
                                     <i class="fa-solid fa-plus"></i>
                                     <span>Add Item</span>
                                 </PrimaryButton>
 
-                                <ThirdButton v-if="can(`create acknowledgements`)" @click="openAss">
+                                <ThirdButton @click="openAss">
                                     <i class="fa-solid fa-user-plus"></i>
                                     <span>Assign</span>
                                 </ThirdButton>
 
-                                <ThirdButton v-if="can(`print inventory`)" @click="printQrCodes">
+                                <ThirdButton @click="printQrCodes">
                                     <i class="fa-solid fa-qrcode"></i>
                                     <span>Generate QR</span>
                                 </ThirdButton>
 
-                                <SecondaryButton v-if="can(`print inventory`)"
+                                <SecondaryButton
                                     :disabled="isPrinting"
                                     @click="printSelected"
                                     class="gap-2 text-white text-xs sm:text-sm"
@@ -669,9 +669,9 @@ console.log(page.props.auth.permissions);
                                 </SecondaryButton>
                             </div>
                             <div class="flex flex-col sm:flex-row gap-2">
-                                <ConvertButton v-if="can(`import inventory`)"/>
-                                <ImportButton v-if="can(`import inventory`)"/>
-                                <ExportButton v-if="can(`export inventory`)"/>
+                                <ConvertButton/>
+                                <ImportButton/>
+                                <ExportButton/>
                             </div>
                         </div>
 
@@ -768,7 +768,7 @@ console.log(page.props.auth.permissions);
                             :rows="items"
                             :rooms="rooms"
                             :module="'inventory'"
-                            :actions="['view', 'edit', 'delete', 'print']"
+                            :actions="['view', 'delete', 'print']"
                             @selection-changed="handleSelectionChanged"
                             @view="handleView"
                             @edit="handleEdit"

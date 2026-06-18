@@ -1,11 +1,8 @@
 <script setup>
 import { Link } from "@inertiajs/vue3";
-import { ref, watchEffect, computed } from "vue";
-import { useAuth } from "@/Composables/useAuth.js"; // adjust path if needed
+import { ref, watchEffect } from "vue";
 
-const { isAdmin } = useAuth();
-
-const allMenuItems = [
+const menuItems = [
     {
         name: "Dashboard",
         icon: "fas fa-chart-line",
@@ -50,7 +47,6 @@ const allMenuItems = [
         name: "User Permissions",
         icon: "fa-solid fa-users-gear",
         route: "user_management.index",
-        adminOnly: true,
     },
     {
         name: "Logout",
@@ -60,11 +56,6 @@ const allMenuItems = [
     },
 ];
 
-// Filter out adminOnly items if not admin
-const menuItems = computed(() =>
-    allMenuItems.filter((item) => !item.adminOnly || isAdmin.value),
-);
-
 const openDropdown = ref(null);
 
 const toggleDropdown = (name) => {
@@ -72,7 +63,7 @@ const toggleDropdown = (name) => {
 };
 
 watchEffect(() => {
-    menuItems.value.forEach((item) => {
+    menuItems.forEach((item) => {
         if (item.children) {
             const isChildActive = item.children.some((child) =>
                 route().current(child.route),

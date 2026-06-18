@@ -53,7 +53,7 @@ const itemOverview = computed(() => [
         title: "Total Item Classification",
         icon: "fa-solid fa-layer-group text-[#850038]",
         bgColor: "bg-[#850038]",
-        value: stats.value.receipts,
+        value: stats.value.item_classifications,
     },
     {
         title: "Total Suppliers",

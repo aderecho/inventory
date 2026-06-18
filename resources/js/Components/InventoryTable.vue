@@ -148,20 +148,13 @@ function toggleCheck(item) {
                         <!-- ACTION BUTTONS -->
                         <template v-else>
                             <div class="flex items-center gap-2">
-                                <PrintButton
-                                    v-if="
-                                        actions.includes('print') &&
-                                        can(`print ${props.module}`)
-                                    "
+                                <PrintButton v-if="actions.includes('print')"
                                     :item="item"
                                     @print="$emit('print', item.id)"
                                 />
 
                                 <button
-                                    v-if="
-                                        actions.includes('view') &&
-                                        can(`view ${props.module}`)
-                                    "
+                                    v-if="actions.includes('view')"
                                     @click="$emit('view', item)"
                                     class="text-[#3F3F3F] hover:text-[#191818]"
                                     title="View"
@@ -170,10 +163,7 @@ function toggleCheck(item) {
                                 </button>
 
                                 <button
-                                    v-if="
-                                        actions.includes('edit') &&
-                                        can(`edit ${props.module}`)
-                                    "
+                                    v-if="actions.includes('edit')"
                                     @click="$emit('edit', item)"
                                     class="text-[#54B3AB] hover:text-[#38a69d]"
                                     title="Edit"
@@ -182,10 +172,7 @@ function toggleCheck(item) {
                                 </button>
 
                                 <button
-                                    v-if="
-                                        actions.includes('delete') &&
-                                        can(`delete ${props.module}`)
-                                    "
+                                    v-if="actions.includes('delete')"
                                     @click="$emit('delete', item)"
                                     class="text-[#D71D1D] hover:text-[#c50e0e]"
                                     title="Delete"
