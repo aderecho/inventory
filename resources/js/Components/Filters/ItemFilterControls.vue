@@ -98,7 +98,7 @@ const debouncedFetchDashboard = debounce(fetchDashboardSearch, 1000);
 //----------------ACKNOWLEDGEMENT FETCH-----------------
 function fetchAcknowledgmentSearch(searchValue, cost, stat) {
     router.get(
-        "/inventory/acknowledgements",
+        "/acknowledgements",
         {
             search: searchValue,
             cost_range: cost,
@@ -267,7 +267,7 @@ const searchPlaceholder = computed(() => {
         case "inventory":
             return "Search Item, Property Number, Serial Number...";
         case "acknowledgements":
-            return "Search Item to assign";
+            return "Search receipt...";
         case "transactions":
             return "Search";
         case "users":
