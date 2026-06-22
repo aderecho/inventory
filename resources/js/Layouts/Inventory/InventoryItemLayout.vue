@@ -768,7 +768,7 @@ console.log(page.props.auth.permissions);
                             :rows="items"
                             :rooms="rooms"
                             :module="'inventory'"
-                            :actions="['view', 'delete', 'print']"
+                            :actions="['view','edit', 'delete', 'print']"
                             @selection-changed="handleSelectionChanged"
                             @view="handleView"
                             @edit="handleEdit"

@@ -38,6 +38,11 @@ class AcknowledgementItem extends Model
         return $this->belongsTo(InventoryItem::class, 'inventory_item_id');
     }
 
+    public function file()
+    {
+        return $this->hasOne(InventoryItemFile::class, 'acknowledgement_item_id');
+    }
+
     public function scopeSearch($query, $term)
     {
         if (!$term) {

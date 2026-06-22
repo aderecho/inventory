@@ -11,7 +11,16 @@ const menuItems = [
     {
         name: "Inventory",
         icon: "fa-solid fa-boxes-packing",
-        children: [{ name: "Items", route: "inventory.items" }],
+        children: [
+            {
+                name: "Items",
+                route: "inventory.items",
+            },
+            {
+                name: "Acknowledgements",
+                route: "acknowledgements.index",
+            },
+        ],
     },
     {
         name: "Core Records",

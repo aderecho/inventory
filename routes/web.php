@@ -12,6 +12,7 @@ use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SupplierArchiveController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\AcknowledgementController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -71,6 +72,13 @@ Route::middleware('auth')->group(function () {
         Route::post('/', [Categories::class, 'store'])->name('categories.store');
         Route::put('/{id}', [Categories::class, 'update'])->name('categories.update');
         Route::delete('/{id}', [Categories::class, 'destroy'])->name('categories.destroy');
+    });
+
+
+    Route::prefix('acknowledgements')->group(function () {
+         Route::get('/',             [AcknowledgementController::class, 'index'])->name('acknowledgements.index');
+        Route::get('/{id}',         [AcknowledgementController::class, 'show'])->name('acknowledgements.show');
+        Route::post('/upload-file', [AcknowledgementController::class, 'uploadFile'])->name('acknowledgements.upload-file');
     });
 
     // Reports
