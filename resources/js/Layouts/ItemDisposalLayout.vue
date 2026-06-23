@@ -11,18 +11,13 @@ import Toast from "primevue/toast";
 import { useToast } from "primevue/usetoast";
 import LoadingOverlay from "@/Components/LoadingOverlay.vue";
 import { useLoading } from "@/Composables/useLoading";
+import { usePermissions } from "@/Composables/usePermissions";
 
-const { isLoading, loadingTitle, loadingMessage, startLoading } = useLoading();
+const { isLoading, loadingTitle, loadingMessage, startLoading, stopLoading } = useLoading();
 
-router.on("start", () => {
-    isLoading.value = true;
-    loadingTitle.value = "Fetching Data...";
-    loadingMessage.value = "Please wait while we load the results.";
-});
-
-router.on("finish", () => {
-    isLoading.value = false;
-});
+const {
+    archiveItemActions,
+} = usePermissions()
 
 const columns = [
     { label: "Item Name", key: "item_name" },
@@ -113,15 +108,11 @@ function handleForceDelete(item) {
 }
 
 function confirmRestore() {
-    startLoading(
-        "Restoring Item...",
-        "Please wait while we restore the item."
-    );
-
     router.patch(route("items.restore", currentItem.value.id), {}, {
         preserveScroll: true,
 
         onSuccess: () => {
+            stopLoading();
             showRestoreModal.value = false;
 
             toast.add({
@@ -146,10 +137,10 @@ function confirmRestore() {
 }
 
 function confirmForceDelete() {
-    startLoading("Deleting Item...", "Please wait while we permanently delete the item.");
     router.delete(route("items.forceDelete", currentItem.value.id), {
         preserveScroll: true,
         onSuccess: () => {
+            stopLoading();
             showForceDeleteModal.value = false;
             toast.add({
                 severity: "success",
@@ -161,7 +152,7 @@ function confirmForceDelete() {
     });
 }
 
-console.log(page.props.auth.permissions);
+// console.log(page.props.auth.permissions);
 </script>
 
 <template>
@@ -233,7 +224,7 @@ console.log(page.props.auth.permissions);
                         :rows="items"
                         :columns="columns"
                         :module="'archive_item'"
-                        :actions="['restore', 'force delete']"
+                        :actions="archiveItemActions"
                         @restore="handleRestore"
                         @permanent-delete="handleForceDelete"
                     />

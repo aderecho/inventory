@@ -177,7 +177,7 @@ function toggleCheck(item) {
                                     class="text-[#D71D1D] hover:text-[#c50e0e]"
                                     title="Delete"
                                 >
-                                    <i class="fa-solid fa-trash"></i>
+                                    <i class="fa-solid fa-box-archive"></i>
                                 </button>
                             </div>
                         </template>

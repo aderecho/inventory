@@ -75,6 +75,13 @@ class AcknowledgementService
         UploadedFile $file,
         int $uploadBy
     ): void {
+        // ✅ This is the real guard — frontend disabled can be bypassed
+        $alreadyHasFile = InventoryItemFile::whereIn('acknowledgement_item_id', $acknowledgementItemIds)->exists();
+
+        if ($alreadyHasFile) {
+            throw new \Exception('One or more selected items already have an uploaded file.');
+        }
+
         $path      = $file->store('acknowledgement_files', 'public');
         $fileType  = $file->getClientMimeType();
         $groupId   = (string) Str::uuid();

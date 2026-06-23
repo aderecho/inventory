@@ -3,7 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Services\AcknowledgementService;
-use App\Models\AcknowledgementReceipt;
+use App\Http\Requests\AcknowledgementUploadFileRequest;
+
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -34,20 +35,24 @@ class AcknowledgementController extends Controller
         ]);
     }
 
-    public function uploadFile(Request $request)
+
+    public function uploadFile(AcknowledgementUploadFileRequest $request)
     {
-        $request->validate([
-            'file'                        => 'required|file|mimes:pdf,jpg,jpeg,png|max:5048',
-            'acknowledgement_item_ids'    => 'required|array|min:1',
-            'acknowledgement_item_ids.*'  => 'exists:acknowledgement_items,id',
-        ]);
+        try {
+            $this->service->uploadFile(
+                $request->acknowledgement_item_ids,
+                $request->file('file'),
+                auth()->user()->userProfiles->id
+            );
+        } catch (\Exception $e) {
+            return back()->withErrors([
+                'file' => $e->getMessage(),
+            ]);
+        }
 
-        $this->service->uploadFile(
-            $request->acknowledgement_item_ids,
-            $request->file('file'),
-            auth()->user()->userProfiles->id
+        return back()->with(
+            'success',
+            'File uploaded successfully.'
         );
-
-        return back()->with('success', 'File uploaded successfully.');
     }
 }

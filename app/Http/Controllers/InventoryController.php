@@ -26,58 +26,61 @@ class InventoryController extends Controller
     ) {}
 
     public function InventoryItems(Request $request, RoomApiService $roomsApi)
-{
-    $roomResult = $roomsApi->fetchRooms();
+    {
+        $roomResult = $roomsApi->fetchRooms();
 
-    $roomsLookup = collect($roomResult['data'])
-        ->keyBy('id');
+        $roomsLookup = collect($roomResult['data'])
+            ->keyBy('id');
 
-    $rooms = collect($roomResult['data'])
-        ->map(function ($room) {
-            return [
-                'id' => $room['id'],
-                'room_name' => $room['room_name'],
-            ];
-        })
-        ->values();
+        $rooms = collect($roomResult['data'])
+            ->map(function ($room) {
+                return [
+                    'id' => $room['id'],
+                    'room_name' => $room['room_name'],
+                    'description' => $room['description'],
+                    'building_name' => $room['building_name'],
+                    'capacity' => $room['capacity'],
+                ];
+            })
+            ->values();
 
-    $search = $request->input('search');
-    $costRange = $request->input('cost_range');
-    $status = $request->input('status');
-    $acknowledgementStatus = $request->input('acknowledgement_status');
+        $search = $request->input('search');
+        $costRange = $request->input('cost_range');
+        $status = $request->input('status');
+        $acknowledgementStatus = $request->input('acknowledgement_status');
 
-    $itemClassifications = ItemClassification::all();
-    $suppliers = Supplier::all();
-    $userProfiles = UserProfile::all();
+        $itemClassifications = ItemClassification::all();
+        $suppliers = Supplier::all();
+        $userProfiles = UserProfile::all();
 
-    $items = $this->inventoryService->filterAndPaginateInventory(
-        $search,
-        $costRange,
-        $status,
-        $acknowledgementStatus
-    );
+        $items = $this->inventoryService->filterAndPaginateInventory(
+            $search,
+            $costRange,
+            $status,
+            $acknowledgementStatus
+        );
 
-    $items->getCollection()->transform(function ($item) use ($roomsLookup) {
+        $items->getCollection()->transform(function ($item) use ($roomsLookup) {
 
-        $roomId = $item->latestHistoryLocation?->room_id;
+            $roomId = $item->latestHistoryLocation?->room_id;
 
-        $item->room_name = isset($roomsLookup[$roomId])
-            ? $roomsLookup[$roomId]['room_name']
-            : 'N/A';
+            $item->room_name = isset($roomsLookup[$roomId])
+                ? $roomsLookup[$roomId]['room_name']
+                : 'N/A';
 
-        $item->room_id = $roomId;
+            $item->room_id = $roomId;
 
-        return $item;
-    });
+            return $item;
+        });
 
-    return inertia('Inventory/InventoryItem', [
-        'rooms' => $rooms,
-        'items' => $items,
-        'itemClassifications' => $itemClassifications,
-        'suppliers' => $suppliers,
-        'userProfiles' => $userProfiles,
-    ]);
-}
+        return inertia('Inventory/InventoryItem', [
+            'rooms' => $rooms,
+            'items' => $items,
+            'itemClassifications' => $itemClassifications,
+            'suppliers' => $suppliers,
+            'userProfiles' => $userProfiles,
+        ]);
+    }
 
     public function apiIndex()
     {
@@ -130,6 +133,15 @@ class InventoryController extends Controller
     {
         $ids = $request->input('ids', []);
 
+        if (count($ids) === 1) {
+            $pngPath = $downloadPngService->generateQrPng($ids[0]);
+
+            return response()
+                ->download($pngPath)
+                ->deleteFileAfterSend(true);
+        }
+
+        // Multiple items — return ZIP
         $zipPath = $downloadPngService->generateQrZip($ids);
 
         return response()

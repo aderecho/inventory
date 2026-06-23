@@ -11,7 +11,7 @@ import ItemFilterControls from "@/Components/Filters/ItemFilterControls.vue";
 import ImportButton from "@/Components/Buttons/ImportButton.vue";
 import ExportButton from "@/Components/Buttons/ExportButton.vue";
 import ConvertButton from "@/Components/Buttons/ConvertButton.vue";
-import DeleteModal from "@/Components/Modals/DeleteModal.vue";
+import ArchiveModal from "@/Components/Modals/ArchiveModal.vue";
 import SuccessModal from "@/Components/Modals/SuccessModal.vue";
 import SuccessDeleteModal from "@/Components/Modals/SuccessDeleteModal.vue";
 import SecondaryButton from "@/Components/Buttons/SecondaryButton.vue";
@@ -20,9 +20,18 @@ import AcknowledgementFormModal from "@/Components/Modals/AcknowledgementFormMod
 import Toast from "primevue/toast";
 import { useToast } from "primevue/usetoast";
 import LoadingOverlay from "@/Components/LoadingOverlay.vue";
-import { useAuth } from "@/Composables/useAuth";
+import { usePermissions } from "@/Composables/usePermissions";
+import { useLoading } from "@/Composables/useLoading";
 
-const { isAdmin, isStaff, can } = useAuth();
+const { isLoading, loadingTitle, loadingMessage, startLoading, stopLoading } =
+    useLoading();
+
+const {
+    inventoryActions,
+    canCreateInventory,
+    canImportInventory,
+    canExportInventory,
+} = usePermissions();
 
 const columns = [
     { label: "", key: "select_all" },
@@ -31,7 +40,13 @@ const columns = [
     {
         label: "Unit Cost",
         key: "unit_cost",
-        format: (val) => (val ? `₱${val}` : "N/A"),
+        format: (val) =>
+            val != null
+                ? `₱${Number(val).toLocaleString("en-PH", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                  })}`
+                : "N/A",
     },
     { label: "Property Number", key: "property_number" },
     { label: "Serial Number", key: "serial_number" },
@@ -106,20 +121,6 @@ const viewItem = [
         },
     },
 ];
-
-const isLoading = ref(false);
-const loadingTitle = ref("");
-const loadingMessage = ref("");
-
-router.on("start", () => {
-    isLoading.value = true;
-    loadingTitle.value = "Fetching Data...";
-    loadingMessage.value = "Please wait while we load the results.";
-});
-
-router.on("finish", () => {
-    isLoading.value = false;
-});
 
 const quantityCostFields = [
     { label: "Quantity", model: "quantity", placeholder: "0", type: "number" },
@@ -295,7 +296,7 @@ const itemClassifications = computed(
     () => page.props.itemClassifications || [],
 );
 const suppliers = computed(() => page.props.suppliers || []);
-console.log(suppliers.data)
+console.log(suppliers.data);
 // INVENTORY FILTER
 let search = ref("");
 let status = ref(null);
@@ -305,7 +306,7 @@ let acknowledgement_status = ref("");
 // MODAL STATE
 let formMode = ref("create");
 let showFormModal = ref(false);
-let showDeleteModal = ref(false);
+let showArchiveModal = ref(false);
 let showAssignModal = ref(false);
 let currentItem = ref({});
 
@@ -348,10 +349,11 @@ function handleEdit(item) {
 
 function handleDelete(item) {
     currentItem.value = item;
-    showDeleteModal.value = true;
+    showArchiveModal.value = true;
 }
 
 function handleSubmit() {
+    stopLoading()
     showSuccessModal.value = true;
     successMessage.value =
         formMode.value === "edit"
@@ -375,11 +377,12 @@ function handleSubmit() {
     );
 }
 
-function confirmDelete(item) {
+function confirmArchive(item) {
     router.delete(route("items.destroy", item.id), {
         preserveScroll: true,
         onSuccess: () => {
-            showDeleteModal.value = false;
+            stopLoading()
+            showArchiveModal.value = false;
             showDeleteSuccessModal.value = true;
 
             router.get(
@@ -451,9 +454,7 @@ const printSelected = async () => {
         return;
     }
 
-    isLoading.value = true;
-    loadingTitle.value = "Printing Receipt...";
-    loadingMessage.value = "Please wait while we prepare your document.";
+    startLoading("Printing Receipt...", "Please wait while we prepare your document."); // ✅
 
     try {
         const response = await axios.post(
@@ -482,14 +483,12 @@ const printSelected = async () => {
             life: 5000,
         });
     } finally {
-        isLoading.value = false;
+        stopLoading();
     }
 };
 
 const handlePrint = async (id) => {
-    isLoading.value = true;
-    loadingTitle.value = "Printing Receipt...";
-    loadingMessage.value = "Please wait while we prepare your document.";
+    startLoading("Printing Receipt...", "Please wait while we prepare your document.");
 
     try {
         const response = await axios.post(
@@ -518,7 +517,7 @@ const handlePrint = async (id) => {
             life: 5000,
         });
     } finally {
-        isLoading.value = false;
+        stopLoading();
     }
 };
 
@@ -533,9 +532,7 @@ const printQrCodes = async () => {
         return;
     }
 
-    isLoading.value = true;
-    loadingTitle.value = "Generating QR Codes...";
-    loadingMessage.value = "Please wait while we prepare your files.";
+    startLoading("Generating QR Codes...", "Please wait while we prepare your files.");
 
     try {
         const response = await axios.post(
@@ -544,11 +541,13 @@ const printQrCodes = async () => {
             { responseType: "blob" },
         );
 
-        // Download the zip
+        const isSingle = tempSelectedIds.value.length === 1;        // ✅
+        const filename = isSingle ? "qr-code.png" : "qr-codes.zip"; // ✅
+
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const link = document.createElement("a");
         link.href = url;
-        link.setAttribute("download", "qr-codes.zip");
+        link.setAttribute("download", filename);                     // ✅
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -577,7 +576,7 @@ const printQrCodes = async () => {
             });
         }
     } finally {
-        isLoading.value = false;
+        stopLoading();
     }
 };
 
@@ -608,7 +607,6 @@ const accountableField = [
 const itemSelectedField = [{ label: "Item Selected", model: "item_name" }];
 
 console.log(page.props.auth.permissions);
-
 </script>
 
 <template>
@@ -642,7 +640,10 @@ console.log(page.props.auth.permissions);
                             class="flex flex-col md:flex-row gap-2 justify-between mt-6"
                         >
                             <div class="flex flex-col sm:flex-row gap-2">
-                                <PrimaryButton @click="openAdd">
+                                <PrimaryButton
+                                    @click="openAdd"
+                                    v-if="canCreateInventory"
+                                >
                                     <i class="fa-solid fa-plus"></i>
                                     <span>Add Item</span>
                                 </PrimaryButton>
@@ -669,9 +670,9 @@ console.log(page.props.auth.permissions);
                                 </SecondaryButton>
                             </div>
                             <div class="flex flex-col sm:flex-row gap-2">
-                                <ConvertButton/>
-                                <ImportButton/>
-                                <ExportButton/>
+                                <ConvertButton />
+                                <ImportButton v-if="canImportInventory" />
+                                <ExportButton v-if="canExportInventory" />
                             </div>
                         </div>
 
@@ -750,17 +751,17 @@ console.log(page.props.auth.permissions);
                         <SuccessDeleteModal
                             v-if="showDeleteSuccessModal"
                             :icon="iconDelete"
-                            title="Delete Success"
-                            message="Item deleted successfully!"
+                            title="Archive Success"
+                            message="Item archived successfully!"
                             buttonText="Confirm"
                             @close="showDeleteSuccessModal = false"
                         />
 
-                        <DeleteModal
-                            v-if="showDeleteModal"
+                        <ArchiveModal
+                            v-if="showArchiveModal"
                             :item="currentItem"
-                            @confirm="confirmDelete"
-                            @close="() => (showDeleteModal = false)"
+                            @confirm="confirmArchive"
+                            @close="() => (showArchiveModal = false)"
                         />
 
                         <InventoryTable
@@ -768,7 +769,7 @@ console.log(page.props.auth.permissions);
                             :rows="items"
                             :rooms="rooms"
                             :module="'inventory'"
-                            :actions="['view','edit', 'delete', 'print']"
+                            :actions="inventoryActions"
                             @selection-changed="handleSelectionChanged"
                             @view="handleView"
                             @edit="handleEdit"

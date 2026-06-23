@@ -27,7 +27,7 @@ class RolePermissionSeeder extends Seeder
         'suppliers'       => ['view', 'create', 'edit', 'delete'],
         'categories'      => ['view', 'create', 'edit', 'delete'],
         // 'reports'         => ['view', 'export'],
-        'acknowledgements'=> ['create'],
+        'acknowledgements'=> ['view', 'create', 'show', 'upload'],
         'users'           => ['view', 'create', 'edit', 'delete'],
         'roles'           => ['view', 'create', 'edit', 'delete'],
         'archive_item'       => ['view', 'restore', 'force delete'],
