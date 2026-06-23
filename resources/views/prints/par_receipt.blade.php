@@ -297,7 +297,7 @@
                         <td width="60%">
                             <div class="purchase-info">
                                 <div>
-                                    <span class="label">Purchase From:</span>
+                                    <span class="label">Supplier:</span>
                                     {{ $firstItem->supplier->supplier_name ?? 'N/A' }}
                                 </div>
                                 <div><span class="label">Invoice No.:</span> {{ $firstItem->invoice ?? 'N/A' }}</div>

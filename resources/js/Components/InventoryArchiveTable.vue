@@ -68,7 +68,7 @@ function getValue(obj, path) {
                         <template v-else>
                             <div class="flex items-center gap-2">
                                 <button
-                                    v-if="actions.includes('restore') && can(`restore ${props.module}`)"
+                                    v-if="actions.includes('restore')"
                                     @click="$emit('restore', item)"
                                     class="text-[#2E7D32] hover:text-[#1b5e20]"
                                     title="Restore"
@@ -77,7 +77,7 @@ function getValue(obj, path) {
                                 </button>
 
                                 <button
-                                    v-if="actions.includes('force delete') && can(`force delete ${props.module}`)"
+                                    v-if="actions.includes('force-delete')"
                                     @click="$emit('permanent-delete', item)"
                                     class="text-[#D32F2F] hover:text-[#b71c1c]"
                                     title="Permanent Delete"

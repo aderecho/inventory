@@ -330,7 +330,7 @@
                             <th rowspan="2">Unit</th>
                             <th colspan="2">Amount</th>
                             <th rowspan="2">Description</th>
-                            <th rowspan="2">Inventory Item No.</th>
+                            <th rowspan="2">Property No.</th>
                             <th rowspan="2">Estimated Useful Life</th>
                         </tr>
                         <tr>
@@ -361,7 +361,7 @@
                             <td width="60%">
                                 <div class="purchase-info">
                                     <div>
-                                        <span class="label">Purchase From:</span>
+                                        <span class="label">Supplier:</span>
                                         <span class="value">{{ $lastItem->supplier->supplier_name ?? 'N/A' }}</span>
                                     </div>
                                     <div class="purchase-second-content">

@@ -94,6 +94,7 @@ function openAdd() {
 }
 
 function handleSubmit() {
+  stopLoading();
   showSuccessModal.value = true;
   successMessage.value =
     formMode.value === "edit"
@@ -118,6 +119,7 @@ function confirmDelete() {
   router.delete(route("user_management.destroy", currentUser.value.id), {
     preserveScroll: true,
     onSuccess: () => {
+      stopLoading();
       showDeleteModal.value = false;
       showDeleteSuccessModal.value = true;
       currentUser.value = null;

@@ -11,8 +11,13 @@ import Toast from "primevue/toast";
 import { useToast } from "primevue/usetoast";
 import LoadingOverlay from "@/Components/LoadingOverlay.vue";
 import { useLoading } from "@/Composables/useLoading";
+import { usePermissions } from "@/Composables/usePermissions";
 
-const { isLoading, loadingTitle, loadingMessage, startLoading } = useLoading();
+const { isLoading, loadingTitle, loadingMessage, startLoading, stopLoading } = useLoading();
+
+const {
+    archiveSupplierActions,
+} = usePermissions()
 
 const columns = [
     { label: "Supplier Name", key: "supplier_name" },
@@ -70,11 +75,6 @@ function handleForceDelete(item) {
 }
 
 function confirmRestore() {
-    startLoading(
-        "Restoring Supplier...",
-        "Please wait while we restore the supplier.",
-    );
-
     router.patch(
         route("suppliers.restore", currentItem.value.id),
         {},
@@ -82,6 +82,7 @@ function confirmRestore() {
             preserveScroll: true,
 
             onSuccess: () => {
+                stopLoading();
                 showRestoreModal.value = false;
 
                 toast.add({
@@ -96,14 +97,11 @@ function confirmRestore() {
 }
 
 function confirmForceDelete() {
-    startLoading(
-        "Deleting Supplier...",
-        "Please wait while we permanently delete the supplier.",
-    );
     router.delete(route("suppliers.forceDelete", currentItem.value.id), {
         preserveScroll: true,
 
         onSuccess: () => {
+            stopLoading();
             showForceDeleteModal.value = false;
 
             toast.add({
@@ -180,7 +178,7 @@ console.log(page.props.auth.permissions);
                         :rows="suppliers"
                         :columns="columns"
                         :module="'archive_supplier'"
-                        :actions="['restore', 'force delete']"
+                        :actions="archiveSupplierActions"
                         @restore="handleRestore"
                         @permanent-delete="handleForceDelete"
                     />

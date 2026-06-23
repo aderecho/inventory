@@ -8,14 +8,19 @@ import InventoryTable from "@/Components/InventoryTable.vue";
 import ItemFilterControls from "@/Components/Filters/ItemFilterControls.vue";
 import PrimaryButton from "@/Components/Buttons/PrimaryButton.vue";
 import CategoriesFormModal from "@/Components/Modals/CategoriesFormModal.vue";
-import DeleteModal from "@/Components/Modals/DeleteModal.vue";
+import ArchiveModal from "@/Components/Modals/ArchiveModal.vue";
 import SuccessModal from "@/Components/Modals/SuccessModal.vue";
 import SuccessDeleteModal from "@/Components/Modals/SuccessDeleteModal.vue";
 import LoadingOverlay from "@/Components/LoadingOverlay.vue";
 import { useLoading } from "@/Composables/useLoading";
+import { usePermissions } from "@/Composables/usePermissions";
 
-const { isLoading, loadingTitle, loadingMessage, startLoading, stopLoading } =
-    useLoading();
+const { isLoading, loadingTitle, loadingMessage, startLoading, stopLoading } = useLoading();
+
+const {
+    categoryActions,
+    canCreateCategory,
+} = usePermissions()
 
 const columns = [
     { label: "Classification Name", key: "classification_name" },
@@ -64,7 +69,7 @@ let search = ref("");
 
 let formMode = ref("create"); // create | edit
 let showFormModal = ref(false);
-let showDeleteModal = ref(false);
+let showArchiveModal = ref(false);
 
 let currentCategories = ref({});
 
@@ -86,7 +91,7 @@ function handleEdit(category) {
 
 function handleDelete(category) {
     currentCategories.value = category;
-    showDeleteModal.value = true;
+    showArchiveModal.value = true;
 }
 
 function handleSubmit(form) {
@@ -94,6 +99,7 @@ function handleSubmit(form) {
         form.post(route("categories.store"), {
             preserveScroll: true,
             onSuccess: () => {
+                stopLoading();
                 showFormModal.value = false;
                 form.reset();
 
@@ -105,6 +111,7 @@ function handleSubmit(form) {
         form.put(route("categories.update", form.id), {
             preserveScroll: true,
             onSuccess: () => {
+                stopLoading();
                 showFormModal.value = false;
                 form.reset();
 
@@ -115,11 +122,12 @@ function handleSubmit(form) {
     }
 }
 
-function confirmDelete() {
+function confirmArchive() {
     router.delete(route("categories.destroy", currentCategories.value.id), {
         preserveScroll: true,
         onSuccess: () => {
-            showDeleteModal.value = false;
+            stopLoading();
+            showArchiveModal.value = false;
             showDeleteSuccessModal.value = true;
             currentCategories.value = {};
         },
@@ -159,7 +167,7 @@ const toggleSidebar = () => {
                 <div
                     class="mt-10 flex flex-col md:flex-row gap-4 justify-between"
                 >
-                    <PrimaryButton @click="openAdd">
+                    <PrimaryButton @click="openAdd "v-if="canCreateCategory">
                         <i class="fa-solid fa-user-group"></i>
                         <span>Add Category</span>
                     </PrimaryButton>
@@ -180,11 +188,11 @@ const toggleSidebar = () => {
                     @close="showFormModal = false"
                 />
 
-                <DeleteModal
-                    v-if="showDeleteModal"
+                <ArchiveModal
+                    v-if="showArchiveModal"
                     :item="currentCategories"
-                    @confirm="confirmDelete"
-                    @close="showDeleteModal = false"
+                    @confirm="confirmArchive"
+                    @close="showArchiveModal = false"
                 />
 
                 <SuccessModal
@@ -197,8 +205,8 @@ const toggleSidebar = () => {
 
                 <SuccessDeleteModal
                     v-if="showDeleteSuccessModal"
-                    title="Delete Success"
-                    message="Category deleted successfully!"
+                    title="Archive Success"
+                    message="Category archived successfully!"
                     buttonText="Confirm"
                     @close="showDeleteSuccessModal = false"
                 />
@@ -207,7 +215,7 @@ const toggleSidebar = () => {
                     :columns="columns"
                     :module="'categories'"
                     :rows="categories"
-                    :actions="['edit', 'delete']"
+                    :actions="categoryActions"
                     @edit="handleEdit"
                     @delete="handleDelete"
                 />
