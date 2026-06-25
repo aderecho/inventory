@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AcknowledgementReceipt;
 use App\Models\InventoryItemFile;
+use App\Models\AcknowledgementItem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 
@@ -16,7 +17,7 @@ class AcknowledgementService
             'issuedBy.userProfiles',
             'acknowledgementItems.inventoryItems',
             'acknowledgementItems.accountablePerson',
-            'acknowledgementItems.file',
+            'acknowledgementItems.files',
         ])
             ->when($search, fn($query, $search) => $query->where('category', 'like', "%{$search}%"))
             ->latest()
@@ -28,8 +29,8 @@ class AcknowledgementService
         $receipt = AcknowledgementReceipt::with([
             'acknowledgementItems.accountablePerson',
             'acknowledgementItems.issuedBy',
-            'acknowledgementItems.inventoryItems', // ← your model uses inventoryItems not inventoryItem
-            'acknowledgementItems.file.uploadedBy',
+            'acknowledgementItems.inventoryItems',
+            'acknowledgementItems.files.uploadedBy',
         ])->findOrFail($id);
 
         $groupedByPerson = $receipt->acknowledgementItems
@@ -51,49 +52,59 @@ class AcknowledgementService
                                 'property_number' => $item->inventoryItems->property_number,
                             ],
                             'status' => $item->status,
-                            'file'   => $item->file ? [
-                                'id'            => $item->file->id,
-                                'file_path'     => $item->file->file_path,
-                                'file_type'     => $item->file->file_type,
-                                'file_group_id' => $item->file->file_group_id,
-                                'uploaded_by'   => $item->file->uploadedBy?->name,
-                                'uploaded_at'   => $item->file->created_at->format('M d, Y'),
-                            ] : null,
+                            'files'  => $item->files->map(fn($file) => [ // changed from file to files
+                                'id'          => $file->id,
+                                'file_path'   => $file->file_path,
+                                'file_type'   => $file->file_type,
+                                'uploaded_by' => $file->uploadedBy?->full_name,
+                                'uploaded_at' => $file->created_at->format('M d, Y'),
+                            ])->values(),
                         ];
                     })->values(),
                 ];
             })->values();
 
         return [
-            'receipt'          => $receipt,
-            'groupedByPerson'  => $groupedByPerson,
+            'receipt'         => $receipt,
+            'groupedByPerson' => $groupedByPerson,
         ];
     }
 
     public function uploadFile(
-        array $acknowledgementItemIds,
-        UploadedFile $file,
-        int $uploadBy
+        int $acknowledgementId,
+        array $files,
+        int $uploadBy,
+        ?int $accountablePersonId = null
     ): void {
-        // ✅ This is the real guard — frontend disabled can be bypassed
-        $alreadyHasFile = InventoryItemFile::whereIn('acknowledgement_item_id', $acknowledgementItemIds)->exists();
+        $query = AcknowledgementItem::where('acknowledgement_id', $acknowledgementId);
 
-        if ($alreadyHasFile) {
-            throw new \Exception('One or more selected items already have an uploaded file.');
+        if ($accountablePersonId) {
+            $query->where('accountable_person_id', $accountablePersonId);
         }
 
-        $path      = $file->store('acknowledgement_files', 'public');
-        $fileType  = $file->getClientMimeType();
-        $groupId   = (string) Str::uuid();
+        $itemIds = $query->pluck('id');
 
-        foreach ($acknowledgementItemIds as $itemId) {
-            InventoryItemFile::create([
-                'acknowledgement_item_id' => $itemId,
-                'file_group_id'           => $groupId,
-                'file_path'               => $path,
-                'file_type'               => $fileType,
-                'upload_by'               => $uploadBy,
-            ]);
+        $alreadyHasFile = InventoryItemFile::whereIn('acknowledgement_item_id', $itemIds)->exists();
+
+        if ($alreadyHasFile) {
+            throw new \Exception('This receipt already has uploaded files.');
+        }
+
+        $groupId = (string) Str::uuid();
+
+        foreach ($files as $file) {
+            $path     = $file->store('acknowledgement_files', 'public');
+            $fileType = $file->getClientMimeType();
+
+            foreach ($itemIds as $itemId) {
+                InventoryItemFile::create([
+                    'acknowledgement_item_id' => $itemId,
+                    'file_group_id'           => $groupId,
+                    'file_path'               => $path,
+                    'file_type'               => $fileType,
+                    'upload_by'               => $uploadBy,
+                ]);
+            }
         }
     }
 }

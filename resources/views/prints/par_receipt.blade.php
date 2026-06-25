@@ -257,7 +257,7 @@
                                 <strong>Fund Cluster:</strong> <span>{{ $firstItem->fund_source ?? 'N/A' }}</span>
                             </td>
                             <td width="40%">
-                                <strong>PAR No.:</strong> <span>{{ $firstItem->property_number ?? 'N/A' }}</span>
+                                <strong>PAR No.:</strong> <span>{{ $receipt->category ?? 'N/A' }}</span>
                                 <br>
                                 <strong>Date:</strong> <span>{{ optional($receipt->created_at)->format('m/d/Y') }}</span>
                             </td>
@@ -284,8 +284,8 @@
                                 <td>{{ $item->inventoryItems->unit ?? 'unit' }}</td>
                                 <td>{{ $item->inventoryItems->description }}</td>
                                 <td>{{ $item->inventoryItems->property_number }}</td>
-                                <td>{{ number_format($item->inventoryItems->unit_cost, 2) }}</td>
-                                <td>{{ number_format($item->inventoryItems->unit_cost * ($item->inventoryItems->quantity ?? 1), 2) }}</td>
+                                <td style="text-align: center;">{{ number_format($item->inventoryItems->unit_cost, 2) }}</td>
+                                <td style="text-align: center;">{{ number_format($item->inventoryItems->unit_cost * ($item->inventoryItems->quantity ?? 1), 2) }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -319,7 +319,7 @@
                             </td>
                             <td width="50%">
                                 <strong>Location:</strong>
-                                {{ $firstAckItem->accountablePerson->department ?? 'N/A' }}
+                                {{ $roomNames[$item->inventoryItems->id] ?? 'N/A' }}
                             </td>
                         </tr>
                     </table>

@@ -53,19 +53,28 @@ const supplierFields = [
         model: "supplier_name",
         placeholder: "Supplier Name",
         type: "text",
+        required: true,
     },
     {
         label: "Contact Number",
         model: "contact_no",
         placeholder: "Contact Number",
         type: "text",
+        required: true,
     },
-    { label: "Email", model: "email", placeholder: "Email", type: "text" },
+    {
+        label: "Email",
+        model: "email",
+        placeholder: "Email",
+        type: "text",
+        required: false,
+    },
     {
         label: "Address",
         model: "address",
         placeholder: "Address",
         type: "text",
+        required: true,
     },
 ];
 

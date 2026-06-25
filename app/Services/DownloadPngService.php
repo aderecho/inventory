@@ -4,17 +4,20 @@ namespace App\Services;
 
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use App\Models\InventoryItem;
+use App\Services\RoomApiService;
 use ZipArchive;
 
 class DownloadPngService
 {
     private string $fontRegular;
     private string $fontBold;
+    private RoomApiService $roomsApi;
 
-    public function __construct()
+    public function __construct(RoomApiService $roomsApi)
     {
         $this->fontRegular = public_path('fonts/DejaVuSans.ttf');
         $this->fontBold    = public_path('fonts/DejaVuSans-Bold.ttf');
+        $this->roomsApi    = $roomsApi;
     }
 
     private function wrapText(string $text, int $fontSize, string $font, int $maxWidth): array
@@ -53,17 +56,24 @@ class DownloadPngService
         $qrX        = 620;
         $maxWidth   = ($qrX - $valueX - 20) * $scale;
 
+        $roomName = 'N/A';
+        if ($item->latestHistoryLocation) {
+            $roomId = $item->latestHistoryLocation->room_id;
+            $roomResult = $this->roomsApi->fetchRooms();
+            $room = collect($roomResult['data'])->firstWhere('id', $roomId);
+            $roomName = $room['room_name'] ?? 'N/A';
+        }
+
         $fields = [
             'Date Acquired'      => $item->date_acquired ?? 'N/A',
-            'Cost'               => 'P' . number_format($item->unit_cost, 2),
+            'Cost'               => number_format($item->unit_cost, 2),
             'Product'            => $item->item_name,
             'Serial Model#'      => $item->serial_number ?? 'N/A',
             'Accountable Person' => $item->latestAcknowledgementItem?->accountablePerson?->full_name ?? 'N/A',
             'Supplier'           => $item->supplier?->supplier_name ?? 'N/A',
-            'Location'           => 'N/A',
+            'Location'           => $roomName,
         ];
 
-        // Calculate total height
         $totalExtraLines = 0;
         foreach ($fields as $value) {
             $lines = $this->wrapText($value, 10 * $scale, $this->fontRegular, $maxWidth);
@@ -75,7 +85,7 @@ class DownloadPngService
         $contentHeight = $startY + $fieldsHeight + 40;
         $minHeight     = 420;
         $height        = max($minHeight, $contentHeight);
-        $width         = $qrX + $qrSize + 30; // 870
+        $width         = $qrX + $qrSize + 30;
 
         $img   = imagecreatetruecolor($width * $scale, $height * $scale);
         $white = imagecolorallocate($img, 255, 255, 255);
@@ -83,119 +93,36 @@ class DownloadPngService
 
         imagefilledrectangle($img, 0, 0, $width * $scale, $height * $scale, $white);
 
-        // Logo (top left)
         $logoPath = public_path('images/uplogo-1.png');
         if (file_exists($logoPath)) {
             $logo = imagecreatefrompng($logoPath);
-            imagecopyresampled(
-                $img,
-                $logo,
-                $leftX * $scale,
-                20 * $scale,
-                0,
-                0,
-                60 * $scale,
-                60 * $scale,
-                imagesx($logo),
-                imagesy($logo)
-            );
+            imagecopyresampled($img, $logo, $leftX * $scale, 20 * $scale, 0, 0, 60 * $scale, 60 * $scale, imagesx($logo), imagesy($logo));
             imagedestroy($logo);
         }
 
-        // Header (beside logo)
-        imagettftext(
-            $img,
-            14 * $scale,
-            0,
-            90 * $scale,
-            42 * $scale,
-            $black,
-            $this->fontBold,
-            'University of the Philippines CEBU'
-        );
-        imagettftext(
-            $img,
-            11 * $scale,
-            0,
-            90 * $scale,
-            64 * $scale,
-            $black,
-            $this->fontBold,
-            'PROPERTY INVENTORY STICKER'
-        );
+        imagettftext($img, 14 * $scale, 0, 90 * $scale, 42 * $scale, $black, $this->fontBold, 'University of the Philippines CEBU');
+        imagettftext($img, 11 * $scale, 0, 90 * $scale, 64 * $scale, $black, $this->fontBold, 'PROPERTY INVENTORY STICKER');
+        imagettftext($img, 14 * $scale, 0, $leftX * $scale, 125 * $scale, $black, $this->fontBold, 'Property Code:');
+        imagettftext($img, 28 * $scale, 0, 210 * $scale, 125 * $scale, $black, $this->fontBold, $item->property_number);
 
-        // Property Code label + value on same line ✅
-        imagettftext(
-            $img,
-            14 * $scale,
-            0,
-            $leftX * $scale,
-            125 * $scale,
-            $black,
-            $this->fontBold,
-            'Property Code:'
-        );
-        imagettftext(
-            $img,
-            28 * $scale,
-            0,
-            210 * $scale,
-            125 * $scale,
-            $black,
-            $this->fontBold,
-            $item->property_number
-        );
-
-        // Fields
         $y = $startY;
         foreach ($fields as $label => $value) {
-            imagettftext(
-                $img,
-                10 * $scale,
-                0,
-                $leftX * $scale,
-                $y * $scale,
-                $black,
-                $this->fontBold,
-                $label . ':'
-            );
+            imagettftext($img, 10 * $scale, 0, $leftX * $scale, $y * $scale, $black, $this->fontBold, $label . ':');
 
             $lines = $this->wrapText($value, 10 * $scale, $this->fontRegular, $maxWidth);
             foreach ($lines as $index => $line) {
-                imagettftext(
-                    $img,
-                    10 * $scale,
-                    0,
-                    $valueX * $scale,
-                    ($y + ($index * $lineHeight)) * $scale,
-                    $black,
-                    $this->fontRegular,
-                    $line
-                );
+                imagettftext($img, 10 * $scale, 0, $valueX * $scale, ($y + ($index * $lineHeight)) * $scale, $black, $this->fontRegular, $line);
             }
 
             $y += count($lines) * $lineHeight;
         }
 
-        // QR Code — vertically centered ✅
         $qrCenterY = $startY - 90;
         $qrData    = QrCode::format('png')->size($qrSize * $scale)->margin(2)->generate($item->property_number);
         $qrImg     = imagecreatefromstring($qrData);
-        imagecopyresampled(
-            $img,
-            $qrImg,
-            $qrX * $scale,
-            (int)($qrCenterY * $scale),
-            0,
-            0,
-            $qrSize * $scale,
-            $qrSize * $scale,
-            imagesx($qrImg),
-            imagesy($qrImg)
-        );
+        imagecopyresampled($img, $qrImg, $qrX * $scale, (int)($qrCenterY * $scale), 0, 0, $qrSize * $scale, $qrSize * $scale, imagesx($qrImg), imagesy($qrImg));
         imagedestroy($qrImg);
 
-        // Output
         ob_start();
         imagepng($img);
         $png = ob_get_clean();
@@ -209,11 +136,7 @@ class DownloadPngService
         try {
             $png = $this->generateItemQrPng($item);
 
-            $filename = preg_replace(
-                '/[^A-Za-z0-9\-_]/',
-                '_',
-                $item->property_number
-            ) . '.png';
+            $filename = preg_replace('/[^A-Za-z0-9\-_]/', '_', $item->property_number) . '.png';
 
             $zip->addFromString($filename, $png);
         } catch (\Exception $e) {
@@ -237,7 +160,11 @@ class DownloadPngService
         $errors = [];
 
         foreach ($ids as $id) {
-            $item = InventoryItem::with('latestAcknowledgementItem.accountablePerson', 'supplier')->find($id);
+            $item = InventoryItem::with([
+                'latestAcknowledgementItem.accountablePerson',
+                'supplier',
+                'latestHistoryLocation',
+            ])->find($id);
 
             if (!$item || !$item->latestAcknowledgementItem || !$item->latestAcknowledgementItem->accountablePerson) {
                 $errors[] = $item->property_number ?? $item->item_name ?? $id;
@@ -258,7 +185,11 @@ class DownloadPngService
 
     public function generateQrPng(int $id): string
     {
-        $item = InventoryItem::with('latestAcknowledgementItem.accountablePerson', 'supplier')->find($id);
+        $item = InventoryItem::with([
+            'latestAcknowledgementItem.accountablePerson',
+            'supplier',
+            'latestHistoryLocation',
+        ])->find($id);
 
         if (!$item || !$item->latestAcknowledgementItem || !$item->latestAcknowledgementItem->accountablePerson) {
             abort(422, 'This item has no accountable person assigned: ' . ($item->property_number ?? $item->item_name ?? $id));
@@ -267,11 +198,7 @@ class DownloadPngService
         try {
             $png = $this->generateItemQrPng($item);
 
-            $filename = preg_replace(
-                '/[^A-Za-z0-9\-_]/',
-                '_',
-                $item->property_number
-            ) . '-' . now()->timestamp . '.png';
+            $filename = preg_replace('/[^A-Za-z0-9\-_]/', '_', $item->property_number) . '-' . now()->timestamp . '.png';
 
             $pngPath = storage_path('app/' . $filename);
             file_put_contents($pngPath, $png);

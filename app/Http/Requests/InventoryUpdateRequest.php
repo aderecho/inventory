@@ -34,10 +34,10 @@ class InventoryUpdateRequest extends FormRequest
             'unit' => 'required|string|max:50',
             'unit_cost' => 'required|numeric',
             'total_amount' => 'nullable|numeric',
-            'serial_number' => 'required|string|max:50',
+            'serial_number' => 'nullable|max:50',
             'pr_number' => 'required|string|max:50',
             'po_number' => 'required|string|max:50',
-            'remarks' => 'required|string|max:50',
+            'remarks' => 'nullable|string|max:50',
             'date_acquired' => 'required|date',
             'status' => 'nullable|integer',
             'property_number' => [

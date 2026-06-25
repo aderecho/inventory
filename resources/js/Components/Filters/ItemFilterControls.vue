@@ -81,20 +81,6 @@ function fetchInventory(params = {}) {
 }
 const debouncedFetchInventory = debounce(fetchInventory, 1000);
 
-//-----------------DASHBOARD----------------------------
-function fetchDashboardSearch(searchValue) {
-    router.get(
-        "/dashboard",
-        { search: searchValue },
-        {
-            preserveState: true,
-            replace: true,
-            preserveScroll: true,
-        },
-    );
-}
-const debouncedFetchDashboard = debounce(fetchDashboardSearch, 1000);
-
 //----------------ACKNOWLEDGEMENT FETCH-----------------
 function fetchAcknowledgmentSearch(searchValue, cost, stat) {
     router.get(
@@ -167,6 +153,19 @@ const debouncedFetchAccountablePerson = debounce(
     300,
 );
 
+//------------------USERS----------------------
+function fetchUsersSearch(searchValue, statusValue) {
+    router.get(
+        route("user_management.index"),
+        {
+            search: searchValue,
+            status: statusValue !== "" ? statusValue : undefined,
+        },
+        { preserveState: true, replace: true, preserveScroll: true },
+    );
+}
+const debouncedFetchUsers = debounce(fetchUsersSearch, 1000);
+
 //------------------SEARCH WATCHER---------------------
 watch(search, (value) => {
     if (props.mode === "inventory") {
@@ -176,8 +175,6 @@ watch(search, (value) => {
             status: status.value,
             acknowledgement_status: acknowledgement_status.value,
         });
-    } else if (props.mode === "dashboard") {
-        debouncedFetchDashboard(value);
     } else if (props.mode === "acknowledgements") {
         debouncedFetchAcknowledgement(value, cost_range.value, status.value);
     } else if (props.mode === "transactions") {
@@ -198,6 +195,8 @@ watch(search, (value) => {
         debouncedFetchAccountablePerson(value);
     } else if (props.mode === "categories") {
         debouncedFetchCategories(value);
+    } else if (props.mode === "users") {
+        debouncedFetchUsers(value, status.value);
     }
 
     emit("update:search", value);
@@ -220,6 +219,8 @@ watch(status, (value) => {
         });
     } else if (props.mode === "acknowledgements") {
         debouncedFetchAcknowledgement(search.value, cost_range.value, value);
+    } else if (props.mode === "users") {
+        debouncedFetchUsers(search.value, value); // ← add this
     }
 
     emit("update:status", value);

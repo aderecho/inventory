@@ -22,11 +22,21 @@
         "vue": "^3.4.0"
     },
     "dependencies": {
+        "@lucide/vue": "^1.21.0",
         "@primevue/themes": "^4.5.4",
+        "@vueform/multiselect": "^2.6.11",
+        "@vueuse/core": "^14.3.0",
         "chart.js": "^4.5.1",
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
         "dayjs": "^1.11.19",
         "lodash": "^4.17.21",
+        "lucide-vue-next": "^1.0.0",
         "primeicons": "^7.0.0",
-        "primevue": "^4.5.4"
+        "primevue": "^4.5.4",
+        "reka-ui": "^2.10.0",
+        "tailwind-merge": "^3.6.0",
+        "tailwindcss-animate": "^1.0.7",
+        "vue3-select-component": "^1.0.0"
     }
 }

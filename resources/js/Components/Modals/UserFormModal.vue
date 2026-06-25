@@ -15,7 +15,6 @@ const props = defineProps({
 
 const emit = defineEmits(["submit", "close"]);
 
-// ─── Main user form ────────────────────────────────────────────────────────
 const form = useForm({
   id: null,
   email: "",
@@ -235,24 +234,25 @@ function inputClass(hasError) {
 
           <!-- Email -->
           <div>
-            <label class="block text-sm font-bold mb-1">Email</label>
+            <label class="block text-sm font-bold mb-1">Email <span class="text-red-500">*</span></label>
             <input v-model="form.email" type="email" placeholder="Email" :class="inputClass(form.errors.email)" />
             <p v-if="form.errors.email" class="text-red-500 text-xs mt-1">{{ form.errors.email }}</p>
           </div>
 
           <!-- Password -->
-          <div>
-            <label class="block text-sm font-bold mb-1">
-              Password
+         <div>
+          <label class="block text-sm font-bold mb-1">
+              Password 
+              <span v-if="mode !== 'edit'" class="text-red-500">*</span>
               <span v-if="mode === 'edit'" class="text-gray-400 font-normal">(leave blank to keep current)</span>
-            </label>
-            <input v-model="form.password" type="password" placeholder="Password" :class="inputClass(form.errors.password)" />
-            <p v-if="form.errors.password" class="text-red-500 text-xs mt-1">{{ form.errors.password }}</p>
-          </div>
+          </label>
+          <input v-model="form.password" type="password" placeholder="Password" :class="inputClass(form.errors.password)" />
+          <p v-if="form.errors.password" class="text-red-500 text-xs mt-1">{{ form.errors.password }}</p>
+      </div>
 
           <!-- Status -->
           <div>
-            <label class="block text-sm font-bold mb-1">Status</label>
+            <label class="block text-sm font-bold mb-1">Status <span class="text-red-500">*</span></label>
             <select v-model="form.status" :class="inputClass(form.errors.status)">
               <option :value="1">Active</option>
               <option :value="0">Inactive</option>
@@ -262,7 +262,7 @@ function inputClass(hasError) {
 
           <!-- First Name -->
           <div>
-            <label class="block text-sm font-bold mb-1">First Name</label>
+            <label class="block text-sm font-bold mb-1">First Name <span class="text-red-500">*</span></label>
             <input v-model="form.user_profiles.first_name" :class="inputClass(form.errors['user_profiles.first_name'])" />
             <p v-if="form.errors['user_profiles.first_name']" class="text-red-500 text-xs mt-1">
               {{ form.errors["user_profiles.first_name"] }}
@@ -271,7 +271,7 @@ function inputClass(hasError) {
 
           <!-- Last Name -->
           <div>
-            <label class="block text-sm font-bold mb-1">Last Name</label>
+            <label class="block text-sm font-bold mb-1">Last Name <span class="text-red-500">*</span></label>
             <input v-model="form.user_profiles.last_name" :class="inputClass(form.errors['user_profiles.last_name'])" />
             <p v-if="form.errors['user_profiles.last_name']" class="text-red-500 text-xs mt-1">
               {{ form.errors["user_profiles.last_name"] }}
@@ -298,7 +298,7 @@ function inputClass(hasError) {
 
           <!-- Role -->
           <div>
-            <label class="block text-sm font-bold mb-1">Role</label>
+            <label class="block text-sm font-bold mb-1">Role <span class="text-red-500">*</span></label>
             <select v-model="form.role" :class="inputClass(form.errors.role)">
               <option value="">Select Role</option>
               <option v-for="role in roles" :key="role.id" :value="role.name">

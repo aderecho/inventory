@@ -3,7 +3,7 @@ import { Link } from "@inertiajs/vue3";
 import { router } from "@inertiajs/vue3";
 
 defineProps({ receipts: Object });
-defineEmits(['view']);
+defineEmits(["view"]);
 
 const goToPage = (url) => {
     router.visit(url, { preserveState: true });
@@ -23,8 +23,11 @@ const goToPage = (url) => {
                         >
                             Receipts
                         </th>
-                        <th class="p-2 sm:p-3 md:p-4 text-left">Date</th>
-                        <th class="p-2 sm:p-3 md:p-4 text-left">Issued By</th>
+                        <th class="p-2 sm:p-3 md:p-4 text-left">Date Release</th>
+                        <th class="p-2 sm:p-3 md:p-4 text-left">
+                            Accountable Person
+                        </th>
+                        <!-- <th class="p-2 sm:p-3 md:p-4 text-left">Issued By</th> -->
                         <th class="p-2 sm:p-3 md:p-4 text-left">Items</th>
                         <th class="p-2 sm:p-3 md:p-4 text-left last:rounded-tr">
                             Action
@@ -51,10 +54,23 @@ const goToPage = (url) => {
                             </td>
                             <td class="p-2 sm:p-3 md:p-4">
                                 {{
+                                    [
+                                        ...new Set(
+                                            receipt.acknowledgement_items.map(
+                                                (item) =>
+                                                    item.accountable_person
+                                                        ?.full_name ?? "N/A",
+                                            ),
+                                        ),
+                                    ].join(", ")
+                                }}
+                            </td>
+                            <!-- <td class="p-2 sm:p-3 md:p-4">
+                                {{
                                     receipt.issued_by?.user_profiles
                                         .full_name ?? "N/A"
                                 }}
-                            </td>
+                            </td> -->
                             <td class="p-2 sm:p-3 md:p-4">
                                 {{ receipt.acknowledgement_items.length }} items
                             </td>

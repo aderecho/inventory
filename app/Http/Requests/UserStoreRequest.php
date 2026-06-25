@@ -21,8 +21,8 @@ class UserStoreRequest extends FormRequest
             'status' => 'required|integer|in:0,1',
             'user_profiles.first_name' => 'required|string|max:255',
             'user_profiles.last_name'  => 'required|string|max:255',
-            'user_profiles.middle_name' => 'required|string|max:255',
-            'user_profiles.contact_number' => 'required|string|max:50',
+            'user_profiles.middle_name' => 'nullable|string|max:255',
+            'user_profiles.contact_number' => 'nullable|string|max:50',
             'role' => 'required|string|exists:roles,name',
             'permissions' => 'nullable|array',
             'permissions.*' => 'string|exists:permissions,name',
@@ -37,8 +37,6 @@ class UserStoreRequest extends FormRequest
             'status.required' => 'The status field is required.',
             'user_profiles.first_name.required' => 'The first name field is required.',
             'user_profiles.last_name.required'  => 'The last name field is required.',
-            'user_profiles.middle_name.required' => 'The middle name field is required.',
-            'user_profiles.contact_number.required' => 'The contact number field is required.',
             'role.required' => 'The role field is required.',
         ];
     }
