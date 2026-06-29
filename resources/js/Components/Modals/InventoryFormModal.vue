@@ -3,7 +3,8 @@ import { useForm, usePage } from "@inertiajs/vue3";
 import { watch, ref } from "vue";
 import Toast from "primevue/toast";
 import { useToast } from "primevue/usetoast";
-import MultiSelect from "primevue/multiselect";
+import Multiselect from "@vueform/multiselect";
+import "/node_modules/@vueform/multiselect/themes/default.css";
 
 const props = defineProps({
     mode: { type: String, default: "create" },
@@ -227,7 +228,6 @@ function getViewValue(view) {
     }
     return rawValue ?? "N/A";
 }
-
 </script>
 
 <template>
@@ -262,9 +262,9 @@ function getViewValue(view) {
                     <div class="space-y-4 col-span-1 md:col-span-1">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5">
                             <div class="space-y-4">
-                                <!-- FIRST DOWN -->
+                                <!-- FIRST DROP DOWN -->
                                 <div
-                                    class="flex flex-col md:flex-row gap-4 mb-4"
+                                    class="flex flex-col md:flex-row gap-2 mb-4"
                                 >
                                     <div
                                         v-for="fdp in firstDropdown"
@@ -272,28 +272,21 @@ function getViewValue(view) {
                                     >
                                         <label
                                             class="block text-[#3B3B3B] text-sm font-bold mb-1"
-                                            >{{ fdp.label }}</label
+                                            >{{ fdp.label }}
+                                            <span class="text-red-500"
+                                                >*</span
+                                            ></label
                                         >
-                                        <select
+                                        <Multiselect
                                             v-model="form[fdp.model]"
-                                            :class="[
-                                                'w-full sm:w-[10rem] rounded-md px-3 py-3 text-gray-500 bg-[#F8F8F8] text-sm focus:ring-1 focus:outline-none',
-                                                form.errors[fdp.model]
-                                                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
-                                                    : 'border-gray-300 focus:ring-[#850038] focus:border-[#850038]',
-                                            ]"
-                                        >
-                                            <option value="" disabled hidden>
-                                                Select
-                                            </option>
-                                            <option
-                                                v-for="item in props[fdp.name]"
-                                                :key="item.id"
-                                                :value="item[fdp.value]"
-                                            >
-                                                {{ item[fdp.option] || "N/A" }}
-                                            </option>
-                                        </select>
+                                            :options="props[fdp.name]"
+                                            :searchable="true"
+                                            :value-prop="fdp.value"
+                                            :label="fdp.option"
+                                            :track-by="fdp.option"
+                                            placeholder="Select"
+                                            class="first-dropdown-select"
+                                        />
                                         <div
                                             v-if="form.errors[fdp.model]"
                                             class="text-red-500 text-sm"
@@ -301,8 +294,6 @@ function getViewValue(view) {
                                             {{ form.errors[fdp.model] }}
                                         </div>
                                     </div>
-
-                                    
 
                                     <!-- FIRST INPUT FIELD SECTION -->
                                     <div
@@ -312,7 +303,10 @@ function getViewValue(view) {
                                     >
                                         <label
                                             class="block text-[#3B3B3B] text-sm font-bold mb-1"
-                                            >{{ fif.label }}</label
+                                            >{{ fif.label }}
+                                            <span class="text-red-500"
+                                                >*</span
+                                            ></label
                                         >
                                         <input
                                             :type="fif.type || 'text'"
@@ -320,7 +314,7 @@ function getViewValue(view) {
                                             :placeholder="fif.placeholder"
                                             :required="fif.required"
                                             :class="[
-                                                'w-full sm:w-[10rem] rounded-md px-3 py-3 text-[#3B3B3B] bg-[#F8F8F8] text-sm focus:ring-1 focus:outline-none',
+                                                'w-full sm:w-[15.7rem] rounded-md px-3 py-3 text-[#3B3B3B] bg-[#F8F8F8] text-sm focus:ring-1 focus:outline-none',
                                                 form.errors[fif.model]
                                                     ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
                                                     : 'border-gray-300 focus:ring-[#850038] focus:border-[#850038]',
@@ -333,46 +327,7 @@ function getViewValue(view) {
                                             {{ form.errors[fif.model] }}
                                         </div>
                                     </div>
-
-                                    <!-- ROOM DROPDOWN -->
-                                    <div
-                                        v-for="rdp in roomDropdown"
-                                        :key="rdp.model"
-                                    >
-                                        <label
-                                            class="block text-[#3B3B3B] text-sm font-bold mb-1"
-                                            >{{ rdp.label }}</label
-                                        >
-                                        <select
-                                            v-model="form[rdp.model]"
-                                            :class="[
-                                                'w-full sm:w-[10rem] rounded-md px-3 py-3 text-gray-500 bg-[#F8F8F8] text-sm focus:ring-1 focus:outline-none',
-                                                form.errors[rdp.model]
-                                                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
-                                                    : 'border-gray-300 focus:ring-[#850038] focus:border-[#850038]',
-                                            ]"
-                                        >
-                                            <option value="" disabled hidden>
-                                                Select
-                                            </option>
-                                            <option
-                                                v-for="room in props[rdp.name]"
-                                                :key="room[rdp.value]"
-                                                :value="room[rdp.value]"
-                                            >
-                                                {{ room[rdp.option] || "N/A" }}
-                                            </option>
-                                        </select>
-                                        <div
-                                            v-if="form.errors[rdp.model]"
-                                            class="text-red-500 text-sm"
-                                        >
-                                            {{ form.errors[rdp.model] }}
-                                        </div>
-                                    </div>
                                 </div>
-
-                                
 
                                 <!-- SECOND DROP DOWN -->
                                 <div class="w-full flex md:flex-row gap-4 mb-8">
@@ -384,7 +339,10 @@ function getViewValue(view) {
                                         <div>
                                             <label
                                                 class="block text-sm text-[#3B3B3B] font-bold mb-1"
-                                                >{{ sdf.label }}</label
+                                                >{{ sdf.label }}
+                                                <span class="text-red-500"
+                                                    >*</span
+                                                ></label
                                             >
                                             <select
                                                 v-model="form[sdf.model]"
@@ -415,7 +373,10 @@ function getViewValue(view) {
                                     <div>
                                         <label
                                             class="block text-sm text-[#3B3B3B] font-bold mb-1"
-                                            >Date Acquired</label
+                                            >Date Acquired
+                                            <span class="text-red-500"
+                                                >*</span
+                                            ></label
                                         >
                                         <input
                                             v-model="form.date_acquired"
@@ -437,7 +398,7 @@ function getViewValue(view) {
                                 </div>
 
                                 <!-- QUANTITY/UNIT COST -->
-                                <div class="flex gap-4 sm:gap-8 w-full">
+                                <div class="flex gap-8">
                                     <div
                                         v-for="qcf in quantityCostFields"
                                         :key="qcf.quantityCostFields"
@@ -445,14 +406,39 @@ function getViewValue(view) {
                                     >
                                         <label
                                             class="block text-sm text-[#3B3B3B] font-bold mb-1"
-                                            >{{ qcf.label }}</label
+                                            >{{ qcf.label }}
+                                            <span class="text-red-500"
+                                                >*</span
+                                            ></label
                                         >
                                         <input
+                                            v-if="!qcf.format"
                                             v-model="form[qcf.model]"
                                             :key="qcf.model"
                                             :type="qcf.type"
                                             :placeholder="qcf.placeholder"
                                             step="any"
+                                            :class="[
+                                                'w-full sm:w-[15.7rem] rounded-md border border-gray-300 px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:outline-none',
+                                                form.errors[qcf.model]
+                                                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                                                    : 'border-gray-300 focus:ring-[#dfa8bf] focus:border-[#850038]',
+                                            ]"
+                                        />
+                                        <!-- Formatted input for comma display -->
+                                        <input
+                                            v-else
+                                            :value="qcf.format(form[qcf.model])"
+                                            @input="
+                                                form[qcf.model] =
+                                                    $event.target.value.replace(
+                                                        /,/g,
+                                                        '',
+                                                    )
+                                            "
+                                            :key="qcf.model + '_formatted'"
+                                            type="text"
+                                            :placeholder="qcf.placeholder"
                                             :class="[
                                                 'w-full sm:w-[15.7rem] rounded-md border border-gray-300 px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:outline-none',
                                                 form.errors[qcf.model]
@@ -468,7 +454,6 @@ function getViewValue(view) {
                                         </div>
                                     </div>
                                 </div>
-
                                 <!-- SERIAL NUMBERS -->
                                 <div
                                     v-if="form.quantity > 0"
@@ -499,7 +484,10 @@ function getViewValue(view) {
                                 >
                                     <label
                                         class="block text-sm text-[#3B3B3B] font-bold mb-1"
-                                        >{{ ip.label }}</label
+                                        >{{ ip.label }}
+                                        <span class="text-red-500"
+                                            >*</span
+                                        ></label
                                     >
                                     <input
                                         v-model="form[ip.model]"
@@ -543,9 +531,69 @@ function getViewValue(view) {
                             </div>
                         </div>
                     </div>
-
                     <!-- RIGHT -->
                     <div class="space-y-4">
+                        <!-- ROOM DROPDOWN -->
+                        <div
+                            v-for="rdp in roomDropdown"
+                            :key="rdp.model"
+                            class="flex flex-col"
+                        >
+                            <label
+                                class="block text-[#3B3B3B] text-sm font-bold mb-1"
+                                >{{ rdp.label }}
+                                <span class="text-red-500">*</span></label
+                            >
+
+                            <Multiselect
+                                v-model="form[rdp.model]"
+                                :options="props.rooms"
+                                :searchable="true"
+                                :value-prop="rdp.value"
+                                :label="rdp.option"
+                                :track-by="rdp.option"
+                                placeholder="Select a room"
+                                class="room-dropdown-select"
+                            >
+                                <template #option="{ option }">
+                                    <div class="w-full">
+                                        <div
+                                            class="grid grid-cols-2 gap-2 text-sm font-medium"
+                                        >
+                                            <span>{{
+                                                option[rdp.option] || "N/A"
+                                            }}</span>
+                                            <span
+                                                class="text-right text-xs text-gray-400 truncate"
+                                                >{{
+                                                    option.description || "N/A"
+                                                }}</span
+                                            >
+                                        </div>
+                                        <div
+                                            class="grid grid-cols-2 gap-2 text-xs text-gray-400 mt-0.5"
+                                        >
+                                            <span>{{
+                                                option.building_name || "N/A"
+                                            }}</span>
+                                            <span class="text-right"
+                                                >Cap:
+                                                {{
+                                                    option.capacity || "N/A"
+                                                }}</span
+                                            >
+                                        </div>
+                                    </div>
+                                </template>
+                            </Multiselect>
+
+                            <div
+                                v-if="form.errors[rdp.model]"
+                                class="text-red-500 text-sm"
+                            >
+                                {{ form.errors[rdp.model] }}
+                            </div>
+                        </div>
                         <!-- SUPPLIER OPTIONS -->
                         <div class="space-y-4">
                             <div
@@ -555,27 +603,19 @@ function getViewValue(view) {
                             >
                                 <label
                                     class="block text-sm text-[#3B3B3B] font-bold mb-1"
+                                    >{{ sup.label }}
+                                    <span class="text-red-500">*</span></label
                                 >
-                                    {{ sup.label }}
-                                </label>
-                                <select
+                                <Multiselect
                                     v-model="form[sup.model]"
-                                    :class="[
-                                        'w-full sm:w-[34rem] rounded-md px-3 py-3 bg-[#F8F8F8] text-gray-500 text-sm focus:ring-1 focus:outline-none',
-                                        form.errors[sup.model]
-                                            ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
-                                            : 'border-gray-300 focus:ring-[#850038] focus:border-[#850038]',
-                                    ]"
-                                >
-                                    <option value="">Select</option>
-                                    <option
-                                        v-for="item in props[sup.name]"
-                                        :key="item.id"
-                                        :value="item[sup.value]"
-                                    >
-                                        {{ item[sup.option] || "N/A" }}
-                                    </option>
-                                </select>
+                                    :options="props[sup.name]"
+                                    :searchable="true"
+                                    :value-prop="sup.value"
+                                    :label="sup.option"
+                                    :track-by="sup.option"
+                                    placeholder="Select"
+                                    class="supplier-select"
+                                />
                                 <div
                                     v-if="form.errors[sup.model]"
                                     class="text-red-500 text-sm"
@@ -594,8 +634,14 @@ function getViewValue(view) {
                             >
                                 <label
                                     class="block text-sm text-[#3B3B3B] font-bold mb-1"
-                                    >{{ rf.label }}</label
                                 >
+                                    {{ rf.label }}
+                                    <span
+                                        v-if="rf.required"
+                                        class="text-red-500"
+                                        >*</span
+                                    >
+                                </label>
                                 <input
                                     v-model="form[rf.model]"
                                     :key="rf.model"
@@ -625,7 +671,10 @@ function getViewValue(view) {
                             >
                                 <label
                                     class="block text-sm text-[#3B3B3B] font-bold mb-1"
-                                    >{{ inv.label }}</label
+                                    >{{ inv.label }}
+                                    <span class="text-red-500"
+                                        >*</span
+                                    ></label
                                 >
                                 <input
                                     v-model="form[inv.model]"
@@ -672,7 +721,7 @@ function getViewValue(view) {
                     </div>
 
                     <!-- BUTTONS -->
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 mt-5">
                         <button
                             type="button"
                             @click="closeWithAnimation"
@@ -815,3 +864,26 @@ function getViewValue(view) {
         </div>
     </div>
 </template>
+<style>
+.first-dropdown-select.multiselect {
+    width: 15.7rem !important;
+    min-height: 46px;
+    margin: 0 !important;
+}
+
+.room-dropdown-select.multiselect {
+    width: 98% !important;
+    min-height: 46px;
+    margin: 0 !important;
+}
+
+.supplier-select.multiselect {
+    width: 98% !important;
+    min-height: 46px;
+    margin: 0 !important;
+}
+
+.multiselect-wrapper {
+    min-height: 46px;
+}
+</style>

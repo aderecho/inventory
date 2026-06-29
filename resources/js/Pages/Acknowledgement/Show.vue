@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { useForm, router } from "@inertiajs/vue3";
 import { useToast } from "primevue/usetoast";
 import Toast from "primevue/toast";
@@ -10,15 +10,8 @@ const props = defineProps({
     groupedByPerson: Array,
 });
 
-const {
-    canViewAcknowledgements,
-    canCreateAcknowledgements,
-    canShowAcknowledgements,
-    canUploadAcknowledgements,
-} = usePermissions();
-
+const { canUploadAcknowledgements } = usePermissions();
 const emit = defineEmits(["close"]);
-
 const toast = useToast();
 const isClosing = ref(false);
 
@@ -27,82 +20,57 @@ function closeWithAnimation() {
     setTimeout(() => emit("close"), 200);
 }
 
-const selectedItems = ref({});
+const uploadForm = useForm({
+    files: [],
+    acknowledgement_id: null,
+});
 
-function toggleItem(personId, itemId) {
-    if (!selectedItems.value[personId]) {
-        selectedItems.value[personId] = [];
-    }
-    const list = selectedItems.value[personId];
-    const idx = list.indexOf(itemId);
-    if (idx === -1) {
-        list.push(itemId);
-    } else {
-        list.splice(idx, 1);
-    }
-}
-
-function isChecked(personId, itemId) {
-    return selectedItems.value[personId]?.includes(itemId) ?? false;
-}
-
-function hasSelection(personId) {
-    return (selectedItems.value[personId]?.length ?? 0) > 0;
-}
-
-const uploadForms = ref({});
-
-function getForm(personId) {
-    if (!uploadForms.value[personId]) {
-        uploadForms.value[personId] = useForm({
-            file: null,
-            acknowledgement_item_ids: [],
+// Collect all unique files across all items (same group_id, so deduplicate by file id)
+const receiptFiles = computed(() => {
+    const seen = new Set();
+    const files = [];
+    props.groupedByPerson.forEach((group) => {
+        group.items.forEach((item) => {
+            (item.files ?? []).forEach((file) => {
+                if (!seen.has(file.file_path)) {
+                    seen.add(file.file_path);
+                    files.push(file);
+                }
+            });
         });
-    }
-    return uploadForms.value[personId];
+    });
+    return files;
+});
+
+const hasFiles = computed(() => receiptFiles.value.length > 0);
+
+function onFileChange(event) {
+    uploadForm.files = Array.from(event.target.files);
 }
 
-function onFileChange(personId, event) {
-    getForm(personId).file = event.target.files[0];
-}
+function submitUpload() {
+    uploadForm.acknowledgement_id = props.receipt.id;
 
-function submitUpload(personId) {
-    const form = getForm(personId);
-    form.acknowledgement_item_ids = selectedItems.value[personId] ?? [];
-
-    if (!form.file) {
+    if (!uploadForm.files.length) {
         toast.add({
             severity: "warn",
-            summary: "No file",
-            detail: "Please select a file first.",
+            summary: "No files",
+            detail: "Please select at least one file.",
             life: 3000,
         });
         return;
     }
 
-    if (form.acknowledgement_item_ids.length === 0) {
-        toast.add({
-            severity: "warn",
-            summary: "No items",
-            detail: "Please select at least one item.",
-            life: 3000,
-        });
-        return;
-    }
-
-    form.post(route("acknowledgements.upload-file"), {
+    uploadForm.post(route("acknowledgements.upload-file"), {
         forceFormData: true,
         onSuccess: () => {
             toast.add({
                 severity: "success",
                 summary: "Uploaded",
-                detail: "Receipt uploaded successfully.",
+                detail: "Files uploaded successfully.",
                 life: 3000,
             });
-            selectedItems.value[personId] = [];
-            form.reset();
-
-            // Reload only the receipts prop, then rebuild groupedByPerson
+            uploadForm.reset();
             router.reload({ only: ["receipts"] });
         },
         onError: (errors) => {
@@ -119,6 +87,13 @@ function submitUpload(personId) {
 
 function viewFile(filePath) {
     window.open(`/storage/${filePath}`, "_blank");
+}
+
+function getOrdinal(n) {
+    const v = n % 100;
+    const suffix =
+        v >= 11 && v <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th");
+    return `${n}${suffix} file`;
 }
 </script>
 
@@ -168,105 +143,110 @@ function viewFile(filePath) {
                     <div
                         class="w-9 h-9 rounded-full bg-[#FAECE7] text-[#993C1D] flex items-center justify-center text-sm font-medium"
                     >
-                        {{ group.person.full_name?.charAt(0) ?? "?" }}
+                        {{
+                            group.person.first_name?.charAt(0) ??
+                            group.person.full_name?.charAt(0) ??
+                            ""
+                        }}
                     </div>
                     <div>
-                        <p class="font-medium">{{ group.person.full_name }}</p>
+                        <p class="font-medium">
+                            {{ group.person.full_name ?? group.person.name }}
+                        </p>
                         <p class="text-xs text-gray-400">
                             {{ group.items.length }} item(s)
                         </p>
                     </div>
                 </div>
 
-                <!-- Items list with checkboxes -->
-                <div class="divide-y mb-4">
+                <hr class="mb-5" />
+
+                <!-- Items list (display only, no file info per item) -->
+                <div class="divide-y max-h-60 overflow-y-auto">
                     <div
                         v-for="item in group.items"
                         :key="item.id"
                         class="flex items-center gap-3 py-3"
-                        :class="{ 'opacity-50': item.file }"
                     >
-                        <input
-                            type="checkbox"
-                            :disabled="!!item.file"
-                            :checked="isChecked(group.person.id, item.id)"
-                            @change="toggleItem(group.person.id, item.id)"
-                            class="w-4 h-4 accent-[#850038]"
-                        />
-
                         <div class="flex-1">
                             <p class="text-sm font-medium">
-                                {{ item.inventory_items?.item_name ?? "N/A" }}
+                                {{ item.inventory_item?.item_name ?? "N/A" }}
                             </p>
                             <p class="text-xs text-gray-400">
                                 {{
-                                    item.inventory_items?.property_number ??
+                                    item.inventory_item?.property_number ??
                                     "N/A"
                                 }}
                             </p>
                         </div>
-
-                        <div v-if="item.file" class="flex items-center gap-2">
-                            <span class="text-xs text-green-600 font-medium">{{
-                                item.file.file_path.split("/").pop()
-                            }}</span>
-                            <button
-                                @click="viewFile(item.file.file_path)"
-                                class="text-xs text-[#185FA5] underline"
-                            >
-                                View
-                            </button>
-                        </div>
-                        <span v-else class="text-xs text-gray-400"
-                            >No file</span
-                        >
                     </div>
                 </div>
+            </div>
 
-                <!-- Upload zone -->
+            <!-- Receipt-level files -->
+            <div class="mb-5">
+                <p class="text-sm font-semibold text-gray-600 mb-2">
+                    Uploaded Files
+                </p>
                 <div
-                    v-if="hasSelection(group.person.id) && canUploadAcknowledgements"
+                    v-if="hasFiles"
+                    class="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1"
+                >
+                    <div
+                        v-for="(file, index) in receiptFiles"
+                        :key="file.id"
+                        class="flex items-center justify-between bg-gray-50 border rounded-lg px-4 py-2"
+                    >
+                        <div class="flex items-center gap-2 text-sm">
+                            <i class="fa-solid fa-paperclip text-gray-400"></i>
+                            <span class="text-gray-700">
+                                {{ getOrdinal(index + 1) }}
+                            </span>
+                        </div>
+                        <button
+                            @click="viewFile(file.file_path)"
+                            class="text-xs text-[#185FA5] underline shrink-0 ml-4"
+                        >
+                            View
+                        </button>
+                    </div>
+                </div>
+                <p v-else class="text-xs text-gray-400">
+                    No files uploaded yet.
+                </p>
+            </div>
+
+            <!-- Upload zone -->
+            <div v-if="canUploadAcknowledgements">
+                <div
+                    v-if="hasFiles"
+                    class="rounded-lg p-3 bg-green-50 text-green-700 text-sm text-center"
+                >
+                    All items have receipts uploaded
+                </div>
+                <div
+                    v-else
                     class="border border-dashed rounded-lg p-4 flex items-center gap-4 bg-gray-50"
                 >
                     <div class="flex-1">
                         <p class="text-sm font-medium">
-                            Upload receipt for
-                            {{
-                                selectedItems[group.person.id]?.length
-                            }}
-                            selected item(s)
+                            Upload receipts for all items
                         </p>
                         <input
                             type="file"
                             accept=".pdf,.jpg,.jpeg,.png"
+                            multiple
                             class="mt-2 text-sm"
-                            @change="onFileChange(group.person.id, $event)"
+                            @change="onFileChange"
                         />
                     </div>
                     <button
-                        @click="submitUpload(group.person.id)"
-                        :disabled="getForm(group.person.id).processing"
+                        @click="submitUpload"
+                        :disabled="uploadForm.processing"
                         class="bg-[#0E6021] text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-green-800 disabled:opacity-50"
                     >
-                        {{
-                            getForm(group.person.id).processing
-                                ? "Uploading..."
-                                : "Upload"
-                        }}
+                        {{ uploadForm.processing ? "Uploading..." : "Upload" }}
                     </button>
-                </div>
-
-                <!-- All done state -->
-                <div
-                    v-else-if="group.items.every((i) => i.file)"
-                    class="rounded-lg p-3 bg-green-50 text-green-700 text-sm text-center"
-                >
-                    All items have receipts
-                </div>
-
-                <!-- Prompt to select -->
-                <div v-else class="text-xs text-gray-400 mt-2">
-                    Check items above that share the same receipt, then upload.
                 </div>
             </div>
 

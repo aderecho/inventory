@@ -314,7 +314,7 @@
                                 <strong>Fund Cluster:</strong> <span>{{ $firstItem->fund_source ?? 'N/A' }}</span>
                             </td>
                             <td width="40%">
-                                <strong>ICS No.:</strong> <span>{{ $firstItem->property_number ?? 'N/A' }}</span>
+                                <strong>ICS No.:</strong> <span>{{ $receipt->category ?? 'N/A' }}</span>
                                 <br>
                                 <strong>Date:</strong> <span>{{ optional($receipt->created_at)->format('m/d/Y') }}</span>
                             </td>
@@ -389,7 +389,7 @@
                                         </div>
                                         <div class="second-right-content">
                                             <span class="label">Location:</span>
-                                            {{ $firstAckItem->accountablePerson->department ?? 'N/A' }}
+                                            {{ $roomNames[$item->inventoryItems->id] ?? 'N/A' }}
                                         </div>
                                     </div>
                                 </div>

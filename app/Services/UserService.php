@@ -38,6 +38,7 @@ class UserService
         return InventoryItem::query()
             ->with([
                 'latestAcknowledgementItem.acknowledgementReceipts:id,par_date',
+                'latestAcknowledgementItem.file',
             ])
             ->whereHas('latestAcknowledgementItem', function ($query) use ($userId) {
                 $query->where('accountable_person_id', $userId);

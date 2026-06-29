@@ -34,7 +34,11 @@ function buildGrouped(receipt) {
         if (!groups[person.id]) {
             groups[person.id] = { person, items: [] };
         }
-        groups[person.id].items.push(item);
+        groups[person.id].items.push({
+            ...item,
+            files: item.files ?? [],              // ← ensure files array exists
+            inventory_item: item.inventory_items, // ← match Show.vue expected key
+        });
     });
     return Object.values(groups);
 }

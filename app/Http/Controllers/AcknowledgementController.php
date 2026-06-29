@@ -40,9 +40,10 @@ class AcknowledgementController extends Controller
     {
         try {
             $this->service->uploadFile(
-                $request->acknowledgement_item_ids,
-                $request->file('file'),
-                auth()->user()->userProfiles->id
+                $request->acknowledgement_id,
+                $request->file('files'),       // array of files
+                auth()->user()->userProfiles->id,
+                $request->accountable_person_id
             );
         } catch (\Exception $e) {
             return back()->withErrors([
@@ -50,9 +51,6 @@ class AcknowledgementController extends Controller
             ]);
         }
 
-        return back()->with(
-            'success',
-            'File uploaded successfully.'
-        );
+        return back()->with('success', 'Files uploaded successfully.');
     }
 }

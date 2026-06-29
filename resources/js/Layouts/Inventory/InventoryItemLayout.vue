@@ -5,7 +5,6 @@ import NavHeader from "@/Components/NavHeader.vue";
 import SideBar from "@/Components/SideBar.vue";
 import InventoryTable from "@/Components/InventoryTable.vue";
 import PageHeader from "@/Components/PageHeader.vue";
-import PrimaryButton from "@/Components/Buttons/PrimaryButton.vue";
 import InventoryFormModal from "@/Components/Modals/InventoryFormModal.vue";
 import ItemFilterControls from "@/Components/Filters/ItemFilterControls.vue";
 import ImportButton from "@/Components/Buttons/ImportButton.vue";
@@ -14,14 +13,31 @@ import ConvertButton from "@/Components/Buttons/ConvertButton.vue";
 import ArchiveModal from "@/Components/Modals/ArchiveModal.vue";
 import SuccessModal from "@/Components/Modals/SuccessModal.vue";
 import SuccessDeleteModal from "@/Components/Modals/SuccessDeleteModal.vue";
-import SecondaryButton from "@/Components/Buttons/SecondaryButton.vue";
-import ThirdButton from "@/Components/Buttons/ThirdButton.vue";
 import AcknowledgementFormModal from "@/Components/Modals/AcknowledgementFormModal.vue";
 import Toast from "primevue/toast";
 import { useToast } from "primevue/usetoast";
 import LoadingOverlay from "@/Components/LoadingOverlay.vue";
 import { usePermissions } from "@/Composables/usePermissions";
 import { useLoading } from "@/Composables/useLoading";
+import { Button } from "@/Components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/Components/ui/dropdown-menu";
+import {
+    Menu,
+    ChevronDown,
+    UserPlus,
+    QrCode,
+    Printer,
+    RefreshCw,
+    FileInput,
+    FileOutput,
+} from "lucide-vue-next";
+import { Plus } from "lucide-vue-next";
 
 const { isLoading, loadingTitle, loadingMessage, startLoading, stopLoading } =
     useLoading();
@@ -50,7 +66,7 @@ const columns = [
     },
     { label: "Property Number", key: "property_number" },
     { label: "Serial Number", key: "serial_number" },
-    { label: "Invoice", key: "invoice" },
+    { label: "PO Number", key: "po_number" },
     { label: "Room Name", key: "room_name" },
     {
         label: "Supplier Name",
@@ -123,12 +139,21 @@ const viewItem = [
 ];
 
 const quantityCostFields = [
-    { label: "Quantity", model: "quantity", placeholder: "0", type: "number" },
+    {
+        label: "Quantity",
+        model: "quantity",
+        placeholder: "0",
+        type: "number",
+    },
     {
         label: "Unit Cost",
         model: "unit_cost",
         placeholder: "0",
-        type: "number",
+        type: "text",
+        format: (val) => {
+            const num = Number(val);
+            return Number.isFinite(num) ? num.toLocaleString("en-PH") : "";
+        },
     },
 ];
 
@@ -174,14 +199,22 @@ const requestFields = [
         model: "pr_number",
         placeholder: "PR-###",
         type: "text",
+        required: true,
     },
     {
         label: "Purchase Order",
         model: "po_number",
         placeholder: "PO-###",
         type: "text",
+        required: true,
     },
-    { label: "Remarks", model: "remarks", placeholder: "RM-###", type: "text" },
+    {
+        label: "Remarks",
+        model: "remarks",
+        placeholder: "Input a remarks",
+        type: "text",
+        required: false,
+    },
 ];
 
 const invoicesFundFields = [
@@ -353,7 +386,7 @@ function handleDelete(item) {
 }
 
 function handleSubmit() {
-    stopLoading()
+    stopLoading();
     showSuccessModal.value = true;
     successMessage.value =
         formMode.value === "edit"
@@ -381,7 +414,7 @@ function confirmArchive(item) {
     router.delete(route("items.destroy", item.id), {
         preserveScroll: true,
         onSuccess: () => {
-            stopLoading()
+            stopLoading();
             showArchiveModal.value = false;
             showDeleteSuccessModal.value = true;
 
@@ -454,7 +487,10 @@ const printSelected = async () => {
         return;
     }
 
-    startLoading("Printing Receipt...", "Please wait while we prepare your document."); // ✅
+    startLoading(
+        "Downloading Receipt...",
+        "Please wait while we prepare your document.",
+    );
 
     try {
         const response = await axios.post(
@@ -466,7 +502,13 @@ const printSelected = async () => {
         const url = window.URL.createObjectURL(
             new Blob([response.data], { type: "application/pdf" }),
         );
-        window.open(url);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `receipt_${Date.now()}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
     } catch (error) {
         const text = await error.response.data.text();
         const json = JSON.parse(text);
@@ -476,19 +518,16 @@ const printSelected = async () => {
             detail: json.message,
             life: 10000,
         });
-        toast.add({
-            severity: "info",
-            summary: "Tip",
-            detail: "Use the Assigned/Unassigned filter to check accountable persons.",
-            life: 5000,
-        });
     } finally {
         stopLoading();
     }
 };
 
 const handlePrint = async (id) => {
-    startLoading("Printing Receipt...", "Please wait while we prepare your document.");
+    startLoading(
+        "Downloading Receipt...",
+        "Please wait while we prepare your document.",
+    );
 
     try {
         const response = await axios.post(
@@ -500,7 +539,13 @@ const handlePrint = async (id) => {
         const url = window.URL.createObjectURL(
             new Blob([response.data], { type: "application/pdf" }),
         );
-        window.open(url);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `receipt_${Date.now()}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
     } catch (error) {
         const text = await error.response.data.text();
         const json = JSON.parse(text);
@@ -532,7 +577,10 @@ const printQrCodes = async () => {
         return;
     }
 
-    startLoading("Generating QR Codes...", "Please wait while we prepare your files.");
+    startLoading(
+        "Generating QR Codes...",
+        "Please wait while we prepare your files.",
+    );
 
     try {
         const response = await axios.post(
@@ -541,13 +589,13 @@ const printQrCodes = async () => {
             { responseType: "blob" },
         );
 
-        const isSingle = tempSelectedIds.value.length === 1;        // ✅
-        const filename = isSingle ? "qr-code.png" : "qr-codes.zip"; // ✅
+        const isSingle = tempSelectedIds.value.length === 1;
+        const filename = isSingle ? "qr-code.png" : "qr-codes.zip";
 
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const link = document.createElement("a");
         link.href = url;
-        link.setAttribute("download", filename);                     // ✅
+        link.setAttribute("download", filename);
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -606,7 +654,76 @@ const accountableField = [
 
 const itemSelectedField = [{ label: "Item Selected", model: "item_name" }];
 
-console.log(page.props.auth.permissions);
+// File input refs
+const importFileInput = ref(null);
+const convertFileInput = ref(null);
+
+// Import
+function openImport() {
+    importFileInput.value.click();
+}
+
+function handleImportFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const form = new FormData();
+    form.append("file", file);
+
+    router.post("/inventory/import", form, {
+        forceFormData: true,
+        onSuccess: () => {
+            toast.add({
+                severity: "success",
+                summary: "Import Successful",
+                detail: "Items have been imported.",
+                life: 3000,
+            });
+        },
+    });
+}
+
+// Export
+function openExport() {
+    window.location.href = "/export-csv";
+}
+
+// Convert
+function openConvert() {
+    convertFileInput.value.click();
+}
+
+async function handleConvertFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+        const response = await axios.post("/convert-excel-to-csv", formData, {
+            responseType: "blob",
+        });
+
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "converted.csv";
+        link.click();
+        window.URL.revokeObjectURL(url);
+
+        event.target.value = null;
+    } catch (error) {
+        toast.add({
+            severity: "error",
+            summary: "Convert Failed",
+            detail: "File conversion failed. Please try again.",
+            life: 3000,
+        });
+    }
+}
+
+// console.log(page.props.auth.permissions);
 </script>
 
 <template>
@@ -639,40 +756,123 @@ console.log(page.props.auth.permissions);
                         <div
                             class="flex flex-col md:flex-row gap-2 justify-between mt-6"
                         >
-                            <div class="flex flex-col sm:flex-row gap-2">
-                                <PrimaryButton
-                                    @click="openAdd"
+                            <div class="flex flex-col sm:flex-row gap-2 mt-2">
+                                <input
+                                    type="file"
+                                    ref="importFileInput"
+                                    class="hidden"
+                                    @change="handleImportFile"
+                                />
+                                <input
+                                    type="file"
+                                    ref="convertFileInput"
+                                    class="hidden"
+                                    accept=".xlsx,.xls"
+                                    @change="handleConvertFile"
+                                />
+
+                                <Button
                                     v-if="canCreateInventory"
+                                    @click="openAdd"
+                                    class="bg-[#0E6021] hover:bg-[#19703a] text-white text-xs sm:text-sm"
                                 >
-                                    <i class="fa-solid fa-plus"></i>
-                                    <span>Add Item</span>
-                                </PrimaryButton>
+                                    Add Item
+                                    <Plus class="w-4 h-4 mr-2" />
+                                </Button>
 
-                                <ThirdButton @click="openAss">
-                                    <i class="fa-solid fa-user-plus"></i>
-                                    <span>Assign</span>
-                                </ThirdButton>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger as-child>
+                                        <Button
+                                            class="bg-[#0E6021] hover:bg-[#19703a] text-white text-xs sm:text-sm"
+                                        >
+                                            Actions
+                                            <ChevronDown class="w-4 h-4 ml-2" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
 
-                                <ThirdButton @click="printQrCodes">
-                                    <i class="fa-solid fa-qrcode"></i>
-                                    <span>Generate QR</span>
-                                </ThirdButton>
+                                    <DropdownMenuSeparator />
 
-                                <SecondaryButton
-                                    :disabled="isPrinting"
-                                    @click="printSelected"
-                                    class="gap-2 text-white text-xs sm:text-sm"
-                                >
-                                    <i class="fa-solid fa-print"></i>
-                                    <span>{{
-                                        isPrinting ? "Printing..." : "Print"
-                                    }}</span>
-                                </SecondaryButton>
-                            </div>
-                            <div class="flex flex-col sm:flex-row gap-2">
-                                <ConvertButton />
-                                <ImportButton v-if="canImportInventory" />
-                                <ExportButton v-if="canExportInventory" />
+                                    <DropdownMenuContent
+                                        class="w-48 rounded-lg shadow-lg border border-[#f5c6d8]"
+                                    >
+                                        <DropdownMenuItem
+                                            @click="openAss"
+                                            class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
+                                        >
+                                            <UserPlus
+                                                class="w-4 h-4 mr-2 text-[#850038]"
+                                            />
+                                            Assign
+                                        </DropdownMenuItem>
+
+                                        <DropdownMenuSeparator />
+
+                                        <DropdownMenuItem
+                                            @click="printQrCodes"
+                                            class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
+                                        >
+                                            <QrCode
+                                                class="w-4 h-4 mr-2 text-[#850038]"
+                                            />
+                                            Sticker
+                                        </DropdownMenuItem>
+
+                                        <DropdownMenuSeparator />
+
+                                        <DropdownMenuItem
+                                            @click="printSelected"
+                                            :disabled="isPrinting"
+                                            class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
+                                        >
+                                            <Printer
+                                                class="w-4 h-4 mr-2 text-[#850038]"
+                                            />
+                                            {{
+                                                isPrinting
+                                                    ? "Printing..."
+                                                    : "Print"
+                                            }}
+                                        </DropdownMenuItem>
+
+                                        <DropdownMenuSeparator />
+
+                                        <DropdownMenuItem
+                                            @click="openConvert"
+                                            class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
+                                        >
+                                            <RefreshCw
+                                                class="w-4 h-4 mr-2 text-[#850038]"
+                                            />
+                                            Convert
+                                        </DropdownMenuItem>
+
+                                        <DropdownMenuSeparator />
+
+                                        <DropdownMenuItem
+                                            v-if="canImportInventory"
+                                            @click="openImport"
+                                            class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
+                                        >
+                                            <FileInput
+                                                class="w-4 h-4 mr-2 text-[#850038]"
+                                            />
+                                            Import
+                                        </DropdownMenuItem>
+
+                                        <DropdownMenuSeparator />
+
+                                        <DropdownMenuItem
+                                            v-if="canExportInventory"
+                                            @click="openExport"
+                                            class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
+                                        >
+                                            <FileOutput
+                                                class="w-4 h-4 mr-2 text-[#850038]"
+                                            />
+                                            Export
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
                         </div>
 

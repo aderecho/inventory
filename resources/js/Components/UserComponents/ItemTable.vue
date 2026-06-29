@@ -1,10 +1,16 @@
 <script setup>
-import { router } from '@inertiajs/vue3';
+import { router } from "@inertiajs/vue3";
 
 const props = defineProps({
     items: {
         type: Object,
-        default: () => ({ data: [], current_page: 1, last_page: 1, prev_page_url: null, next_page_url: null }),
+        default: () => ({
+            data: [],
+            current_page: 1,
+            last_page: 1,
+            prev_page_url: null,
+            next_page_url: null,
+        }),
     },
 });
 
@@ -48,6 +54,12 @@ const goToPage = (url) => {
                     >
                         Status
                     </th>
+
+                    <th
+                        class="px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 font-['Poppins']"
+                    >
+                        File
+                    </th>
                 </tr>
             </thead>
 
@@ -63,9 +75,8 @@ const goToPage = (url) => {
                             <p class="font-semibold text-gray-900 text-[13px]">
                                 {{ item.item_name }}
                             </p>
-
                             <p class="text-[12px] text-gray-400 mt-0.5">
-                                {{ item.serial_number ?? 'No Serial Number' }}
+                                {{ item.serial_number ?? "No Serial Number" }}
                             </p>
                         </div>
                     </td>
@@ -89,14 +100,13 @@ const goToPage = (url) => {
                         <span class="text-[13px] text-gray-600">
                             {{
                                 item.latest_acknowledgement_item
-                                    ?.acknowledgement_receipts
-                                    ?.par_date
+                                    ?.acknowledgement_receipts?.par_date
                                     ? new Date(
                                           item.latest_acknowledgement_item
                                               .acknowledgement_receipts
-                                              .par_date
+                                              .par_date,
                                       ).toLocaleDateString()
-                                    : 'N/A'
+                                    : "N/A"
                             }}
                         </span>
                     </td>
@@ -109,22 +119,44 @@ const goToPage = (url) => {
                             Assigned
                         </span>
                     </td>
+
+                    <!-- File -->
+                    <td class="px-6 py-5 text-center font-['Poppins']">
+                        <a
+                            v-if="
+                                item.latest_acknowledgement_item?.file
+                                    ?.file_path
+                            "
+                            :href="`/storage/${item.latest_acknowledgement_item.file.file_path}`"
+                            target="_blank"
+                            class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+                        >
+                            <i class="fa-solid fa-file text-xs"></i>
+                            View
+                        </a>
+
+                        <span v-else class="text-[12px] text-gray-400">
+                            No file
+                        </span>
+                    </td>
                 </tr>
 
                 <!-- Empty State -->
                 <tr v-if="!items.data?.length">
-                    <td colspan="5" class="py-16 text-center font-['Poppins']">
+                    <td colspan="6" class="py-16 text-center font-['Poppins']">
                         <div class="flex flex-col items-center gap-2">
                             <div
                                 class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center"
                             >
-                                <i class="fa-solid fa-box text-gray-400 text-xl"></i>
+                                <i
+                                    class="fa-solid fa-box text-gray-400 text-xl"
+                                ></i>
                             </div>
-
-                            <h3 class="text-[14px] font-semibold text-gray-800 mt-2">
+                            <h3
+                                class="text-[14px] font-semibold text-gray-800 mt-2"
+                            >
                                 No Assigned Assets
                             </h3>
-
                             <p class="text-[13px] text-gray-400">
                                 You currently have no inventory items assigned.
                             </p>
@@ -142,9 +174,13 @@ const goToPage = (url) => {
             <!-- Page Info -->
             <p class="text-[12px] text-gray-400">
                 Page
-                <span class="font-semibold text-gray-700">{{ items.current_page }}</span>
+                <span class="font-semibold text-gray-700">{{
+                    items.current_page
+                }}</span>
                 of
-                <span class="font-semibold text-gray-700">{{ items.last_page }}</span>
+                <span class="font-semibold text-gray-700">{{
+                    items.last_page
+                }}</span>
             </p>
 
             <!-- Buttons -->
@@ -153,12 +189,24 @@ const goToPage = (url) => {
                     @click="goToPage(items.prev_page_url)"
                     :disabled="!items.prev_page_url"
                     class="flex items-center gap-1.5 px-4 py-2 text-[12px] font-medium rounded-lg border border-gray-200 transition-colors duration-150"
-                    :class="items.prev_page_url
-                        ? 'text-gray-700 hover:bg-[#850038] hover:text-white hover:border-[#850038]'
-                        : 'text-gray-300 cursor-not-allowed bg-gray-50'"
+                    :class="
+                        items.prev_page_url
+                            ? 'text-gray-700 hover:bg-[#850038] hover:text-white hover:border-[#850038]'
+                            : 'text-gray-300 cursor-not-allowed bg-gray-50'
+                    "
                 >
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                    <svg
+                        class="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M15 19l-7-7 7-7"
+                        />
                     </svg>
                     Previous
                 </button>
@@ -167,13 +215,25 @@ const goToPage = (url) => {
                     @click="goToPage(items.next_page_url)"
                     :disabled="!items.next_page_url"
                     class="flex items-center gap-1.5 px-4 py-2 text-[12px] font-medium rounded-lg border border-gray-200 transition-colors duration-150"
-                    :class="items.next_page_url
-                        ? 'text-gray-700 hover:bg-[#850038] hover:text-white hover:border-[#850038]'
-                        : 'text-gray-300 cursor-not-allowed bg-gray-50'"
+                    :class="
+                        items.next_page_url
+                            ? 'text-gray-700 hover:bg-[#850038] hover:text-white hover:border-[#850038]'
+                            : 'text-gray-300 cursor-not-allowed bg-gray-50'
+                    "
                 >
                     Next
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                    <svg
+                        class="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M9 5l7 7-7 7"
+                        />
                     </svg>
                 </button>
             </div>

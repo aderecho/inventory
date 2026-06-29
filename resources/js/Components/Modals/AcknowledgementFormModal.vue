@@ -333,6 +333,11 @@ function getViewValue(view) {
                         </p>
 
                         <p class="gap-1 flex">
+                          <strong class="text-[#850038]">PO Number:</strong>
+                          <span class="text-[#3B3B3B]">{{ itemMap[id]?.po_number }}</span>
+                        </p>
+
+                        <p class="gap-1 flex">
                           <strong class="text-[#850038]">Quantity:</strong>
                           <span class="text-[#3B3B3B]">{{ itemMap[id]?.quantity }}</span>
                         </p>

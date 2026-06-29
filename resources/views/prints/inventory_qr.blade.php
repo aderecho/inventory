@@ -146,7 +146,7 @@
                         <td class="label">Location:</td>
                         <td class="value">
                             <span class="underline-value">
-                                N/A
+                                {{ $roomNames[$item->inventoryItems->id] ?? 'N/A' }}
                             </span>
                         </td>
                     </tr>

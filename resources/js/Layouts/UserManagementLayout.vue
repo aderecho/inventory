@@ -29,6 +29,9 @@ const permissions = computed(() => page.props.permissions || []);
 const showRoleModal = ref(false);
 const showPermissionModal = ref(false);
 
+const status = ref(null);
+const search = ref('');
+
 const columns = [
   { label: "Email", key: "email" },
   { label: "First Name", key: "user_profiles.first_name" },
@@ -58,24 +61,6 @@ const columns = [
   },
   { label: "Action", key: "action" },
 ];
-
-const search = ref("");
-const status = ref(null);
-
-watch([search, status], ([searchVal, statusVal]) => {
-  router.get(
-    route("user_management.index"),
-    {
-      search: searchVal || undefined,
-      status: statusVal ?? undefined,
-    },
-    {
-      preserveState: true,
-      preserveScroll: true,
-      replace: true,
-    }
-  );
-});
 
 const formMode = ref("create");
 const showFormModal = ref(false);

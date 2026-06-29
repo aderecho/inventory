@@ -33,7 +33,7 @@ class InventoryStoreRequest extends FormRequest
             'item_name' => 'required|string|max:255',
             'pr_number' => 'required|string|max:50',
             'po_number' => 'required|string|max:50',
-            'remarks' => 'required|string|max:50',
+            'remarks' => 'nullable|string|max:50',
             'invoice' => 'required|string|max:50',
             'fund_source' => 'required|string|max:50',
             'description' => 'nullable|string',

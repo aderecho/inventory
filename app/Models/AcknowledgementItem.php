@@ -43,6 +43,11 @@ class AcknowledgementItem extends Model
         return $this->hasOne(InventoryItemFile::class, 'acknowledgement_item_id');
     }
 
+    public function files()
+    {
+        return $this->hasMany(InventoryItemFile::class, 'acknowledgement_item_id');
+    }
+
     public function scopeSearch($query, $term)
     {
         if (!$term) {
@@ -57,5 +62,4 @@ class AcknowledgementItem extends Model
                 $q->where('category', 'like', "%{$term}%");
             });
     }
-
 }

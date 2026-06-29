@@ -4,10 +4,34 @@ namespace App\Services;
 
 use App\Models\InventoryItem;
 use App\Models\AcknowledgementItem;
+use App\Services\RoomApiService;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class PrintService
 {
+    private RoomApiService $roomsApi;
+
+    public function __construct(RoomApiService $roomsApi)
+    {
+        $this->roomsApi = $roomsApi;
+    }
+
+    private function resolveRoomNames(iterable $acknowledgementItems): array
+    {
+        $roomResult = $this->roomsApi->fetchRooms();
+        $rooms = collect($roomResult['data']);
+
+        $roomNames = [];
+        foreach ($acknowledgementItems as $item) {
+            $inventoryItem = $item->inventoryItems;
+            $roomId = $inventoryItem?->latestHistoryLocation?->room_id;
+            $room = $rooms->firstWhere('id', $roomId);
+            $roomNames[$inventoryItem->id ?? 0] = $room['room_name'] ?? 'N/A';
+        }
+
+        return $roomNames;
+    }
+
     public function generateReceiptPdf(int|array $ids): array
     {
         if (!is_array($ids)) {
@@ -21,7 +45,6 @@ class PrintService
             throw new \Exception('No valid ID provided');
         }
 
-        // Validate: every selected inventory item must have an acknowledgement item
         $withoutAcknowledgement = InventoryItem::whereIn('id', $ids)
             ->doesntHave('acknowledgementItems')
             ->pluck('property_number', 'id');
@@ -33,9 +56,9 @@ class PrintService
             );
         }
 
-        // Fetch acknowledgement items (latest per inventory item) with their receipt
         $acknowledgementItems = AcknowledgementItem::with([
             'inventoryItems.supplier',
+            'inventoryItems.latestHistoryLocation',
             'accountablePerson',
             'issuedBy',
             'acknowledgementReceipts',
@@ -53,7 +76,6 @@ class PrintService
             throw new \Exception('Item(s) not found');
         }
 
-        // Validate: each acknowledgement item must have a receipt
         $withoutReceipt = $acknowledgementItems->filter(
             fn($item) => is_null($item->acknowledgementReceipts)
         );
@@ -68,7 +90,9 @@ class PrintService
             );
         }
 
-        // Split into PAR and ICS
+        // Resolve room names for all items
+        $roomNames = $this->resolveRoomNames($acknowledgementItems);
+
         $parItems = $acknowledgementItems->filter(
             fn($item) => ($item->inventoryItems->unit_cost ?? 0) > 50000
         );
@@ -77,37 +101,43 @@ class PrintService
             fn($item) => ($item->inventoryItems->unit_cost ?? 0) <= 50000
         );
 
-        // Group PAR items by the first segment of property_number
-        // e.g. "233-2025-06-001" and "233-2025-06-002" both group under "233"
+        // Group PAR items by prefix (classification) + PO number
         $groupedParItems = $parItems->groupBy(function ($item) {
-            $propertyNumber = $item->inventoryItems->property_number ?? '';
-            return explode('-', $propertyNumber)[0] ?? 'unknown';
+            return $item->acknowledgement_id;
         });
 
-        // Case 1: Both PAR and ICS
+        // Group ICS items by acknowledgement_id
+        $groupedIcsItems = $icsItems->groupBy(function ($item) {
+            return $item->acknowledgement_id;
+        });
+
         if ($parItems->isNotEmpty() && $icsItems->isNotEmpty()) {
             return [
                 'pdf' => Pdf::loadView('prints.merged_receipt', [
                     'groupedParItems' => $groupedParItems,
-                    'icsItems'        => $icsItems,
+                    'groupedIcsItems' => $groupedIcsItems,
+                    'roomNames'       => $roomNames,
+                    'acknowledgementItems' => $acknowledgementItems,
                 ]),
                 'type' => 'BOTH',
             ];
         }
 
-        // Case 2: PAR only
         if ($parItems->isNotEmpty()) {
             return [
                 'pdf'  => Pdf::loadView('prints.par_receipt', [
                     'groupedParItems' => $groupedParItems,
+                    'roomNames'       => $roomNames,
+                    'acknowledgementItems' => $parItems,
                 ]),
                 'type' => 'PAR',
             ];
         }
 
-        // Case 3: ICS only
         return [
             'pdf'  => Pdf::loadView('prints.ics_receipt', [
+                'groupedIcsItems' => $groupedIcsItems,
+                'roomNames'       => $roomNames,
                 'acknowledgementItems' => $icsItems,
             ]),
             'type' => 'ICS',
