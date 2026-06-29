@@ -7,7 +7,6 @@ import PageHeader from "@/Components/PageHeader.vue";
 import InventoryTable from "@/Components/InventoryTable.vue";
 import ItemFilterControls from "@/Components/Filters/ItemFilterControls.vue";
 import DateCategoryFilter from "@/Components/Filters/DateCategoryFilter.vue";
-import ExportButton from "@/Components/Buttons/ExportButton.vue";
 
 const columns = [
   { label: "Item Name", key: 'item_name' },
@@ -80,7 +79,6 @@ const toggleSidebar = () => {
                   <DateCategoryFilter />
                 </div>
                 <div class="flex items-start gap-4 mt-6">
-                  <ExportButton />
                   <ItemFilterControls class="-mt-2" :search="search" :status="status" :mode="'reports'"
                     @update:search="search = $event" @update:status="status = $event"
                     @update:cost_range="cost_range = $event" />

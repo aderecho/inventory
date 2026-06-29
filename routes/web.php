@@ -12,6 +12,7 @@ use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SupplierArchiveController;
 use App\Http\Controllers\AcknowledgementController;
+use App\Http\Controllers\ItemLocationHistoryController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -32,6 +33,7 @@ Route::middleware(['auth', 'role:admin|staff|user'])->group(function () {
 });
 
 Route::middleware(['auth', 'role:admin|staff'])->group(function () {
+
     Route::get('/dashboard', [DashboardController::class, 'searchBar'])->name('dashboard.index');
 
     // Item Archives
@@ -82,11 +84,23 @@ Route::middleware(['auth', 'role:admin|staff'])->group(function () {
         Route::delete('/{id}', [Categories::class, 'destroy'])->middleware('can:delete categories')->name('categories.destroy');
     });
 
+    // Acknowledgements
     Route::prefix('acknowledgements')->group(function () {
         Route::get('/',             [AcknowledgementController::class, 'index'])->middleware('can:view acknowledgements')->name('acknowledgements.index');
         Route::get('/{id}',         [AcknowledgementController::class, 'show'])->middleware('can:show acknowledgements')->name('acknowledgements.show');
         Route::post('/upload-file', [AcknowledgementController::class, 'uploadFile'])->middleware('can:upload acknowledgements')->name('acknowledgements.upload-file');
     });
+
+    // Item Location Histories
+    // Route::prefix('item-histories')->group(function () {
+    //     Route::get('/',      [ItemLocationHistoryController::class, 'index'])
+    //         ->middleware('can:view item histories')
+    //         ->name('item-histories.index');
+
+    //     Route::get('/{id}',  [ItemLocationHistoryController::class, 'show'])
+    //         ->middleware('can:show item histories')
+    //         ->name('item-histories.show');
+    // });
 
     // Reports
     Route::get('/report', [ReportController::class, 'searchBar'])->middleware('can:view reports')->name('reports.index');

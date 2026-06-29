@@ -52,6 +52,7 @@ class InventoryController extends Controller
         $itemClassifications = ItemClassification::all();
         $suppliers = Supplier::all();
         $userProfiles = UserProfile::all();
+        $adminProfiles = $this->inventoryService->getAdminProfiles();
 
         $items = $this->inventoryService->filterAndPaginateInventory(
             $search,
@@ -79,6 +80,7 @@ class InventoryController extends Controller
             'itemClassifications' => $itemClassifications,
             'suppliers' => $suppliers,
             'userProfiles' => $userProfiles,
+            'adminProfiles' => $adminProfiles,
         ]);
     }
 

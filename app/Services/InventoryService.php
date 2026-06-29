@@ -68,56 +68,65 @@ class InventoryService
             ->withQueryString();
     }
 
-    public function createAcknowledgements(array $data)
-{
-    $itemIds = $data['inventory_item_id'];
-
-    $inventoryItems = InventoryItem::whereIn('id', $itemIds)->get()->keyBy('id');
-
-    // Group item IDs by po_number
-    $groupedByPo = collect($itemIds)->groupBy(function ($itemId) use ($inventoryItems) {
-        return $inventoryItems[$itemId]->po_number ?? 'unknown';
-    });
-
-    // e.g. "223-2026-06-123" → base = "223-2026-06-", startingSeries = 123
-    $baseCategory = rtrim($data['category'], '-'); // "223-2026-06-123" or "223-2026-06-123"
-    $parts = explode('-', $baseCategory);          // ["223", "2026", "06", "123"]
-    $seriesNumber = (int) array_pop($parts);       // 123
-    $prefix = implode('-', $parts) . '-';          // "223-2026-06-"
-
-    // Check DB for last used series under this prefix to avoid duplicates
-    $lastReceipt = AcknowledgementReceipt::where('category', 'like', $prefix . '%')
-        ->orderByRaw('CAST(SUBSTRING_INDEX(category, "-", -1) AS UNSIGNED) DESC')
-        ->first();
-
-    $increment = $lastReceipt
-        ? ((int) last(explode('-', $lastReceipt->category))) + 1
-        : $seriesNumber;
-
-    foreach ($groupedByPo as $poNumber => $groupedItemIds) {
-        $category = $prefix . $increment; // e.g. "223-2026-06-123", "223-2026-06-124"
-
-        $ack = AcknowledgementReceipt::create([
-            'issued_by_id' => $data['issued_by_id'],
-            'category'     => $category,
-            'created_by'   => $data['created_by'],
-            'par_date'     => $data['par_date'],
-            'remarks'      => $data['remarks'] ?? null,
-        ]);
-
-        foreach ($groupedItemIds as $itemId) {
-            AcknowledgementItem::create([
-                'acknowledgement_id'    => $ack->id,
-                'inventory_item_id'     => $itemId,
-                'accountable_person_id' => $data['accountable_persons_id'],
-                'issued_by_id'          => $data['issued_by_id'],
-                'status'                => 1,
-            ]);
-        }
-
-        $increment++;
+    public function getAdminProfiles()
+    {
+        return UserProfile::whereHas('user', function ($q) {
+            $q->whereHas('roles', function ($r) {
+                $r->where('name', 'admin');
+            });
+        })->get();
     }
-}
+
+    public function createAcknowledgements(array $data)
+    {
+        $itemIds = $data['inventory_item_id'];
+
+        $inventoryItems = InventoryItem::whereIn('id', $itemIds)->get()->keyBy('id');
+
+        // Group item IDs by po_number
+        $groupedByPo = collect($itemIds)->groupBy(function ($itemId) use ($inventoryItems) {
+            return $inventoryItems[$itemId]->po_number ?? 'unknown';
+        });
+
+        // e.g. "223-2026-06-123" → base = "223-2026-06-", startingSeries = 123
+        $baseCategory = rtrim($data['category'], '-'); // "223-2026-06-123" or "223-2026-06-123"
+        $parts = explode('-', $baseCategory);          // ["223", "2026", "06", "123"]
+        $seriesNumber = (int) array_pop($parts);       // 123
+        $prefix = implode('-', $parts) . '-';          // "223-2026-06-"
+
+        // Check DB for last used series under this prefix to avoid duplicates
+        $lastReceipt = AcknowledgementReceipt::where('category', 'like', $prefix . '%')
+            ->orderByRaw('CAST(SUBSTRING_INDEX(category, "-", -1) AS UNSIGNED) DESC')
+            ->first();
+
+        $increment = $lastReceipt
+            ? ((int) last(explode('-', $lastReceipt->category))) + 1
+            : $seriesNumber;
+
+        foreach ($groupedByPo as $poNumber => $groupedItemIds) {
+            $category = $prefix . $increment; // e.g. "223-2026-06-123", "223-2026-06-124"
+
+            $ack = AcknowledgementReceipt::create([
+                'issued_by_id' => $data['issued_by_id'],
+                'category'     => $category,
+                'created_by'   => $data['created_by'],
+                'par_date'     => $data['par_date'],
+                'remarks'      => $data['remarks'] ?? null,
+            ]);
+
+            foreach ($groupedItemIds as $itemId) {
+                AcknowledgementItem::create([
+                    'acknowledgement_id'    => $ack->id,
+                    'inventory_item_id'     => $itemId,
+                    'accountable_person_id' => $data['accountable_persons_id'],
+                    'issued_by_id'          => $data['issued_by_id'],
+                    'status'                => 1,
+                ]);
+            }
+
+            $increment++;
+        }
+    }
 
     public function createInventoryItems(array $data): void
     {
