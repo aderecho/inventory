@@ -7,9 +7,6 @@ import InventoryTable from "@/Components/InventoryTable.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import InventoryFormModal from "@/Components/Modals/InventoryFormModal.vue";
 import ItemFilterControls from "@/Components/Filters/ItemFilterControls.vue";
-import ImportButton from "@/Components/Buttons/ImportButton.vue";
-import ExportButton from "@/Components/Buttons/ExportButton.vue";
-import ConvertButton from "@/Components/Buttons/ConvertButton.vue";
 import ArchiveModal from "@/Components/Modals/ArchiveModal.vue";
 import SuccessModal from "@/Components/Modals/SuccessModal.vue";
 import SuccessDeleteModal from "@/Components/Modals/SuccessDeleteModal.vue";
@@ -49,6 +46,7 @@ const {
     canExportInventory,
 } = usePermissions();
 
+
 const columns = [
     { label: "", key: "select_all" },
     { label: "Item Name", key: "item_name" },
@@ -69,9 +67,19 @@ const columns = [
     { label: "PO Number", key: "po_number" },
     { label: "Room Name", key: "room_name" },
     {
-        label: "Supplier Name",
-        key: "supplier",
-        format: (val) => val?.supplier_name ?? "N/A",
+        label: "Accountable Person",
+        key: "latest_acknowledgement_item",
+        format: (val) => {
+            const assigned = !!val?.accountable_person;
+
+            return assigned
+                ? `<span class="text-[#2E7D32] font-bold bg-[#D4F8D4] py-1 px-2 rounded-md">
+                    Assigned
+               </span>`
+                : `<span class="text-[#D32F2F] font-bold bg-[#F8D4D4] py-1 px-2 rounded-md">
+                    Unassigned
+               </span>`;
+        },
     },
     {
         label: "Status",
@@ -472,7 +480,6 @@ const toggleSidebar = () => {
 const tempSelectedIds = ref([]);
 
 const handleSelectionChanged = (ids) => {
-    console.count("handleSelectionChanged");
     tempSelectedIds.value = ids;
 };
 
@@ -635,6 +642,13 @@ const userProfiles = computed(() => {
     }));
 });
 
+const adminProfiles = computed(() => {
+    return (page.props.adminProfiles ?? []).map((u) => ({
+        ...u,
+        full_name: `${u.last_name}, ${u.first_name}`.trim(),
+    }));
+});
+
 const accountableField = [
     {
         label: "Accountable Person",
@@ -642,13 +656,15 @@ const accountableField = [
         name: "userProfiles",
         option: "full_name",
         value: "id",
+        class: "accountable-person-select",
     },
     {
         label: "Issued By",
         model: "issued_by_id",
-        name: "userProfiles",
+        name: "adminProfiles",
         option: "full_name",
         value: "id",
+        class: "issued-by-select",
     },
 ];
 
@@ -722,7 +738,10 @@ async function handleConvertFile(event) {
         });
     }
 }
-
+window.Echo.channel('chat')
+    .listen('MessageSent', (e) => {
+        console.log('Message received:', e.message);
+    });
 // console.log(page.props.auth.permissions);
 </script>
 
@@ -900,6 +919,7 @@ async function handleConvertFile(event) {
                             :mode="'create'"
                             :accountableField="accountableField"
                             :itemSelectedField="itemSelectedField"
+                            :adminProfiles="adminProfiles"
                             :selectedIDs="tempSelectedIds"
                             :items="items"
                             :userProfiles="userProfiles"

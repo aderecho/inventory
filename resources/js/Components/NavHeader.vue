@@ -7,7 +7,7 @@ const emit = defineEmits(["toggleSidebar"]);
 <template>
     <div>
         <nav>
-            <div class="flex bg-[#850038] h-auto border-t-4 border-[#0E6021] items-center gap-3">
+            <div class="flex bg-[#005740] h-auto border-t-4 border-[#0E6021] items-center gap-3">
                 <div class="ml-6">
                     <button @click="$emit('toggleSidebar')">
                         <svg xmlns="http://www.w3.org/2000/svg"

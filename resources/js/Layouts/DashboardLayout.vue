@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed } from "vue";
-import { usePage } from "@inertiajs/vue3";
+import { ref, computed, onMounted } from "vue";
+import { usePage, router } from "@inertiajs/vue3";
 import NavHeader from "@/Components/NavHeader.vue";
 import SideBar from "@/Components/SideBar.vue";
 import ItemOverview from "@/Components/ItemOverview.vue";
@@ -36,12 +36,11 @@ const itemOverview = computed(() => [
     },
 ]);
 
-
-
 const isSidebarOpen = ref(true);
 const toggleSidebar = () => {
     isSidebarOpen.value = !isSidebarOpen.value;
 };
+console.log(page.props.auth.permissions);
 </script>
 
 <template>

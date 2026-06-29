@@ -26,7 +26,8 @@ class InventoryItem extends Model
         'serial_number',
         'remarks',
         'date_acquired',
-        'status'
+        'status',
+        'is_private'
     ];
 
     public function supplier()
