@@ -100,4 +100,26 @@ class InventoryItem extends Model
                 });
         });
     }
+
+    public function scopeSearchAssignedItems($query, $term)
+    {
+        if (!$term) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($term) {
+            $q->where('item_name', 'like', "%{$term}%")
+                ->orWhere('property_number', 'like', "%{$term}%")
+                ->orWhere('serial_number', 'like', "%{$term}%")
+                ->orWhere('po_number', 'like', "%{$term}%")
+                ->orWhere('pr_number', 'like', "%{$term}%")
+                ->orWhere('invoice', 'like', "%{$term}%")
+                ->orWhereHas('supplier', function ($supplier) use ($term) {
+                    $supplier->where('supplier_name', 'like', "%{$term}%");
+                })
+                ->orWhereHas('latestAcknowledgementItem.acknowledgementReceipts', function ($receipt) use ($term) {
+                    $receipt->where('category', 'like', "%{$term}%");
+                });
+        });
+    }
 }

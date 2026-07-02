@@ -20,7 +20,7 @@ import { Link } from "@inertiajs/vue3";
       </div>
     </div>
     <div
-      class="w-full md:w-1/2 bg-[#850038] h-screen md:rounded-tl-2xl md:rounded-bl-2xl flex items-center justify-center p-6 md:p-12"
+      class="w-full md:w-1/2 bg-gradient-to-r from-[#005740] via-[#006B4F] to-[#0E6021] h-screen md:rounded-tl-2xl md:rounded-bl-2xl flex items-center justify-center p-6 md:p-12"
     >
       <div
         class="w-full sm:w-[90%] md:w-[85%] lg:w-[80%] xl:w-[75%] max-w-2xl bg-white shadow-md rounded-lg"

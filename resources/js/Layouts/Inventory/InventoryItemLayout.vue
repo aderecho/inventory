@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed } from "vue";
 import { usePage, router } from "@inertiajs/vue3";
-import NavHeader from "@/Components/NavHeader.vue";
 import SideBar from "@/Components/SideBar.vue";
 import InventoryTable from "@/Components/InventoryTable.vue";
 import PageHeader from "@/Components/PageHeader.vue";
@@ -17,6 +16,7 @@ import LoadingOverlay from "@/Components/LoadingOverlay.vue";
 import { usePermissions } from "@/Composables/usePermissions";
 import { useLoading } from "@/Composables/useLoading";
 import { Button } from "@/Components/ui/button";
+import NavHeader from "@/Components/NavHeader.vue";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -35,6 +35,8 @@ import {
     FileOutput,
 } from "lucide-vue-next";
 import { Plus } from "lucide-vue-next";
+import { useSidebar } from "@/Composables/useSidebar";
+const { isSidebarOpen, toggleSidebar } = useSidebar();
 
 const { isLoading, loadingTitle, loadingMessage, startLoading, stopLoading } =
     useLoading();
@@ -45,7 +47,6 @@ const {
     canImportInventory,
     canExportInventory,
 } = usePermissions();
-
 
 const columns = [
     { label: "", key: "select_all" },
@@ -135,14 +136,22 @@ const viewItem = [
             if (status === 0) {
                 label = "Unservicable";
                 cls =
-                    "text-[#D32F2F] font-bold bg-[#F8D4D4] py-2 px-4 rounded-md";
+                    "text-[#D32F2F] font-bold bg-[#F8D4D4] py-1 px-2 rounded-md";
             } else if (status === 1) {
                 label = "Serviceable";
                 cls =
-                    "text-[#2E7D32] font-bold bg-[#D4F8D4] py-2 px-4 rounded-md";
+                    "text-[#2E7D32] font-bold bg-[#D4F8D4] py-1 px-2 rounded-md";
             }
             return `<span class="${cls}">${icon} ${label}</span>`;
         },
+    },
+    {
+        label: "Visibility",
+        key: "is_private",
+        format: (val) =>
+            val === 1
+                ? `<span class="text-[#D32F2F] font-bold bg-[#F8D4D4] py-1 px-2 rounded-md">Private</span>`
+                : `<span class="text-[#2E7D32] font-bold bg-[#D4F8D4] py-1 px-2 rounded-md">Public</span>`,
     },
 ];
 
@@ -471,11 +480,6 @@ const successIcon = computed(() => {
     return formMode.value === "edit" ? iconEdit : iconAdded;
 });
 
-const isSidebarOpen = ref(true);
-const toggleSidebar = () => {
-    isSidebarOpen.value = !isSidebarOpen.value;
-};
-
 // PRINTING
 const tempSelectedIds = ref([]);
 
@@ -646,6 +650,7 @@ const adminProfiles = computed(() => {
     return (page.props.adminProfiles ?? []).map((u) => ({
         ...u,
         full_name: `${u.last_name}, ${u.first_name}`.trim(),
+        roles_label: (u.roles ?? []).join(", "),
     }));
 });
 
@@ -738,10 +743,9 @@ async function handleConvertFile(event) {
         });
     }
 }
-window.Echo.channel('chat')
-    .listen('MessageSent', (e) => {
-        console.log('Message received:', e.message);
-    });
+window.Echo.channel("chat").listen("MessageSent", (e) => {
+    console.log("Message received:", e.message);
+});
 // console.log(page.props.auth.permissions);
 </script>
 
@@ -753,252 +757,264 @@ window.Echo.channel('chat')
         :message="loadingMessage"
     />
 
-    <div class="h-screen flex flex-col bg-gray-100 overflow-hidden">
-        <NavHeader class="flex-shrink-0" @toggleSidebar="toggleSidebar" />
-
+    <div class="h-screen flex flex-col bg-gray-100">
         <div class="flex flex-1 overflow-hidden">
             <aside
-                class="transition-all duration-600 ease-in-out transform"
-                :class="
-                    isSidebarOpen
-                        ? 'translate-x-0 opacity-100'
-                        : '-translate-x-full opacity-0 w-0'
-                "
+                class="h-full transition-all duration-300 ease-in-out flex-shrink-0"
             >
-                <SideBar />
+                <SideBar
+                    :isOpen="isSidebarOpen"
+                    @toggleSidebar="toggleSidebar"
+                />
             </aside>
 
-            <main class="flex-1 sm:p-5 md:p-6 md:mx-0 overflow-y-auto">
-                <div class="m-2">
-                    <PageHeader title="Items" />
-                    <div class="w-full h-full">
-                        <div
-                            class="flex flex-col md:flex-row gap-2 justify-between mt-6"
-                        >
-                            <div class="flex flex-col sm:flex-row gap-2 mt-2">
-                                <input
-                                    type="file"
-                                    ref="importFileInput"
-                                    class="hidden"
-                                    @change="handleImportFile"
-                                />
-                                <input
-                                    type="file"
-                                    ref="convertFileInput"
-                                    class="hidden"
-                                    accept=".xlsx,.xls"
-                                    @change="handleConvertFile"
-                                />
+            <div class="flex flex-col flex-1 overflow-hidden">
+                <NavHeader
+                    :isSidebarOpen="isSidebarOpen"
+                    @toggleSidebar="toggleSidebar"
+                >
+                </NavHeader>
 
-                                <Button
-                                    v-if="canCreateInventory"
-                                    @click="openAdd"
-                                    class="bg-[#0E6021] hover:bg-[#19703a] text-white text-xs sm:text-sm"
+                <main class="flex-1 sm:p-5 md:p-6 md:mx-0 overflow-y-auto">
+                    <div class="m-2">
+                        <PageHeader title="Items" />
+                        <div class="w-full h-full">
+                            <div
+                                class="flex flex-col md:flex-row gap-2 justify-between mt-6"
+                            >
+                                <div
+                                    class="flex flex-col sm:flex-row gap-2 mt-2"
                                 >
-                                    Add Item
-                                    <Plus class="w-4 h-4 mr-2" />
-                                </Button>
+                                    <input
+                                        type="file"
+                                        ref="importFileInput"
+                                        class="hidden"
+                                        @change="handleImportFile"
+                                    />
+                                    <input
+                                        type="file"
+                                        ref="convertFileInput"
+                                        class="hidden"
+                                        accept=".xlsx,.xls"
+                                        @change="handleConvertFile"
+                                    />
 
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger as-child>
-                                        <Button
-                                            class="bg-[#0E6021] hover:bg-[#19703a] text-white text-xs sm:text-sm"
-                                        >
-                                            Actions
-                                            <ChevronDown class="w-4 h-4 ml-2" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-
-                                    <DropdownMenuSeparator />
-
-                                    <DropdownMenuContent
-                                        class="w-48 rounded-lg shadow-lg border border-[#f5c6d8]"
+                                    <Button
+                                        v-if="canCreateInventory"
+                                        @click="openAdd"
+                                        class="bg-[#0E6021] hover:bg-[#19703a] text-white text-xs sm:text-sm"
                                     >
-                                        <DropdownMenuItem
-                                            @click="openAss"
-                                            class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
-                                        >
-                                            <UserPlus
-                                                class="w-4 h-4 mr-2 text-[#850038]"
-                                            />
-                                            Assign
-                                        </DropdownMenuItem>
+                                        Add Item
+                                        <Plus class="w-4 h-4 mr-2" />
+                                    </Button>
+
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger as-child>
+                                            <Button
+                                                class="bg-[#0E6021] hover:bg-[#19703a] text-white text-xs sm:text-sm"
+                                            >
+                                                Actions
+                                                <ChevronDown
+                                                    class="w-4 h-4 ml-2"
+                                                />
+                                            </Button>
+                                        </DropdownMenuTrigger>
 
                                         <DropdownMenuSeparator />
 
-                                        <DropdownMenuItem
-                                            @click="printQrCodes"
-                                            class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
+                                        <DropdownMenuContent
+                                            class="w-48 rounded-lg shadow-lg border border-[#f5c6d8]"
                                         >
-                                            <QrCode
-                                                class="w-4 h-4 mr-2 text-[#850038]"
-                                            />
-                                            Sticker
-                                        </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                @click="openAss"
+                                                class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
+                                            >
+                                                <UserPlus
+                                                    class="w-4 h-4 mr-2 text-[#850038]"
+                                                />
+                                                Assign
+                                            </DropdownMenuItem>
 
-                                        <DropdownMenuSeparator />
+                                            <DropdownMenuSeparator />
 
-                                        <DropdownMenuItem
-                                            @click="printSelected"
-                                            :disabled="isPrinting"
-                                            class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
-                                        >
-                                            <Printer
-                                                class="w-4 h-4 mr-2 text-[#850038]"
-                                            />
-                                            {{
-                                                isPrinting
-                                                    ? "Printing..."
-                                                    : "Print"
-                                            }}
-                                        </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                @click="printQrCodes"
+                                                class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
+                                            >
+                                                <QrCode
+                                                    class="w-4 h-4 mr-2 text-[#850038]"
+                                                />
+                                                Sticker
+                                            </DropdownMenuItem>
 
-                                        <DropdownMenuSeparator />
+                                            <DropdownMenuSeparator />
 
-                                        <DropdownMenuItem
-                                            @click="openConvert"
-                                            class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
-                                        >
-                                            <RefreshCw
-                                                class="w-4 h-4 mr-2 text-[#850038]"
-                                            />
-                                            Convert
-                                        </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                @click="printSelected"
+                                                :disabled="isPrinting"
+                                                class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
+                                            >
+                                                <Printer
+                                                    class="w-4 h-4 mr-2 text-[#850038]"
+                                                />
+                                                {{
+                                                    isPrinting
+                                                        ? "Printing..."
+                                                        : "Print"
+                                                }}
+                                            </DropdownMenuItem>
 
-                                        <DropdownMenuSeparator />
+                                            <DropdownMenuSeparator />
 
-                                        <DropdownMenuItem
-                                            v-if="canImportInventory"
-                                            @click="openImport"
-                                            class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
-                                        >
-                                            <FileInput
-                                                class="w-4 h-4 mr-2 text-[#850038]"
-                                            />
-                                            Import
-                                        </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                @click="openConvert"
+                                                class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
+                                            >
+                                                <RefreshCw
+                                                    class="w-4 h-4 mr-2 text-[#850038]"
+                                                />
+                                                Convert
+                                            </DropdownMenuItem>
 
-                                        <DropdownMenuSeparator />
+                                            <DropdownMenuSeparator />
 
-                                        <DropdownMenuItem
-                                            v-if="canExportInventory"
-                                            @click="openExport"
-                                            class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
-                                        >
-                                            <FileOutput
-                                                class="w-4 h-4 mr-2 text-[#850038]"
-                                            />
-                                            Export
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                                            <DropdownMenuItem
+                                                v-if="canImportInventory"
+                                                @click="openImport"
+                                                class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
+                                            >
+                                                <FileInput
+                                                    class="w-4 h-4 mr-2 text-[#850038]"
+                                                />
+                                                Import
+                                            </DropdownMenuItem>
+
+                                            <DropdownMenuSeparator />
+
+                                            <DropdownMenuItem
+                                                v-if="canExportInventory"
+                                                @click="openExport"
+                                                class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
+                                            >
+                                                <FileOutput
+                                                    class="w-4 h-4 mr-2 text-[#850038]"
+                                                />
+                                                Export
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
                             </div>
-                        </div>
 
-                        <div class="flex md:flex-row justify-between mt-5">
-                            <ItemFilterControls
-                                :search="search"
-                                :cost_range="cost_range"
-                                :status="status"
-                                :acknowledgement_status="acknowledgement_status"
-                                :unitCostOptions="unitCostOptions"
-                                :filterStatus="filterStatus"
-                                :acknowledgementFilter="acknowledgementFilter"
-                                @update:search="search = $event"
-                                @update:status="status = $event"
-                                @update:cost_range="cost_range = $event"
-                                @update:acknowledgement_status="
-                                    acknowledgement_status = $event
+                            <div class="flex md:flex-row justify-between mt-5">
+                                <ItemFilterControls
+                                    :search="search"
+                                    :cost_range="cost_range"
+                                    :status="status"
+                                    :acknowledgement_status="
+                                        acknowledgement_status
+                                    "
+                                    :unitCostOptions="unitCostOptions"
+                                    :filterStatus="filterStatus"
+                                    :acknowledgementFilter="
+                                        acknowledgementFilter
+                                    "
+                                    @update:search="search = $event"
+                                    @update:status="status = $event"
+                                    @update:cost_range="cost_range = $event"
+                                    @update:acknowledgement_status="
+                                        acknowledgement_status = $event
+                                    "
+                                    :mode="'inventory'"
+                                />
+                            </div>
+
+                            <AcknowledgementFormModal
+                                v-if="showAssignModal"
+                                :mode="'create'"
+                                :accountableField="accountableField"
+                                :itemSelectedField="itemSelectedField"
+                                :adminProfiles="adminProfiles"
+                                :selectedIDs="tempSelectedIds"
+                                :items="items"
+                                :userProfiles="userProfiles"
+                                :users="users"
+                                @close="() => (showAssignModal = false)"
+                                @submit="handleSubmit"
+                            />
+
+                            <InventoryFormModal
+                                v-if="showFormModal"
+                                :mode="formMode"
+                                :firstDropdown="firstDropdown"
+                                :firstInputField="firstInputField"
+                                :secondDropdown="secondDropdown"
+                                :quantityCostFields="quantityCostFields"
+                                :input-fields="inputFields"
+                                :invoicesFundFields="invoicesFundFields"
+                                :supplierOptions="supplierOptions"
+                                :requestFields="requestFields"
+                                :inputFieldsEdit="inputFieldsEdit"
+                                :totalCost="totalCost"
+                                :itemClass="itemClassifications"
+                                :rooms="rooms"
+                                :roomDropdown="roomDropdown"
+                                :initialValues="currentItem"
+                                :suppliers="suppliers"
+                                :item="currentItem"
+                                :viewItem="viewItem"
+                                @submit="handleSubmit"
+                                @close="() => (showFormModal = false)"
+                            />
+
+                            <SuccessModal
+                                v-if="showSuccessModal"
+                                :icon="successIcon"
+                                :title="
+                                    formMode === 'edit'
+                                        ? 'Edit Success'
+                                        : 'Added Success'
                                 "
-                                :mode="'inventory'"
+                                :message="successMessage"
+                                :actionButtonLabel="
+                                    formMode === 'edit' ? 'View Item' : 'Assign'
+                                "
+                                @action="handleAction"
+                                @close="showSuccessModal = false"
+                            />
+
+                            <SuccessDeleteModal
+                                v-if="showDeleteSuccessModal"
+                                :icon="iconDelete"
+                                title="Archive Success"
+                                message="Item archived successfully!"
+                                buttonText="Confirm"
+                                @close="showDeleteSuccessModal = false"
+                            />
+
+                            <ArchiveModal
+                                v-if="showArchiveModal"
+                                :item="currentItem"
+                                @confirm="confirmArchive"
+                                @close="() => (showArchiveModal = false)"
+                            />
+
+                            <InventoryTable
+                                :columns="columns"
+                                :rows="items"
+                                :rooms="rooms"
+                                :module="'inventory'"
+                                :actions="inventoryActions"
+                                @selection-changed="handleSelectionChanged"
+                                @view="handleView"
+                                @edit="handleEdit"
+                                @delete="handleDelete"
+                                @print="handlePrint"
                             />
                         </div>
-
-                        <AcknowledgementFormModal
-                            v-if="showAssignModal"
-                            :mode="'create'"
-                            :accountableField="accountableField"
-                            :itemSelectedField="itemSelectedField"
-                            :adminProfiles="adminProfiles"
-                            :selectedIDs="tempSelectedIds"
-                            :items="items"
-                            :userProfiles="userProfiles"
-                            :users="users"
-                            @close="() => (showAssignModal = false)"
-                            @submit="handleSubmit"
-                        />
-
-                        <InventoryFormModal
-                            v-if="showFormModal"
-                            :mode="formMode"
-                            :firstDropdown="firstDropdown"
-                            :firstInputField="firstInputField"
-                            :secondDropdown="secondDropdown"
-                            :quantityCostFields="quantityCostFields"
-                            :input-fields="inputFields"
-                            :invoicesFundFields="invoicesFundFields"
-                            :supplierOptions="supplierOptions"
-                            :requestFields="requestFields"
-                            :inputFieldsEdit="inputFieldsEdit"
-                            :totalCost="totalCost"
-                            :itemClass="itemClassifications"
-                            :rooms="rooms"
-                            :roomDropdown="roomDropdown"
-                            :initialValues="currentItem"
-                            :suppliers="suppliers"
-                            :item="currentItem"
-                            :viewItem="viewItem"
-                            @submit="handleSubmit"
-                            @close="() => (showFormModal = false)"
-                        />
-
-                        <SuccessModal
-                            v-if="showSuccessModal"
-                            :icon="successIcon"
-                            :title="
-                                formMode === 'edit'
-                                    ? 'Edit Success'
-                                    : 'Added Success'
-                            "
-                            :message="successMessage"
-                            :actionButtonLabel="
-                                formMode === 'edit' ? 'View Item' : 'Assign'
-                            "
-                            @action="handleAction"
-                            @close="showSuccessModal = false"
-                        />
-
-                        <SuccessDeleteModal
-                            v-if="showDeleteSuccessModal"
-                            :icon="iconDelete"
-                            title="Archive Success"
-                            message="Item archived successfully!"
-                            buttonText="Confirm"
-                            @close="showDeleteSuccessModal = false"
-                        />
-
-                        <ArchiveModal
-                            v-if="showArchiveModal"
-                            :item="currentItem"
-                            @confirm="confirmArchive"
-                            @close="() => (showArchiveModal = false)"
-                        />
-
-                        <InventoryTable
-                            :columns="columns"
-                            :rows="items"
-                            :rooms="rooms"
-                            :module="'inventory'"
-                            :actions="inventoryActions"
-                            @selection-changed="handleSelectionChanged"
-                            @view="handleView"
-                            @edit="handleEdit"
-                            @delete="handleDelete"
-                            @print="handlePrint"
-                        />
                     </div>
-                </div>
-            </main>
+                </main>
+            </div>
         </div>
     </div>
 </template>

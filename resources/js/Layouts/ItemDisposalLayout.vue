@@ -1,23 +1,24 @@
 <script setup>
 import { ref, computed, watch } from "vue";
 import { usePage, router } from "@inertiajs/vue3";
-import NavHeader from "@/Components/NavHeader.vue";
 import SideBar from "@/Components/SideBar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import InventoryArchiveTable from "@/Components/InventoryArchiveTable.vue";
 import RestoreModal from "@/Components/Modals/RestoreModal.vue";
 import ForceDeleteModal from "@/Components/Modals/ForceDeleteModal.vue";
+import NavHeader from "@/Components/NavHeader.vue";
 import Toast from "primevue/toast";
 import { useToast } from "primevue/usetoast";
 import LoadingOverlay from "@/Components/LoadingOverlay.vue";
 import { useLoading } from "@/Composables/useLoading";
 import { usePermissions } from "@/Composables/usePermissions";
+import { useSidebar } from "@/Composables/useSidebar";
+const { isSidebarOpen, toggleSidebar } = useSidebar();
 
-const { isLoading, loadingTitle, loadingMessage, startLoading, stopLoading } = useLoading();
+const { isLoading, loadingTitle, loadingMessage, startLoading, stopLoading } =
+    useLoading();
 
-const {
-    archiveItemActions,
-} = usePermissions()
+const { archiveItemActions } = usePermissions();
 
 const columns = [
     { label: "Item Name", key: "item_name" },
@@ -52,11 +53,6 @@ const columns = [
 const page = usePage();
 const items = computed(() => page.props.items || { data: [] });
 const toast = useToast();
-
-const isSidebarOpen = ref(true);
-const toggleSidebar = () => {
-    isSidebarOpen.value = !isSidebarOpen.value;
-};
 
 const search = ref(page.props.filters?.search ?? "");
 const status = ref(page.props.filters?.status ?? null);
@@ -108,32 +104,36 @@ function handleForceDelete(item) {
 }
 
 function confirmRestore() {
-    router.patch(route("items.restore", currentItem.value.id), {}, {
-        preserveScroll: true,
+    router.patch(
+        route("items.restore", currentItem.value.id),
+        {},
+        {
+            preserveScroll: true,
 
-        onSuccess: () => {
-            stopLoading();
-            showRestoreModal.value = false;
+            onSuccess: () => {
+                stopLoading();
+                showRestoreModal.value = false;
 
-            toast.add({
-                severity: "success",
-                summary: "Restored",
-                detail: `${currentItem.value.item_name} has been restored.`,
-                life: 3000,
-            });
+                toast.add({
+                    severity: "success",
+                    summary: "Restored",
+                    detail: `${currentItem.value.item_name} has been restored.`,
+                    life: 3000,
+                });
+            },
+
+            onError: (errors) => {
+                showRestoreModal.value = false;
+
+                toast.add({
+                    severity: "error",
+                    summary: "Restore Failed",
+                    detail: errors.restore,
+                    life: 5000,
+                });
+            },
         },
-
-        onError: (errors) => {
-            showRestoreModal.value = false;
-
-            toast.add({
-                severity: "error",
-                summary: "Restore Failed",
-                detail: errors.restore,
-                life: 5000,
-            });
-        },
-    });
+    );
 }
 
 function confirmForceDelete() {
@@ -177,59 +177,63 @@ function confirmForceDelete() {
         @close="showForceDeleteModal = false"
     />
 
-    <div class="h-screen flex flex-col bg-gray-100 overflow-hidden">
-        <NavHeader class="flex-shrink-0" @toggleSidebar="toggleSidebar" />
-
+    <div class="h-screen flex flex-col bg-gray-100">
         <div class="flex flex-1 overflow-hidden">
             <aside
-                class="transition-all duration-600 ease-in-out transform"
-                :class="
-                    isSidebarOpen
-                        ? 'translate-x-0 opacity-100'
-                        : '-translate-x-full opacity-0 w-0'
-                "
+                class="h-full transition-all duration-300 ease-in-out flex-shrink-0"
             >
-                <SideBar />
+                <SideBar
+                    :isOpen="isSidebarOpen"
+                    @toggleSidebar="toggleSidebar"
+                />
             </aside>
 
-            <main class="flex-1 sm:p-5 md:p-6 m-2">
-                <PageHeader title="Item Disposal" />
-                <div class="bg-white h-screen drop-shadow-md mt-[1rem]">
-                    <!-- Search + Filter -->
-                    <div class="p-4 flex items-center justify-end gap-3">
-                        <input
-                            v-model="search"
-                            type="text"
-                            placeholder="Search items..."
-                            class="w-80 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#850038]"
-                        />
-                        <select
-                            v-model="status"
-                            class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#850038]"
+            <div class="flex flex-col flex-1 overflow-hidden">
+                <NavHeader
+                    :isSidebarOpen="isSidebarOpen"
+                    @toggleSidebar="toggleSidebar"
+                >
+                </NavHeader>
+
+                <main class="flex-1 sm:p-5 md:p-6 m-2">
+                    <PageHeader title="Item Disposal" />
+                    <div class="bg-white h-screen drop-shadow-md mt-[1rem]">
+                        <!-- Search + Filter -->
+                        <div class="p-4 flex items-center justify-end gap-3">
+                            <input
+                                v-model="search"
+                                type="text"
+                                placeholder="Search items..."
+                                class="w-80 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#850038]"
+                            />
+                            <select
+                                v-model="status"
+                                class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#850038]"
+                            >
+                                <option :value="null">All Status</option>
+                                <option :value="1">Serviceable</option>
+                                <option :value="0">Unserviceable</option>
+                            </select>
+                        </div>
+
+                        <div
+                            v-if="!items.data?.length"
+                            class="text-center py-10 text-gray-500"
                         >
-                            <option :value="null">All Status</option>
-                            <option :value="1">Serviceable</option>
-                            <option :value="0">Unserviceable</option>
-                        </select>
-                    </div>
+                            No archived items yet.
+                        </div>
 
-                      <div
-                        v-if="!items.data?.length"
-                        class="text-center py-10 text-gray-500"
-                    >
-                        No archived items yet.
+                        <InventoryArchiveTable
+                            :rows="items"
+                            :columns="columns"
+                            :module="'archive_item'"
+                            :actions="archiveItemActions"
+                            @restore="handleRestore"
+                            @permanent-delete="handleForceDelete"
+                        />
                     </div>
-
-                    <InventoryArchiveTable
-                        :rows="items"
-                        :columns="columns"
-                        :module="'archive_item'"
-                        :actions="archiveItemActions"
-                        @restore="handleRestore"
-                        @permanent-delete="handleForceDelete"
-                    />
-                </div>
-            </main>
+                </main>
+            </div>
         </div>
     </div>
 </template>

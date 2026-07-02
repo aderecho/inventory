@@ -101,23 +101,23 @@ function getOrdinal(n) {
     <Toast />
 
     <div
-        class="fixed inset-0 bg-black/40 flex items-center justify-center p-4"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
         @click="closeWithAnimation"
     >
         <div
             :class="[
-                'bg-white rounded-lg w-full max-w-2xl p-6 overflow-y-auto max-h-[90vh]',
+                'bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]',
                 isClosing ? 'animate-pop-out' : 'animate-pop-in',
             ]"
             @click.stop
         >
             <!-- Header -->
-            <div class="flex items-start justify-between mb-6">
+            <div class="bg-gradient-to-r from-[#003d2c] via-[#005740] to-[#00795a] px-6 py-5 flex items-center justify-between flex-shrink-0">
                 <div>
-                    <h3 class="text-2xl font-bold text-[#850038]">
+                    <h3 class="text-lg font-bold text-white">
                         {{ receipt.category }} — {{ receipt.par_date }}
                     </h3>
-                    <p class="text-sm text-gray-500 mt-1">
+                    <p class="text-xs text-white/70 mt-0.5">
                         Issued by:
                         {{
                             receipt.issued_by?.user_profiles?.full_name ?? "N/A"
@@ -126,135 +126,138 @@ function getOrdinal(n) {
                 </div>
                 <button
                     @click="closeWithAnimation"
-                    class="text-gray-400 hover:text-gray-600 text-xl mt-1"
+                    class="text-white/80 hover:text-white hover:bg-white/10 rounded-full h-9 w-9 flex items-center justify-center transition-colors"
+                    title="Close"
                 >
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
 
-            <!-- Grouped by person -->
-            <div
-                v-for="group in groupedByPerson"
-                :key="group.person.id"
-                class="border rounded-xl p-5 mb-5"
-            >
-                <!-- Person header -->
-                <div class="flex items-center gap-3 mb-4">
-                    <div
-                        class="w-9 h-9 rounded-full bg-[#FAECE7] text-[#993C1D] flex items-center justify-center text-sm font-medium"
-                    >
-                        {{
-                            group.person.first_name?.charAt(0) ??
-                            group.person.full_name?.charAt(0) ??
-                            ""
-                        }}
-                    </div>
-                    <div>
-                        <p class="font-medium">
-                            {{ group.person.full_name ?? group.person.name }}
-                        </p>
-                        <p class="text-xs text-gray-400">
-                            {{ group.items.length }} item(s)
-                        </p>
-                    </div>
-                </div>
-
-                <hr class="mb-5" />
-
-                <!-- Items list (display only, no file info per item) -->
-                <div class="divide-y max-h-60 overflow-y-auto">
-                    <div
-                        v-for="item in group.items"
-                        :key="item.id"
-                        class="flex items-center gap-3 py-3"
-                    >
-                        <div class="flex-1">
-                            <p class="text-sm font-medium">
-                                {{ item.inventory_item?.item_name ?? "N/A" }}
+            <div class="p-6 overflow-y-auto flex-1">
+                <!-- Grouped by person -->
+                <div
+                    v-for="group in groupedByPerson"
+                    :key="group.person.id"
+                    class="border border-gray-200 rounded-xl p-5 mb-5"
+                >
+                    <!-- Person header -->
+                    <div class="flex items-center gap-3 mb-4">
+                        <div
+                            class="w-9 h-9 rounded-full bg-[#005740]/10 text-[#005740] flex items-center justify-center text-sm font-medium"
+                        >
+                            {{
+                                group.person.first_name?.charAt(0) ??
+                                group.person.full_name?.charAt(0) ??
+                                ""
+                            }}
+                        </div>
+                        <div>
+                            <p class="font-medium text-[#1f2d27]">
+                                {{ group.person.full_name ?? group.person.name }}
                             </p>
                             <p class="text-xs text-gray-400">
-                                {{
-                                    item.inventory_item?.property_number ??
-                                    "N/A"
-                                }}
+                                {{ group.items.length }} item(s)
                             </p>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- Receipt-level files -->
-            <div class="mb-5">
-                <p class="text-sm font-semibold text-gray-600 mb-2">
-                    Uploaded Files
-                </p>
-                <div
-                    v-if="hasFiles"
-                    class="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1"
-                >
+                    <hr class="mb-5 border-gray-200" />
+
+                    <!-- Items list (display only, no file info per item) -->
+                    <div class="divide-y max-h-60 overflow-y-auto">
+                        <div
+                            v-for="item in group.items"
+                            :key="item.id"
+                            class="flex items-center gap-3 py-3"
+                        >
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-[#1f2d27]">
+                                    {{ item.inventory_item?.item_name ?? "N/A" }}
+                                </p>
+                                <p class="text-xs text-gray-400">
+                                    {{
+                                        item.inventory_item?.property_number ??
+                                        "N/A"
+                                    }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Receipt-level files -->
+                <div class="mb-5">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                        Uploaded Files
+                    </p>
                     <div
-                        v-for="(file, index) in receiptFiles"
-                        :key="file.id"
-                        class="flex items-center justify-between bg-gray-50 border rounded-lg px-4 py-2"
+                        v-if="hasFiles"
+                        class="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1"
                     >
-                        <div class="flex items-center gap-2 text-sm">
-                            <i class="fa-solid fa-paperclip text-gray-400"></i>
-                            <span class="text-gray-700">
-                                {{ getOrdinal(index + 1) }}
-                            </span>
+                        <div
+                            v-for="(file, index) in receiptFiles"
+                            :key="file.id"
+                            class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-4 py-2"
+                        >
+                            <div class="flex items-center gap-2 text-sm">
+                                <i class="fa-solid fa-paperclip text-gray-400"></i>
+                                <span class="text-gray-700">
+                                    {{ getOrdinal(index + 1) }}
+                                </span>
+                            </div>
+                            <button
+                                @click="viewFile(file.file_path)"
+                                class="text-xs text-[#005740] font-medium underline shrink-0 ml-4"
+                            >
+                                View
+                            </button>
+                        </div>
+                    </div>
+                    <p v-else class="text-xs text-gray-400">
+                        No files uploaded yet.
+                    </p>
+                </div>
+
+                <!-- Upload zone -->
+                <div v-if="canUploadAcknowledgements">
+                    <div
+                        v-if="hasFiles"
+                        class="rounded-lg p-3 bg-green-50 text-green-700 text-sm text-center border border-green-200"
+                    >
+                        All items have receipts uploaded
+                    </div>
+                    <div
+                        v-else
+                        class="border border-dashed border-gray-300 rounded-lg p-4 flex items-center gap-4 bg-gray-50"
+                    >
+                        <div class="flex-1">
+                            <p class="text-sm font-medium text-[#1f2d27]">
+                                Upload receipts for all items
+                            </p>
+                            <input
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                multiple
+                                class="mt-2 text-sm"
+                                @change="onFileChange"
+                            />
                         </div>
                         <button
-                            @click="viewFile(file.file_path)"
-                            class="text-xs text-[#185FA5] underline shrink-0 ml-4"
+                            @click="submitUpload"
+                            :disabled="uploadForm.processing"
+                            class="bg-gradient-to-r from-[#005740] to-[#00795a] text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:shadow-md hover:from-[#00432f] hover:to-[#006548] transition-all disabled:opacity-60"
                         >
-                            View
+                            {{ uploadForm.processing ? "Uploading..." : "Upload" }}
                         </button>
                     </div>
-                </div>
-                <p v-else class="text-xs text-gray-400">
-                    No files uploaded yet.
-                </p>
-            </div>
-
-            <!-- Upload zone -->
-            <div v-if="canUploadAcknowledgements">
-                <div
-                    v-if="hasFiles"
-                    class="rounded-lg p-3 bg-green-50 text-green-700 text-sm text-center"
-                >
-                    All items have receipts uploaded
-                </div>
-                <div
-                    v-else
-                    class="border border-dashed rounded-lg p-4 flex items-center gap-4 bg-gray-50"
-                >
-                    <div class="flex-1">
-                        <p class="text-sm font-medium">
-                            Upload receipts for all items
-                        </p>
-                        <input
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            multiple
-                            class="mt-2 text-sm"
-                            @change="onFileChange"
-                        />
-                    </div>
-                    <button
-                        @click="submitUpload"
-                        :disabled="uploadForm.processing"
-                        class="bg-[#0E6021] text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-green-800 disabled:opacity-50"
-                    >
-                        {{ uploadForm.processing ? "Uploading..." : "Upload" }}
-                    </button>
                 </div>
             </div>
 
             <!-- Footer -->
-            <div class="flex justify-end mt-6">
+            <div class="flex justify-end px-6 py-4 border-t border-gray-100 flex-shrink-0">
                 <button
                     @click="closeWithAnimation"
-                    class="border border-gray-400 text-[#3B3B3B] px-6 py-3 rounded-full text-sm font-semibold hover:bg-gray-100"
+                    class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
                 >
                     Close
                 </button>

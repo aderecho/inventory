@@ -82,7 +82,7 @@ const submit = () => {
             >
           </label>
           <Link
-            class="rounded-md text-sm text-[#850038] no-underline hover:underline focus:outline-none focus:ring-2 focus:ring-[#850038] focus:ring-offset-2"
+            class="rounded-md text-sm text-black no-underline hover:underline focus:outline-none"
           >
             Forgot your password?
           </Link>
@@ -90,7 +90,7 @@ const submit = () => {
 
         <div class="mt-12 flex items-center justify-center">
           <TestButton
-            class="w-full justify-center text-sm font-bold py-4 bg-[#850038] text-white text-bold hover:bg-[#6e002f] focus:ring-[#850038]"
+            class="w-full justify-center text-sm font-bold py-4 bg-gradient-to-r from-[#005740] via-[#006B4F] to-[#0E6021] text-white text-bold"
             :class="{ 'opacity-25': form.processing }"
             :disabled="form.processing"
           >

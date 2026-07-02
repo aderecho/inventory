@@ -1,6 +1,12 @@
 <script setup>
 import { Link } from "@inertiajs/vue3";
 import { ref, watchEffect } from "vue";
+import {
+    PanelLeftClose,
+    Headset,
+    CircleX,
+    CircleChevronRight,
+} from "lucide-vue-next";
 
 const menuItems = [
     {
@@ -20,10 +26,6 @@ const menuItems = [
                 name: "Acknowledgements",
                 route: "acknowledgements.index",
             },
-            // {
-            //     name: "Item History",
-            //     route: "item-histories.index",
-            // },
         ],
     },
     {
@@ -38,8 +40,6 @@ const menuItems = [
             { name: "Categories", route: "categories.index" },
         ],
     },
-    // For iiruf
-    // { name: "Reports", icon: "fa-solid fa-file-export", route: "reports.index" },
     {
         name: "Archives",
         icon: "fa-solid fa-box-archive",
@@ -61,12 +61,6 @@ const menuItems = [
         icon: "fa-solid fa-users-gear",
         route: "user_management.index",
     },
-    {
-        name: "Logout",
-        icon: "fa-solid fa-right-from-bracket",
-        route: "logout",
-        method: "post",
-    },
 ];
 
 const openDropdown = ref(null);
@@ -87,37 +81,90 @@ watchEffect(() => {
         }
     });
 });
+
+defineProps({ isOpen: { type: Boolean, default: true } });
 </script>
 
 <template>
     <div
-        class="py-7 text-lg font-semibold space-y-2 bg-white h-full w-full sm:w-[16rem] md:w-[15rem] shadow-lg flex flex-col"
+        class="text-lg font-semibold bg-[#005740] h-full shadow-lg flex flex-col transition-all duration-300 ease-in-out overflow-hidden"
+        :class="isOpen ? 'w-[15rem] sm:w-[16rem]' : 'w-12'"
     >
+        <!-- Sidebar Header -->
+        <div
+            class="flex items-center justify-center h-24 border-b border-white/20 shrink-0 overflow-hidden relative"
+            :class="isOpen ? 'px-4 gap-3' : 'justify-center px-0'"
+        >
+            <Link
+                v-if="isOpen"
+                href="/"
+                class="flex items-center justify-center gap-3 w-full"
+            >
+                <div
+                    class="h-16 w-16 rounded-full overflow-hidden flex-shrink-0"
+                >
+                    <img
+                        class="h-full w-full object-cover scale-125"
+                        src="/images/uplogo-2.png"
+                        alt="Logo"
+                    />
+                </div>
+                <div
+                    class="h-16 w-16 rounded-full overflow-hidden flex-shrink-0"
+                >
+                    <img
+                        class="h-full w-full object-cover scale-125"
+                        src="/images/uplogo-1.png"
+                        alt="Logo"
+                    />
+                </div>
+            </Link>
+
+            <button
+                @click="$emit('toggleSidebar')"
+                class="text-white hover:text-white/70 focus:outline-none"
+                :class="isOpen ? 'absolute top-2 right-2' : 'mx-auto'"
+            >
+                <component
+                    :is="isOpen ? CircleX : CircleChevronRight"
+                    class="h-6 w-6"
+                />
+            </button>
+        </div>
+
         <!-- Menu -->
-        <ul class="flex-1">
+        <ul class="flex-1 py-3">
             <li v-for="item in menuItems" :key="item.name" class="rounded-md">
                 <!-- If item has children -->
                 <div
                     v-if="item.children"
-                    @click="toggleDropdown(item.name)"
-                    class="flex items-center gap-3 justify-between py-4 px-4 mx-2 sm:mx-3 rounded-md cursor-pointer transition-all duration-300"
+                    @click="
+                        isOpen
+                            ? toggleDropdown(item.name)
+                            : $emit('toggleSidebar')
+                    "
+                    class="flex items-center gap-3 py-4 px-4 mx-2 rounded-md cursor-pointer transition-all duration-300 text-white"
                     :class="[
+                        isOpen
+                            ? 'justify-between sm:mx-3'
+                            : 'justify-center mx-1',
                         item.children.some((child) =>
                             route().current(child.route),
                         )
-                            ? 'bg-[#D9D9D9] font-semibold text-[#850038]'
-                            : 'text-[#3A3434] hover:bg-[#D9D9D9]',
+                            ? 'bg-white/20 font-semibold'
+                            : 'hover:bg-white/20',
                     ]"
                 >
                     <div class="flex items-center gap-3">
-                        <i :class="item.icon"></i>
-                        <span>{{ item.name }}</span>
+                        <i :class="item.icon" class="shrink-0"></i>
+                        <span v-if="isOpen">{{ item.name }}</span>
                     </div>
                     <i
+                        v-if="isOpen"
                         class="fa-solid transform transition-transform duration-300"
                         :class="
                             openDropdown === item.name
-                                ? 'fa-chevron-up rotate-360'
+                                ? 'fa-chevron-up'
                                 : 'fa-chevron-down'
                         "
                     ></i>
@@ -132,21 +179,22 @@ watchEffect(() => {
                     class="w-full block"
                 >
                     <div
-                        class="flex items-center gap-3 py-4 px-4 mx-2 sm:mx-3 rounded-md transition-all duration-300 cursor-pointer hover:bg-[#D9D9D9] hover:text-[#850038]"
-                        :class="
+                        class="flex items-center gap-3 py-4 px-4 mx-2 rounded-md transition-all duration-300 cursor-pointer text-white hover:bg-white/20"
+                        :class="[
+                            isOpen ? 'sm:mx-3' : 'justify-center mx-1',
                             route().current(item.route)
-                                ? 'bg-[#D9D9D9] font-semibold text-[#850038]'
-                                : 'text-[#3A3434]'
-                        "
+                                ? 'bg-white/20 font-semibold'
+                                : '',
+                        ]"
                     >
-                        <i :class="item.icon"></i>
-                        <span>{{ item.name }}</span>
+                        <i :class="item.icon" class="shrink-0"></i>
+                        <span v-if="isOpen">{{ item.name }}</span>
                     </div>
                 </Link>
 
-                <!-- Dropdown children-->
+                <!-- Dropdown children — hide when collapsed -->
                 <div
-                    v-if="item.children"
+                    v-if="item.children && isOpen"
                     class="overflow-hidden transition-all duration-500 ease-in-out"
                     :class="
                         openDropdown === item.name
@@ -154,17 +202,14 @@ watchEffect(() => {
                             : 'max-h-0 opacity-0'
                     "
                 >
-                    <ul class="ml-10 mt-1 space-y-1 text-[15px] text-gray-600">
+                    <ul class="ml-10 mt-1 space-y-1 text-[15px]">
                         <li v-for="child in item.children" :key="child.name">
                             <Link
                                 :href="route(child.route)"
-                                class="block py-2 px-2 mx-3 rounded-md hover:bg-[#EFEFEF] transition-all duration-300"
+                                class="block py-2 px-2 mx-3 rounded-md transition-all duration-300 text-white/80 hover:bg-white/20 hover:text-white"
                                 :class="{
-                                    'font-semibold text-[#850038]':
+                                    'font-semibold text-white bg-white/20':
                                         route().current(child.route),
-                                    'text-gray-600': !route().current(
-                                        child.route,
-                                    ),
                                 }"
                             >
                                 {{ child.name }}
@@ -176,10 +221,17 @@ watchEffect(() => {
         </ul>
 
         <!-- Footer -->
-        <div class="mt-auto py-3">
-            <span class="block text-center text-xs text-gray-500">
-                EasyLearning © UP Cebu.
+        <a
+            href="https://support.upcebu.edu.ph/open.php?topicId=62"
+            target="_blank"
+            class="mt-auto py-3 border-t border-white/20 flex flex-col items-center gap-1"
+        >
+            <span
+                class="flex items-center gap-1 text-center text-xs text-white"
+            >
+                <Headset :size="16" />
+                <p class="underline underline-offset-4">ITC Support</p>
             </span>
-        </div>
+        </a>
     </div>
 </template>
