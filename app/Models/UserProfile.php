@@ -9,8 +9,9 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 class UserProfile extends Model
 {
     use HasFactory;
-    protected $fillable = ['user_id', 'first_name', 'middle_name', 'last_name', 'contact_number', 'status'];
+    protected $fillable = ['user_id', 'primary_organization_id','first_name', 'middle_name', 'last_name', 'contact_number', 'status'];
     protected $appends = ['full_name'];
+
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -24,6 +25,21 @@ class UserProfile extends Model
     public function issued_by_id()
     {
         return $this->hasMany(AcknowledgementItem::class, 'issued_by_id');
+    }
+
+    public function primaryOrganization()
+    {
+        return $this->belongsTo(Organization::class, 'primary_organization_id');
+    }
+
+    public function organizations()
+    {
+        return $this->belongsToMany(
+            Organization::class,
+            'organization_user_profile',
+            'user_profile_id',
+            'organization_id'
+        )->withTimestamps();
     }
 
     public function fullName(): Attribute

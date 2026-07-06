@@ -11,6 +11,8 @@ class PrintService
 {
     private RoomApiService $roomsApi;
 
+    private const PAR_THRESHOLD = 50000;
+
     public function __construct(RoomApiService $roomsApi)
     {
         $this->roomsApi = $roomsApi;
@@ -30,6 +32,11 @@ class PrintService
         }
 
         return $roomNames;
+    }
+
+    private function sumUnitCost(iterable $items): float
+    {
+        return collect($items)->sum(fn($item) => (float) ($item->inventoryItems->unit_cost ?? 0));
     }
 
     public function generateReceiptPdf(int|array $ids): array
@@ -93,42 +100,26 @@ class PrintService
         // Resolve room names for all items
         $roomNames = $this->resolveRoomNames($acknowledgementItems);
 
-        $parItems = $acknowledgementItems->filter(
-            fn($item) => ($item->inventoryItems->unit_cost ?? 0) > 50000
-        );
+        // Sum ALL items' unit_cost first — this determines the classification
+        $grandTotal = $this->sumUnitCost($acknowledgementItems);
 
-        $icsItems = $acknowledgementItems->filter(
-            fn($item) => ($item->inventoryItems->unit_cost ?? 0) <= 50000
-        );
+        $isPar = $grandTotal >= self::PAR_THRESHOLD;
 
-        // Group PAR items by prefix (classification) + PO number
-        $groupedParItems = $parItems->groupBy(function ($item) {
+        // Group all items by acknowledgement_id (no more splitting by item)
+        $groupedItems = $acknowledgementItems->groupBy(function ($item) {
             return $item->acknowledgement_id;
         });
 
-        // Group ICS items by acknowledgement_id
-        $groupedIcsItems = $icsItems->groupBy(function ($item) {
-            return $item->acknowledgement_id;
-        });
+        $groupedTotals = $groupedItems->map(fn($group) => $this->sumUnitCost($group));
 
-        if ($parItems->isNotEmpty() && $icsItems->isNotEmpty()) {
-            return [
-                'pdf' => Pdf::loadView('prints.merged_receipt', [
-                    'groupedParItems' => $groupedParItems,
-                    'groupedIcsItems' => $groupedIcsItems,
-                    'roomNames'       => $roomNames,
-                    'acknowledgementItems' => $acknowledgementItems,
-                ]),
-                'type' => 'BOTH',
-            ];
-        }
-
-        if ($parItems->isNotEmpty()) {
+        if ($isPar) {
             return [
                 'pdf'  => Pdf::loadView('prints.par_receipt', [
-                    'groupedParItems' => $groupedParItems,
-                    'roomNames'       => $roomNames,
-                    'acknowledgementItems' => $parItems,
+                    'groupedParItems'  => $groupedItems,
+                    'roomNames'        => $roomNames,
+                    'acknowledgementItems' => $acknowledgementItems,
+                    'parTotal'         => $grandTotal,
+                    'groupedParTotals' => $groupedTotals,
                 ]),
                 'type' => 'PAR',
             ];
@@ -136,9 +127,11 @@ class PrintService
 
         return [
             'pdf'  => Pdf::loadView('prints.ics_receipt', [
-                'groupedIcsItems' => $groupedIcsItems,
-                'roomNames'       => $roomNames,
-                'acknowledgementItems' => $icsItems,
+                'groupedIcsItems'  => $groupedItems,
+                'roomNames'        => $roomNames,
+                'acknowledgementItems' => $acknowledgementItems,
+                'icsTotal'         => $grandTotal,
+                'groupedTotals'    => $groupedTotals,
             ]),
             'type' => 'ICS',
         ];

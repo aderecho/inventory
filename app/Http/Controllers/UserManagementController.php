@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\UserStoreRequest;
 use App\Http\Requests\UserUpdateRequest;
 use App\Models\User;
+use App\Models\Organization;
 use App\Services\UserService;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Permission;
@@ -32,6 +33,7 @@ class UserManagementController extends Controller
             'users'       => $users,
             'roles'       => Role::with('permissions')->get(['id', 'name']),
             'permissions' => Permission::all(['id', 'name']),
+            'organizations' => Organization::select('id', 'name', 'short_code')->get(),
         ]);
     }
 

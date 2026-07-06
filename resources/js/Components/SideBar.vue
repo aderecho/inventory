@@ -57,7 +57,7 @@ const menuItems = [
         ],
     },
     {
-        name: "User Permissions",
+        name: "User Management",
         icon: "fa-solid fa-users-gear",
         route: "user_management.index",
     },

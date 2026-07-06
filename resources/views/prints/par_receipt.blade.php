@@ -109,6 +109,18 @@
             padding-right: 10mm;
         }
 
+        .description-bar {
+            border: 1px solid #000;
+            border-bottom: none;
+            padding: 6px 8px;
+            font-size: 10.5pt;
+        }
+
+        .description-bar .label {
+            font-weight: bold;
+            margin-right: 4px;
+        }
+
         .ics-table {
             width: 100%;
             border-collapse: collapse;
@@ -122,6 +134,10 @@
             text-align: center;
         }
 
+        .ics-table tfoot td {
+            font-weight: bold;
+        }
+
         .purchase-table {
             width: 100%;
             border-collapse: collapse;
@@ -131,8 +147,9 @@
         .purchase-table td {
             border: 1px solid #000;
             border-top: none;
-            height: 28mm;
-            padding: 6px;
+            height: auto;
+            padding: 8px 10px;
+            line-height: 1.8;
             vertical-align: top;
         }
 
@@ -159,13 +176,9 @@
             vertical-align: top;
         }
 
-        /* ✅ Same as ICS — position absolute outside content-area */
         .signature-section {
-            position: absolute;
-            display: flex;
-            margin-top: -8.3em;
-            left: 20mm;
-            right: 20mm;
+            position: static;
+            margin-top: 10mm;
         }
 
         .signature-table {
@@ -207,6 +220,96 @@
             padding-bottom: 4px;
             text-align: center;
             margin: 0 auto;
+        }
+
+        .footer-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10.5pt;
+            margin-top: 8px;
+        }
+
+        .footer-table td {
+            border: 1px solid #000;
+            padding: 10px;
+            vertical-align: top;
+        }
+
+        .footer-table .description-cell {
+            width: 65%;
+        }
+
+        .footer-table .subtotal-cell {
+            width: 35%;
+            text-align: right;
+        }
+
+        .footer-table .small-label {
+            display: block;
+            font-size: 8pt;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .footer-table .description-value {
+            font-size: 11pt;
+        }
+
+        .footer-table .subtotal-value {
+            font-size: 11pt;
+        }
+
+        .signature-section {
+            margin-top: 14mm;
+            width: 100%;
+        }
+
+        .signature-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: none;
+            font-size: 10.5pt;
+        }
+
+        .signature-table td {
+            width: 50%;
+            padding: 0;
+            vertical-align: top;
+            border: none;
+        }
+
+        .signature-box {
+            padding: 0 16px 8px;
+        }
+
+        .signature-label {
+            margin-bottom: 8px;
+            display: block;
+            text-align: center;
+        }
+
+        .signature-name {
+            display: block;
+            text-align: center;
+            font-weight: bold;
+            line-height: 1.3;
+            margin: 0 auto 10px;
+            max-width: 100%;
+        }
+
+        .signature-line {
+            border-top: 1px solid #000;
+            margin: 0 auto 20px;
+            width: 100%;
+        }
+
+        .signature-subtext {
+            display: block;
+            text-align: center;
+            font-size: 9pt;
+            color: #333;
         }
 
         @media print {
@@ -271,7 +374,7 @@
                         <tr>
                             <th>Qty</th>
                             <th>Unit</th>
-                            <th>Description</th>
+                            <th>Serial No.</th>
                             <th>Property No.</th>
                             <th>Unit Cost</th>
                             <th>Total Cost</th>
@@ -282,13 +385,28 @@
                             <tr>
                                 <td>{{ $item->inventoryItems->quantity ?? 1 }}</td>
                                 <td>{{ $item->inventoryItems->unit ?? 'unit' }}</td>
-                                <td>{{ $item->inventoryItems->description }}</td>
+                                <td>{{ $item->inventoryItems->serial_number ?? 'N/A' }}</td>
                                 <td>{{ $item->inventoryItems->property_number }}</td>
                                 <td style="text-align: center;">{{ number_format($item->inventoryItems->unit_cost, 2) }}</td>
-                                <td style="text-align: center;">{{ number_format($item->inventoryItems->unit_cost * ($item->inventoryItems->quantity ?? 1), 2) }}</td>
+                                <td style="text-align: center;">
+                                    {{ number_format($item->inventoryItems->unit_cost * ($item->inventoryItems->quantity ?? 1), 2) }}
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>
+                </table>
+
+                <table class="footer-table">
+                    <tr>
+                        <td class="description-cell">
+                            <span class="small-label">Description</span>
+                            <span class="description-value">{{ $firstItem->description ?? 'N/A' }}</span>
+                        </td>
+                        <td class="subtotal-cell">
+                            <span class="small-label">Subtotal</span>
+                            <span class="subtotal-value">{{ number_format($groupedParTotals[$propertyGroup] ?? 0, 2) }}</span>
+                        </td>
+                    </tr>
                 </table>
 
                 <!-- PURCHASE INFO -->
@@ -325,37 +443,35 @@
                     </table>
                 </div>
 
-            </div>
-
-            {{-- ✅ Moved OUTSIDE content-area, same as ICS --}}
-            <div class="signature-section">
-                <table class="signature-table">
-                    <tr>
-                        <td width="50%">
-                            <strong>Received From:</strong>
-                            <div class="name-container">
-                                <div class="underline">
-                                    {{ $firstAckItem->issuedBy->first_name ?? '' }}
-                                    {{ $firstAckItem->issuedBy->middle_name ?? '' }}
-                                    {{ $firstAckItem->issuedBy->last_name ?? '' }}
+                <div class="signature-section">
+                    <table class="signature-table">
+                        <tr>
+                            <td>
+                                <div class="signature-box">
+                                    <span class="signature-label">Received From:</span>
+                                    <span class="signature-name">
+                                        {{ trim(($firstAckItem->issuedBy->first_name ?? '') . ' ' . ($firstAckItem->issuedBy->middle_name ?? '') . ' ' . ($firstAckItem->issuedBy->last_name ?? '')) ?: '__________________________' }}
+                                    </span>
+                                    <div class="signature-line"></div>
+                                    <span class="signature-subtext">Signature over Printed Name</span>
                                 </div>
-                            </div>
-                            <span>Signature over Printed Name</span>
-                        </td>
-                        <td width="50%">
-                            <strong>Received By:</strong>
-                            <div class="name-container">
-                                <div class="underline">
-                                    {{ $firstAckItem->accountablePerson->full_name ?? ' ' }}
+                            </td>
+                            <td>
+                                <div class="signature-box">
+                                    <span class="signature-label">Received By:</span>
+                                    <span class="signature-name">
+                                        {{ $firstAckItem->accountablePerson->full_name ?? '__________________________' }}
+                                    </span>
+                                    <div class="signature-line"></div>
+                                    <span class="signature-subtext">Signature over Printed Name</span>
                                 </div>
-                            </div>
-                            <span>Signature over Printed Name</span>
-                        </td>
-                    </tr>
-                </table>
-            </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
 
-        </div>
+            </div>
     @endforeach
 </body>
+
 </html>

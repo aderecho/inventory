@@ -743,9 +743,9 @@ async function handleConvertFile(event) {
         });
     }
 }
-window.Echo.channel("chat").listen("MessageSent", (e) => {
-    console.log("Message received:", e.message);
-});
+// window.Echo.channel("chat").listen("MessageSent", (e) => {
+//     console.log("Message received:", e.message);
+// });
 // console.log(page.props.auth.permissions);
 </script>
 

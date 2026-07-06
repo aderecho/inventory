@@ -26,6 +26,7 @@ const page = usePage();
 const users = computed(() => page.props.users || {});
 const roles = computed(() => page.props.roles || []);
 const permissions = computed(() => page.props.permissions || []);
+const organizations = computed(() => page.props.organizations || []);
 const showRoleModal = ref(false);
 const showPermissionModal = ref(false);
 
@@ -38,6 +39,11 @@ const columns = [
     { label: "Last Name", key: "user_profiles.last_name" },
     { label: "Middle Name", key: "user_profiles.middle_name" },
     { label: "Contact Number", key: "user_profiles.contact_number" },
+    {
+        label: "Primary Unit",
+        key: "user_profiles.primary_organization",
+        format: (org) => org?.name ?? "N/A",
+    },
     {
         label: "Status",
         key: "status",
@@ -208,6 +214,7 @@ const filterStatus = [
                             :user="currentUser"
                             :roles="roles"
                             :permissions="permissions"
+                            :organizations="organizations"
                             @submit="handleSubmit"
                             @close="showFormModal = false"
                         />
