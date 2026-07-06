@@ -30,7 +30,7 @@ defineProps({
                 </p>
 
                 <h2
-                    class="text-4xl font-bold text-[#850038] mt-3"
+                    class="text-4xl font-bold text-[#005740] mt-3"
                 >
                     {{ value }}
                 </h2>
@@ -44,10 +44,10 @@ defineProps({
             </div>
 
             <div
-                class="w-12 h-12 rounded-xl bg-[#850038]/10 flex items-center justify-center"
+                class="w-12 h-12 rounded-xl bg-[#005740]/10 flex items-center justify-center"
             >
                 <div
-                    class="w-6 h-6 rounded-full bg-[#850038]"
+                    class="w-6 h-6 rounded-full bg-[#005740]"
                 />
             </div>
         </div>

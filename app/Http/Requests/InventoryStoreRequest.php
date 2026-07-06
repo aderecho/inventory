@@ -39,6 +39,7 @@ class InventoryStoreRequest extends FormRequest
             'description' => 'nullable|string',
             'serial_number' => 'nullable|array|min:1',
             'serial_numbers.*' => 'nullable|max:50',
+            'is_private' => 'required|boolean',
             'property_number' => [
                 'required',
                 'string',

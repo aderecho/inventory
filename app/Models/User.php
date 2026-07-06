@@ -9,7 +9,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable
 {
-    use HasFactory, HasRoles, softDeletes;
+     use HasFactory, HasRoles, SoftDeletes {
+        HasRoles::hasPermissionTo as protected spatieHasPermissionTo;
+    }
     protected $fillable = ['email', 'password', 'status'];
 
     protected $hidden = ['password'];
@@ -32,6 +34,22 @@ class User extends Authenticatable
     public function userProfiles()
     {
         return $this->hasOne(UserProfile::class, 'user_id', 'id');
+    }
+
+    public function hasPermissionTo($permission, $guardName = null): bool
+    {
+        $permissionName = is_string($permission) ? $permission : $permission->name;
+
+        $isForbidden = $this->permissions()
+            ->where('name', $permissionName)
+            ->wherePivot('forbidden', true)
+            ->exists();
+
+        if ($isForbidden) {
+            return false;
+        }
+
+        return $this->spatieHasPermissionTo($permission, $guardName);
     }
 
     public function scopeSearch($query, $term)

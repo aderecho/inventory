@@ -13,6 +13,7 @@ use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SupplierArchiveController;
 use App\Http\Controllers\AcknowledgementController;
 use App\Http\Controllers\ItemLocationHistoryController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -24,17 +25,21 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [AuthController::class, 'store'])->name('store');
 });
 
-Route::middleware(['auth', 'role:user'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/user/dashboard', [UserController::class, 'index'])->name('user.dashboard');
 });
 
-Route::middleware(['auth', 'role:admin|staff|user'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 });
 
-Route::middleware(['auth', 'role:admin|staff'])->group(function () {
+Route::middleware(['auth'])->group(function () {
 
-    Route::get('/dashboard', [DashboardController::class, 'searchBar'])->name('dashboard.index');
+    // Update Profile
+    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+
+    // Dashboard
+    Route::get('/dashboard', [DashboardController::class, 'searchBar'])->middleware('can:view dashboard')->name('dashboard.index');
 
     // Item Archives
     Route::middleware('can:view archive_item')->get('/inventory/items/archive', [ItemArchivingController::class, 'index'])->name('items.archive.index');

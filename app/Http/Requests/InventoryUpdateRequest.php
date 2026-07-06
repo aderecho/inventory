@@ -40,6 +40,7 @@ class InventoryUpdateRequest extends FormRequest
             'remarks' => 'nullable|string|max:50',
             'date_acquired' => 'required|date',
             'status' => 'nullable|integer',
+            'is_private' => 'required|boolean',
             'property_number' => [
                 'required',
                 Rule::unique('inventory_items', 'property_number')

@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed } from "vue";
 import { usePage, router } from "@inertiajs/vue3";
-import NavHeader from "@/Components/NavHeader.vue";
 import SideBar from "@/Components/SideBar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import InventoryTable from "@/Components/InventoryTable.vue";
@@ -12,8 +11,11 @@ import ArchiveModal from "@/Components/Modals/ArchiveModal.vue";
 import SuccessModal from "@/Components/Modals/SuccessModal.vue";
 import SuccessDeleteModal from "@/Components/Modals/SuccessDeleteModal.vue";
 import LoadingOverlay from "@/Components/LoadingOverlay.vue";
+import NavHeader from "@/Components/NavHeader.vue";
 import { useLoading } from "@/Composables/useLoading";
 import { usePermissions } from "@/Composables/usePermissions";
+import { useSidebar } from "@/Composables/useSidebar";
+const { isSidebarOpen, toggleSidebar } = useSidebar();
 
 const { supplierActions, canCreateSupplier } = usePermissions();
 
@@ -143,11 +145,6 @@ function confirmArchive() {
         },
     });
 }
-
-const isSidebarOpen = ref(true);
-const toggleSidebar = () => {
-    isSidebarOpen.value = !isSidebarOpen.value;
-};
 </script>
 
 <template>
@@ -156,86 +153,88 @@ const toggleSidebar = () => {
         :title="loadingTitle"
         :message="loadingMessage"
     />
-    <div class="h-screen flex flex-col bg-gray-100 overflow-hidden">
-        <!-- Pass toggle event -->
-        <NavHeader class="flex-shrink-0" @toggleSidebar="toggleSidebar" />
-
+    <div class="h-screen flex flex-col bg-gray-100">
         <div class="flex flex-1 overflow-hidden">
-            <!-- Sidebar -->
             <aside
-                class="transition-all duration-600 ease-in-out transform"
-                :class="
-                    isSidebarOpen
-                        ? 'translate-x-0 opacity-100'
-                        : '-translate-x-full opacity-0 w-0'
-                "
+                class="h-full transition-all duration-300 ease-in-out flex-shrink-0"
             >
-                <SideBar />
+                <SideBar
+                    :isOpen="isSidebarOpen"
+                    @toggleSidebar="toggleSidebar"
+                />
             </aside>
 
-            <!-- MAIN -->
-            <main class="flex-1 sm:p-5 md:p-6 overflow-y-auto m-2">
-                <PageHeader title="Suppliers" />
-                <div class="w-full h-full">
-                    <div
-                        class="mt-10 flex flex-col md:flex-row gap-4 justify-between"
-                    >
-                        <PrimaryButton
-                            @click="openAdd()"
-                            v-if="canCreateSupplier"
-                        >
-                            <i class="fa-solid fa-user-group"></i>
-                            <span>Add Supplier</span>
-                        </PrimaryButton>
+            <div class="flex flex-col flex-1 overflow-hidden">
+                <NavHeader
+                    :isSidebarOpen="isSidebarOpen"
+                    @toggleSidebar="toggleSidebar"
+                >
+                </NavHeader>
 
-                        <ItemFilterControls
-                            :search="search"
-                            @update:search="search = $event"
-                            :mode="'suppliers'"
+                <!-- MAIN -->
+                <main class="flex-1 sm:p-5 md:p-6 overflow-y-auto m-2">
+                    <PageHeader title="Suppliers" />
+                    <div class="w-full h-full">
+                        <div
+                            class="mt-10 flex flex-col md:flex-row gap-4 justify-between"
+                        >
+                            <PrimaryButton
+                                @click="openAdd()"
+                                v-if="canCreateSupplier"
+                            >
+                                <i class="fa-solid fa-user-group"></i>
+                                <span>Add Supplier</span>
+                            </PrimaryButton>
+
+                            <ItemFilterControls
+                                :search="search"
+                                @update:search="search = $event"
+                                :mode="'suppliers'"
+                            />
+                        </div>
+
+                        <SupplierFormModal
+                            v-if="showFormModal"
+                            :mode="formMode"
+                            :supplier="currentSupplier"
+                            :supplierFields="supplierFields"
+                            @submit="handleSubmit"
+                            @close="showFormModal = false"
+                        />
+
+                        <ArchiveModal
+                            v-if="showArchiveModal"
+                            :item="currentSupplier"
+                            @confirm="confirmArchive"
+                            @close="() => (showArchiveModal = false)"
+                        />
+
+                        <SuccessModal
+                            v-if="showSuccessModal"
+                            title="Success"
+                            :message="successMessage"
+                            @close="showSuccessModal = false"
+                        />
+
+                        <SuccessDeleteModal
+                            v-if="showDeleteSuccessModal"
+                            title="Archive Success"
+                            message="Supplier archived successfully!"
+                            buttonText="Confirm"
+                            @close="showDeleteSuccessModal = false"
+                        />
+
+                        <InventoryTable
+                            :module="'suppliers'"
+                            :columns="columns"
+                            :rows="suppliers"
+                            :actions="supplierActions"
+                            @edit="handleEdit"
+                            @delete="handleDelete"
                         />
                     </div>
-
-                    <SupplierFormModal
-                        v-if="showFormModal"
-                        :mode="formMode"
-                        :supplier="currentSupplier"
-                        :supplierFields="supplierFields"
-                        @submit="handleSubmit"
-                        @close="showFormModal = false"
-                    />
-
-                    <ArchiveModal
-                        v-if="showArchiveModal"
-                        :item="currentSupplier"
-                        @confirm="confirmArchive"
-                        @close="() => (showArchiveModal = false)"
-                    />
-
-                    <SuccessModal
-                        v-if="showSuccessModal"
-                        title="Success"
-                        :message="successMessage"
-                        @close="showSuccessModal = false"
-                    />
-
-                    <SuccessDeleteModal
-                        v-if="showDeleteSuccessModal"
-                        title="Archive Success"
-                        message="Supplier archived successfully!"
-                        buttonText="Confirm"
-                        @close="showDeleteSuccessModal = false"
-                    />
-
-                    <InventoryTable
-                        :module="'suppliers'"
-                        :columns="columns"
-                        :rows="suppliers"
-                        :actions="supplierActions"
-                        @edit="handleEdit"
-                        @delete="handleDelete"
-                    />
-                </div>
-            </main>
+                </main>
+            </div>
         </div>
     </div>
 </template>

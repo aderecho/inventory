@@ -223,227 +223,252 @@ function getViewValue(view) {
 <template>
     <!-- <pre>{{ form }}</pre> -->
     <div
-        class="fixed inset-0 bg-black/40 flex items-center justify-center p-4"
-        @click="$emit('close')"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+        @click="closeWithAnimation"
     >
         <div
             :class="[
-                'bg-white rounded-lg w-full max-w-6xl p-4 overflow-y-auto max-h-[90vh]',
+                'bg-white rounded-2xl w-full max-w-6xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]',
                 isClosing ? 'animate-pop-out' : 'animate-pop-in',
             ]"
             @click.stop
         >
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-2xl font-bold text-[#850038] mb-6">
-                    {{
-                        mode === "edit"
-                            ? "Edit Item"
-                            : mode === "view"
-                              ? "Item Details"
-                              : "Assign"
-                    }}
-                </h3>
-            </div>
-
             <Toast />
 
-            <form @submit.prevent="submit" v-if="mode !== 'view'">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="space-y-6">
-                        <!-- PAR/ICS NUMBER -->
-                        <div class="flex justify-between gap-4">
-                            <div class="flex flex-col flex-1">
-                                <label
-                                    class="block text-sm text-[#3B3B3B] font-bold mb-1"
-                                    >PAR/ICS Number</label
-                                >
-                                <input
-                                    type="text"
-                                    v-model="form.category"
-                                    placeholder="Enter new category"
-                                    :class="[
-                                        'w-full rounded-md px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:outline-none',
-                                        form.errors.category
-                                            ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
-                                            : 'border-gray-300 focus:ring-[#850038] focus:border-[#850038]',
-                                    ]"
-                                />
-                                <div
-                                    v-if="form.errors.category"
-                                    class="text-red-500 text-sm"
-                                >
-                                    {{ form.errors.category }}
-                                </div>
-                            </div>
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-[#003d2c] via-[#005740] to-[#00795a] px-6 py-5 flex items-center justify-between flex-shrink-0">
+                <div>
+                    <h3 class="text-lg font-bold text-white">
+                        {{
+                            mode === "edit"
+                                ? "Edit Item"
+                                : mode === "view"
+                                  ? "Item Details"
+                                  : "Assign Item"
+                        }}
+                    </h3>
+                    <p class="text-xs text-white/70 mt-0.5">
+                        {{
+                            mode === "edit"
+                                ? "Update this assignment's details."
+                                : mode === "view"
+                                  ? "View assignment information."
+                                  : "Assign selected items to an accountable person."
+                        }}
+                    </p>
+                </div>
+                <button
+                    @click="closeWithAnimation"
+                    class="text-white/80 hover:text-white hover:bg-white/10 rounded-full h-9 w-9 flex items-center justify-center transition-colors"
+                    title="Close"
+                >
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
 
-                            <div class="flex flex-col">
-                                <label
-                                    class="block text-sm text-[#3B3B3B] font-bold mb-1"
-                                    >PAR Date</label
-                                >
-                                <DatePicker
-                                    v-model="form.par_date"
-                                    placeholder="Select date"
-                                    date-format="yy-mm-dd"
-                                    :show-time="false"
-                                    @update:modelValue="
-                                        (val) =>
-                                            (form.par_date = val
-                                                ? new Date(val)
-                                                      .toISOString()
-                                                      .split('T')[0]
-                                                : null)
-                                    "
-                                />
-                                <div
-                                    v-if="form.errors.par_date"
-                                    class="text-red-500 text-sm"
-                                >
-                                    {{ form.errors.par_date }}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- ACCOUNTABLE FIELD -->
-                        <div class="flex justify-between gap-4">
-                            <div
-                                v-for="accf in accountableField"
-                                :key="accf.model"
-                                class="flex flex-col flex-1"
-                            >
-                                <label
-                                    class="block text-sm text-[#3B3B3B] font-bold mb-1"
-                                >
-                                    {{ accf.label }}
-                                </label>
-                                <Multiselect
-                                    v-model="form[accf.model]"
-                                    :options="props[accf.name]"
-                                    :searchable="true"
-                                    :value-prop="accf.value"
-                                    :label="accf.option"
-                                    :track-by="accf.option"
-                                    placeholder="Select"
-                                    :class="accf.class"
-                                />
-                                <div
-                                    v-if="form.errors[accf.model]"
-                                    class="text-red-500 text-sm"
-                                >
-                                    {{ form.errors[accf.model] }}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- REMARKS -->
-                        <div>
-                            <label
-                                class="block text-sm text-[#3B3B3B] font-semibold mb-1"
-                                >Remarks</label
-                            >
-                            <textarea
-                                v-model="form.remarks"
-                                placeholder="Input a remarks"
-                                class="w-full h-56 rounded-md border border-gray-300 px-3 py-2 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:ring-[#850038] focus:outline-none focus:border-[#850038]"
-                            ></textarea>
-                            <div
-                                v-if="form.errors.remarks"
-                                class="text-red-500 text-sm"
-                            >
-                                {{ form.errors.remarks }}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="space-y-4">
-                        <!-- ITEM SELECTED -->
-                        <div
-                            v-if="firstNumberError"
-                            class="text-red-500 text-sm mb-2"
-                        >
-                            {{ firstNumberError }}
-                        </div>
-                        <div
-                            v-for="select in itemSelectedField"
-                            :key="select.model"
-                        >
-                            <div>
-                                <label class="block text-sm font-bold mb-1">{{
-                                    select.label
-                                }}</label>
-                                <div
-                                    class="bg-[#F8F8F8] border border-gray-300 rounded-md h-[calc(100vh-320px)] md:h-[calc(100vh-380px)] p-3 overflow-y-auto"
-                                >
-                                    <div v-if="selectedIDs.length === 0">
-                                        <p class="text-gray-500 text-sm">
-                                            No items selected
-                                        </p>
+            <form
+                @submit.prevent="submit"
+                v-if="mode !== 'view'"
+                class="flex flex-col flex-1 overflow-hidden"
+            >
+                <div class="p-6 overflow-y-auto flex-1">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-6">
+                            <!-- PAR/ICS NUMBER -->
+                            <div class="flex justify-between gap-4">
+                                <div class="flex flex-col flex-1">
+                                    <label
+                                        class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                        >PAR/ICS Number</label
+                                    >
+                                    <input
+                                        type="text"
+                                        v-model="form.category"
+                                        placeholder="Enter new category"
+                                        :class="[
+                                            'w-full rounded-md px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:outline-none border',
+                                            form.errors.category
+                                                ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                                                : 'border-gray-300 focus:ring-[#005740] focus:border-[#005740]',
+                                        ]"
+                                    />
+                                    <div
+                                        v-if="form.errors.category"
+                                        class="text-red-500 text-xs mt-1"
+                                    >
+                                        {{ form.errors.category }}
                                     </div>
-                                    <div>
-                                        <ul class="space-y-2">
-                                            <li
-                                                v-for="id in selectedIDs"
-                                                :key="id"
-                                                class="bg-white border p-2 rounded-md shadow-sm text-sm"
-                                            >
-                                                <p class="gap-1 flex">
-                                                    <strong
-                                                        class="text-[#850038]"
-                                                        >Item Name:</strong
-                                                    >
-                                                    <span
-                                                        class="text-[#3B3B3B]"
-                                                        >{{
-                                                            itemMap[id]
-                                                                ?.item_name
-                                                        }}</span
-                                                    >
-                                                </p>
+                                </div>
 
-                                                <p class="gap-1 flex">
-                                                    <strong
-                                                        class="text-[#850038]"
-                                                        >Property
-                                                        Number:</strong
-                                                    >
-                                                    <span
-                                                        class="text-[#3B3B3B]"
-                                                        >{{
-                                                            itemMap[id]
-                                                                ?.property_number
-                                                        }}</span
-                                                    >
-                                                </p>
+                                <div class="flex flex-col">
+                                    <label
+                                        class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                        >PAR Date</label
+                                    >
+                                    <DatePicker
+                                        v-model="form.par_date"
+                                        placeholder="Select date"
+                                        date-format="yy-mm-dd"
+                                        :show-time="false"
+                                        @update:modelValue="
+                                            (val) =>
+                                                (form.par_date = val
+                                                    ? new Date(val)
+                                                          .toISOString()
+                                                          .split('T')[0]
+                                                    : null)
+                                        "
+                                    />
+                                    <div
+                                        v-if="form.errors.par_date"
+                                        class="text-red-500 text-xs mt-1"
+                                    >
+                                        {{ form.errors.par_date }}
+                                    </div>
+                                </div>
+                            </div>
 
-                                                <p class="gap-1 flex">
-                                                    <strong
-                                                        class="text-[#850038]"
-                                                        >PO Number:</strong
-                                                    >
-                                                    <span
-                                                        class="text-[#3B3B3B]"
-                                                        >{{
-                                                            itemMap[id]
-                                                                ?.po_number
-                                                        }}</span
-                                                    >
-                                                </p>
+                            <!-- ACCOUNTABLE FIELD -->
+                            <div class="flex justify-between gap-4">
+                                <div
+                                    v-for="accf in accountableField"
+                                    :key="accf.model"
+                                    class="flex flex-col flex-1"
+                                >
+                                    <label
+                                        class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                    >
+                                        {{ accf.label }}
+                                    </label>
+                                    <Multiselect
+                                        v-model="form[accf.model]"
+                                        :options="props[accf.name]"
+                                        :searchable="true"
+                                        :value-prop="accf.value"
+                                        :label="accf.option"
+                                        :track-by="accf.option"
+                                        placeholder="Select"
+                                        :class="accf.class"
+                                    />
+                                    <div
+                                        v-if="form.errors[accf.model]"
+                                        class="text-red-500 text-xs mt-1"
+                                    >
+                                        {{ form.errors[accf.model] }}
+                                    </div>
+                                </div>
+                            </div>
 
-                                                <p class="gap-1 flex">
-                                                    <strong
-                                                        class="text-[#850038]"
-                                                        >Quantity:</strong
-                                                    >
-                                                    <span
-                                                        class="text-[#3B3B3B]"
-                                                        >{{
-                                                            itemMap[id]
-                                                                ?.quantity
-                                                        }}</span
-                                                    >
-                                                </p>
-                                            </li>
-                                        </ul>
+                            <!-- REMARKS -->
+                            <div>
+                                <label
+                                    class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                    >Remarks</label
+                                >
+                                <textarea
+                                    v-model="form.remarks"
+                                    placeholder="Input a remarks"
+                                    class="w-full h-56 rounded-md border border-gray-300 px-3 py-2 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:ring-[#005740] focus:outline-none focus:border-[#005740]"
+                                ></textarea>
+                                <div
+                                    v-if="form.errors.remarks"
+                                    class="text-red-500 text-xs mt-1"
+                                >
+                                    {{ form.errors.remarks }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <!-- ITEM SELECTED -->
+                            <div
+                                v-if="firstNumberError"
+                                class="text-red-500 text-xs mb-2"
+                            >
+                                {{ firstNumberError }}
+                            </div>
+                            <div
+                                v-for="select in itemSelectedField"
+                                :key="select.model"
+                            >
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{{
+                                        select.label
+                                    }}</label>
+                                    <div
+                                        class="bg-[#F8F8F8] border border-gray-300 rounded-md h-[calc(100vh-360px)] md:h-[calc(100vh-420px)] p-3 overflow-y-auto"
+                                    >
+                                        <div v-if="selectedIDs.length === 0">
+                                            <p class="text-gray-500 text-sm">
+                                                No items selected
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <ul class="space-y-2">
+                                                <li
+                                                    v-for="id in selectedIDs"
+                                                    :key="id"
+                                                    class="bg-white border border-gray-200 p-2.5 rounded-md shadow-sm text-sm"
+                                                >
+                                                    <p class="gap-1 flex">
+                                                        <strong
+                                                            class="text-[#005740]"
+                                                            >Item Name:</strong
+                                                        >
+                                                        <span
+                                                            class="text-[#3B3B3B]"
+                                                            >{{
+                                                                itemMap[id]
+                                                                    ?.item_name
+                                                            }}</span
+                                                        >
+                                                    </p>
+
+                                                    <p class="gap-1 flex">
+                                                        <strong
+                                                            class="text-[#005740]"
+                                                            >Property
+                                                            Number:</strong
+                                                        >
+                                                        <span
+                                                            class="text-[#3B3B3B]"
+                                                            >{{
+                                                                itemMap[id]
+                                                                    ?.property_number
+                                                            }}</span
+                                                        >
+                                                    </p>
+
+                                                    <p class="gap-1 flex">
+                                                        <strong
+                                                            class="text-[#005740]"
+                                                            >PO Number:</strong
+                                                        >
+                                                        <span
+                                                            class="text-[#3B3B3B]"
+                                                            >{{
+                                                                itemMap[id]
+                                                                    ?.po_number
+                                                            }}</span
+                                                        >
+                                                    </p>
+
+                                                    <p class="gap-1 flex">
+                                                        <strong
+                                                            class="text-[#005740]"
+                                                            >Quantity:</strong
+                                                        >
+                                                        <span
+                                                            class="text-[#3B3B3B]"
+                                                            >{{
+                                                                itemMap[id]
+                                                                    ?.quantity
+                                                            }}</span
+                                                        >
+                                                    </p>
+                                                </li>
+                                            </ul>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -451,18 +476,19 @@ function getViewValue(view) {
                     </div>
                 </div>
 
-                <!-- BUTTON -->
-                <div class="mt-4 flex justify-end gap-4">
+                <!-- Footer -->
+                <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
                     <button
                         type="button"
                         @click="closeWithAnimation"
-                        class="border border-gray-400 px-6 py-4 rounded-full text-sm text-[#3B3B3B] font-semibold hover:bg-gray-100"
+                        class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
                     >
                         Cancel
                     </button>
                     <button
                         type="submit"
-                        class="bg-[#0E6021] text-white px-8 py-4 rounded-full text-sm font-semibold hover:bg-green-800"
+                        :disabled="form.processing"
+                        class="bg-gradient-to-r from-[#005740] to-[#00795a] text-white px-8 py-2.5 rounded-lg text-sm font-semibold hover:shadow-md hover:from-[#00432f] hover:to-[#006548] transition-all disabled:opacity-60"
                     >
                         {{
                             mode === "edit"
@@ -476,31 +502,33 @@ function getViewValue(view) {
             </form>
 
             <!-- VIEW MODAL -->
-            <div v-else>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                    <div
-                        v-for="view in viewItem"
-                        :key="view.key"
-                        class="flex items-start justify-between gap-4 border-b pb-2"
-                    >
-                        <!-- LABEL -->
-                        <div class="text-sm font-semibold text-[#000000] w-1/2">
-                            {{ view.label }}:
-                        </div>
-
-                        <!-- VALUE -->
+            <div v-else class="flex flex-col flex-1 overflow-hidden">
+                <div class="p-6 overflow-y-auto flex-1">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
                         <div
-                            class="text-sm font-medium text-gray-600 w-1/2 text-right"
-                            v-html="getViewValue(view)"
-                        />
+                            v-for="view in viewItem"
+                            :key="view.key"
+                            class="flex items-start justify-between gap-4 border-b pb-2"
+                        >
+                            <!-- LABEL -->
+                            <div class="text-sm font-semibold text-[#1f2d27] w-1/2">
+                                {{ view.label }}:
+                            </div>
+
+                            <!-- VALUE -->
+                            <div
+                                class="text-sm font-medium text-gray-600 w-1/2 text-right"
+                                v-html="getViewValue(view)"
+                            />
+                        </div>
                     </div>
                 </div>
 
                 <!-- BUTTON -->
-                <div class="mt-6 flex justify-end">
+                <div class="flex justify-end px-6 py-4 border-t border-gray-100 flex-shrink-0">
                     <button
                         @click="closeWithAnimation"
-                        class="px-6 py-3 border border-[#8d8a8a] rounded-md hover:bg-gray-100 text-sm font-medium"
+                        class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
                     >
                         Back
                     </button>
@@ -533,8 +561,8 @@ function getViewValue(view) {
 
 :deep(.p-datepicker-input:focus) {
     outline: none !important;
-    border-color: #850038 !important;
-    box-shadow: 0 0 0 1px #850038 !important;
+    border-color: #005740 !important;
+    box-shadow: 0 0 0 1px #005740 !important;
 }
 .p-datepicker-input {
     width: 100%;
@@ -548,7 +576,7 @@ function getViewValue(view) {
 
 .p-datepicker-input:focus {
     outline: none !important;
-    border-color: #850038 !important;
-    box-shadow: 0 0 0 1px #850038 !important;
+    border-color: #005740 !important;
+    box-shadow: 0 0 0 1px #005740 !important;
 }
 </style>

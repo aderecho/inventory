@@ -14,23 +14,47 @@ class AuthService
     public function authenticate(Request $request)
     {
         $credentials = $request->validate([
-            'email'    => ['required', 'email'],
-            'password' => ['required'],
+            'email' => 'required|email',
+            'password' => 'required',
         ]);
 
-        if (Auth::attempt($credentials)) {
+        try {
+            if (!Auth::attempt($credentials)) {
+                return back()->withErrors([
+                    'email' => 'The provided credentials do not match our records.',
+                ]);
+            }
+
             $request->session()->regenerate();
 
             $user = Auth::user();
 
-            return ($user->hasRole('user') || $user->roles->isEmpty())
-                ? redirect()->route('user.dashboard')
-                : redirect()->route('dashboard.index');
-        }
+            if (!$user) {
+                throw new \Exception('Authenticated but user instance is null.');
+            }
 
-        return back()->withErrors([
-            'email' => 'Invalid email or password.',
-        ])->withInput($request->only('email'));
+            // Clear any stale "intended" URL from before login so it can't
+            // override the permission-based redirect below.
+            $request->session()->forget('url.intended');
+
+            return $user->can('view dashboard')
+                ? redirect()->route('dashboard.index')
+                : redirect()->route('user.dashboard');
+        } catch (\Throwable $e) {
+            \Log::error('Login/authorization error: ' . $e->getMessage(), [
+                'email' => $credentials['email'] ?? null,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            if (Auth::check()) {
+                return redirect()->route('user.dashboard')
+                    ->withErrors(['email' => 'Something went wrong loading your dashboard. Please try again.']);
+            }
+
+            return back()->withErrors([
+                'email' => 'Something went wrong while logging in. Please try again.',
+            ]);
+        }
     }
     public function register(Request $request)
     {

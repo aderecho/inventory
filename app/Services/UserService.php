@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\InventoryItem;
 use App\Models\UserProfile;
 use App\Models\AcknowledgementItem;
+use App\Models\AcknowledgementReceipt;
 
 
 class UserService
@@ -26,6 +27,11 @@ class UserService
                 fn($query) =>
                 $query->where('status', $status)
             )
+            ->when(
+                auth()->check(),
+                fn($query) =>
+                $query->where('id', '!=', auth()->id())
+            )
             ->orderBy('created_at', 'desc')
             ->paginate($perPage)
             ->withQueryString();
@@ -33,23 +39,45 @@ class UserService
     public function filterAndPaginateAssignedItems(
         int $userId,
         ?string $search = null,
+        ?string $sort = null,
+        string $direction = 'asc',
         int $perPage = 10
     ) {
-        return InventoryItem::query()
+        $sortable = ['item_name', 'date_acquired', 'date_assigned'];
+        $sort = in_array($sort, $sortable, true) ? $sort : null;
+        $direction = strtolower($direction) === 'desc' ? 'desc' : 'asc';
+
+        $query = InventoryItem::query()
             ->with([
-                'latestAcknowledgementItem.acknowledgementReceipts:id,par_date',
-                'latestAcknowledgementItem.file',
+                'supplier',
+                'latestAcknowledgementItem.acknowledgementReceipts:id,par_date,category',
+                'latestAcknowledgementItem.files',
             ])
-            ->whereHas('latestAcknowledgementItem', function ($query) use ($userId) {
-                $query->where('accountable_person_id', $userId);
+            ->whereHas('latestAcknowledgementItem', function ($q) use ($userId) {
+                $q->where('accountable_person_id', $userId);
             })
             ->when(
                 $search,
-                fn($query, $search) => $query->search($search)
-            )
-            ->orderByDesc('created_at')
-            ->paginate($perPage)
-            ->withQueryString();
+                fn($q, $search) => $q->searchAssignedItems($search)
+            );
+
+        if ($sort === 'date_assigned') {
+            $query->addSelect([
+                'sort_par_date' => AcknowledgementReceipt::select('par_date')
+                    ->join('acknowledgement_items', 'acknowledgement_items.acknowledgement_id', '=', 'acknowledgement_receipts.id')
+                    ->whereColumn('acknowledgement_items.inventory_item_id', 'inventory_items.id')
+                    ->orderByDesc('acknowledgement_items.id')
+                    ->limit(1),
+            ]);
+        }
+
+        match ($sort) {
+            'date_assigned' => $query->orderBy('sort_par_date', $direction),
+            null             => $query->orderByDesc('created_at'),
+            default          => $query->orderBy("inventory_items.{$sort}", $direction),
+        };
+
+        return $query->paginate($perPage)->withQueryString();
     }
 
     public function getAuthenticatedUser()
@@ -61,15 +89,11 @@ class UserService
 
     public function getDashboardStats(int $userId): array
     {
-        $assignedItems = AcknowledgementItem::where(
-            'accountable_person_id',
-            $userId
-        )->count('inventory_item_id');
+        $assignedItems = AcknowledgementItem::where('accountable_person_id', $userId)
+            ->distinct('inventory_item_id')
+            ->count('inventory_item_id');
 
-        $receipts = AcknowledgementItem::where(
-            'accountable_person_id',
-            $userId
-        )
+        $receipts = AcknowledgementItem::where('accountable_person_id', $userId)
             ->distinct('acknowledgement_id')
             ->count('acknowledgement_id');
 

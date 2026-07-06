@@ -8,6 +8,8 @@ use App\Models\InventoryItem;
 use App\Models\AcknowledgementItem;
 use App\Models\ItemHistoryLocation;
 use App\Models\AcknowledgementReceipt;
+use App\Models\User;
+use Spatie\Permission\Models\Permission;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use Illuminate\Support\Facades\Validator;
@@ -70,11 +72,14 @@ class InventoryService
 
     public function getAdminProfiles()
     {
-        return UserProfile::whereHas('user', function ($q) {
-            $q->whereHas('roles', function ($r) {
-                $r->where('name', 'admin');
-            });
-        })->get();
+        $totalPermissions = Permission::count();
+
+        $userIds = User::with('roles', 'permissions')
+            ->get()
+            ->filter(fn(User $user) => $user->getAllPermissions()->count() >= $totalPermissions)
+            ->pluck('id');
+
+        return UserProfile::whereIn('user_id', $userIds)->get();
     }
 
     public function createAcknowledgements(array $data)
@@ -151,6 +156,7 @@ class InventoryService
                 'remarks' => $data['remarks'],
                 'date_acquired' => $data['date_acquired'],
                 'status' => $data['status'],
+                'is_private' => $data['is_private'] ?? 0,
             ]);
 
             ItemHistoryLocation::create([
@@ -184,6 +190,7 @@ class InventoryService
             'remarks' => $data['remarks'] ?? null,
             'date_acquired' => $data['date_acquired'],
             'status' => $data['status'] ?? 1,
+            'is_private' => $data['is_private'] ?? 0,
         ]);
 
         $currentRoomId = $item->latestHistoryLocation?->room_id;
