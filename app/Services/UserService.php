@@ -16,7 +16,7 @@ class UserService
         int|string|null $status = null,
         int $perPage = 10
     ) {
-        return User::with('userProfiles', 'roles', 'permissions')
+        return User::with('userProfiles.organizations', 'userProfiles.primaryOrganization', 'roles', 'permissions')
             ->when(
                 $search,
                 fn($query, $search) =>
@@ -111,7 +111,12 @@ class UserService
             'status'   => $data['status'],
         ]);
 
-        $user->userProfiles()->create($data['user_profiles'] ?? []);
+        $profile = $user->userProfiles()->create($data['user_profiles'] ?? []);
+
+        $profile->organizations()->sync($data['organizations'] ?? []);
+        $profile->update([
+            'primary_organization_id' => $data['primary_organization_id'] ?? null,
+        ]);
 
         if (!empty($data['role'])) {
             $user->assignRole($data['role']);
@@ -139,10 +144,15 @@ class UserService
 
         $profileData = $data['user_profiles'] ?? [];
 
-        UserProfile::updateOrCreate(
+        $profile = UserProfile::updateOrCreate(
             ['user_id' => $user->id],
             array_merge($profileData, ['user_id' => $user->id])
         );
+
+        $profile->organizations()->sync($data['organizations'] ?? []);
+        $profile->update([
+            'primary_organization_id' => $data['primary_organization_id'] ?? null,
+        ]);
 
         if (!empty($data['role'])) {
             $user->syncRoles([$data['role']]);

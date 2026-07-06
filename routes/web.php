@@ -11,6 +11,8 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SupplierArchiveController;
+use App\Http\Controllers\EmbedTokenController;
+use App\Http\Controllers\EmbedDashboardController;
 use App\Http\Controllers\AcknowledgementController;
 use App\Http\Controllers\ItemLocationHistoryController;
 use App\Http\Controllers\ProfileController;
@@ -25,6 +27,10 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [AuthController::class, 'store'])->name('store');
 });
 
+Route::get('/embed/dashboard/{token}', [EmbedDashboardController::class, 'show'])
+    ->middleware('throttle:60,1')
+    ->name('embed.dashboard');
+
 Route::middleware(['auth'])->group(function () {
     Route::get('/user/dashboard', [UserController::class, 'index'])->name('user.dashboard');
 });
@@ -37,6 +43,9 @@ Route::middleware(['auth'])->group(function () {
 
     // Update Profile
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+
+    // Embed Tokens
+    Route::middleware('auth')->post('/dashboard/embed-tokens', [EmbedTokenController::class, 'store']);
 
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'searchBar'])->middleware('can:view dashboard')->name('dashboard.index');

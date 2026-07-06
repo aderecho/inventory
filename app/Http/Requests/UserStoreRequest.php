@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UserStoreRequest extends FormRequest
 {
@@ -26,6 +27,14 @@ class UserStoreRequest extends FormRequest
             'role' => 'required|string|exists:roles,name',
             'permissions' => 'nullable|array',
             'permissions.*' => 'string|exists:permissions,name',
+            'organizations' => 'required|array|min:1',
+            'organizations.*' => 'integer|exists:organizations,id',
+            'primary_organization_id' => [
+                'required',
+                'integer',
+                'exists:organizations,id',
+                Rule::in($this->input('organizations', [])),
+            ],
         ];
     }
 
@@ -38,6 +47,11 @@ class UserStoreRequest extends FormRequest
             'user_profiles.first_name.required' => 'The first name field is required.',
             'user_profiles.last_name.required'  => 'The last name field is required.',
             'role.required' => 'The role field is required.',
+            'organizations.required' => 'Please select at least one unit.',
+            'organizations.min' => 'Please select at least one unit.',
+            'organizations.*.exists' => 'One or more selected units are invalid.',
+            'primary_organization_id.required' => 'Please select a primary unit.',
+            'primary_organization_id.in' => 'The primary unit must be one of the selected units.',
         ];
     }
 }

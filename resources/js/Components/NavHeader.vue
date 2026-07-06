@@ -1,7 +1,7 @@
 <script setup>
 import { usePage, Link } from "@inertiajs/vue3";
 import { computed, ref, onMounted, onUnmounted } from "vue";
-import { User, LayoutGrid } from "lucide-vue-next";
+import { User, LayoutGrid, ChevronRight } from "lucide-vue-next";
 import EditProfileModal from "@/Components/Modals/EditProfileModal.vue";
 
 defineProps({ isSidebarOpen: { type: Boolean, default: true } });
@@ -24,6 +24,7 @@ const toggleDropdown = () => (dropdownOpen.value = !dropdownOpen.value);
 const handleClickOutside = (e) => {
     if (dropdownRef.value && !dropdownRef.value.contains(e.target)) {
         dropdownOpen.value = false;
+        showQuickLinks.value = false;
     }
 };
 
@@ -42,6 +43,47 @@ function openProfileModal() {
 function closeProfileModal() {
     showProfileModal.value = false;
 }
+
+// Quick Links (Switch System) — same set of external systems as the
+// top NavBar's app grid.
+const showQuickLinks = ref(false);
+
+const toggleQuickLinks = () => {
+    showQuickLinks.value = !showQuickLinks.value;
+};
+
+const apps = ref([
+    {
+        label: "AMIS",
+        icon: "/images/uplogo-1.png",
+        href: "http://amis.upcebu.edu.ph",
+    },
+    {
+        label: "BULSA",
+        icon: "/images/uplogo-1.png",
+        href: "http://bulsa.up.edu.ph",
+    },
+    {
+        label: "PUSO",
+        icon: "/images/uplogo-1.png",
+        href: "http://puso.up.edu.ph",
+    },
+    {
+        label: "CORE",
+        icon: "/images/uplogo-2.png",
+        href: "https://core.upcebu.edu.ph/login",
+    },
+    {
+        label: "KAT-ON",
+        icon: "/images/uplogo-2.png",
+        href: "http://lms.upcebu.edu.ph",
+    },
+    {
+        label: "VMS",
+        icon: "/images/uplogo-2.png",
+        href: "https://vms.upcebu.edu.ph/login",
+    },
+]);
 </script>
 
 <template>
@@ -130,16 +172,68 @@ function closeProfileModal() {
                                         My Profile
                                     </button>
 
-                                    <Link
-                                        href="#"
-                                        class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-[#005740]/10 hover:text-[#005740] transition-colors duration-200"
-                                        @click="dropdownOpen = false"
+                                    <button
+                                        type="button"
+                                        class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-[#005740]/10 hover:text-[#005740] transition-colors duration-200"
+                                        @click="toggleQuickLinks"
                                     >
                                         <LayoutGrid
                                             class="w-4 h-4 text-[#005740]"
                                         />
-                                        Switch System
-                                    </Link>
+                                        <span class="flex-1 text-left">Switch System</span>
+                                        <ChevronRight
+                                            class="w-3.5 h-3.5 text-gray-400 transition-transform duration-200"
+                                            :class="{ 'rotate-90': showQuickLinks }"
+                                        />
+                                    </button>
+
+                                    <!-- Quick Links panel -->
+                                    <transition
+                                        enter-active-class="transition ease-out duration-150"
+                                        enter-from-class="opacity-0 -translate-y-1"
+                                        enter-to-class="opacity-100 translate-y-0"
+                                        leave-active-class="transition ease-in duration-100"
+                                        leave-from-class="opacity-100"
+                                        leave-to-class="opacity-0"
+                                    >
+                                        <div
+                                            v-if="showQuickLinks"
+                                            class="mx-2 mb-2 rounded-lg border border-gray-100 overflow-hidden"
+                                        >
+                                            <div
+                                                class="px-3 py-2 bg-gradient-to-r from-[#005740] via-[#006B4F] to-[#0E6021]"
+                                            >
+                                                <p class="text-[11px] font-semibold text-white">
+                                                    Quick Links
+                                                </p>
+                                            </div>
+
+                                            <div class="grid grid-cols-3 gap-1 p-2 bg-white">
+                                                <a
+                                                    v-for="app in apps"
+                                                    :key="app.label"
+                                                    :href="app.href"
+                                                    target="_blank"
+                                                    class="group flex flex-col items-center gap-1.5 px-1 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <span
+                                                        class="w-9 h-9 flex items-center justify-center rounded-full bg-gradient-to-br from-[#005740]/10 via-[#006B4F]/10 to-[#0E6021]/10 group-hover:from-[#005740]/15 group-hover:via-[#006B4F]/15 group-hover:to-[#0E6021]/15 transition-colors"
+                                                    >
+                                                        <img
+                                                            :src="app.icon"
+                                                            :alt="app.label"
+                                                            class="w-5 h-5 object-contain"
+                                                        />
+                                                    </span>
+                                                    <span
+                                                        class="text-[10px] font-medium text-gray-600 group-hover:text-[#005740] text-center leading-tight transition-colors"
+                                                    >
+                                                        {{ app.label }}
+                                                    </span>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </transition>
 
                                     <div
                                         class="border-t border-gray-100 my-1"
