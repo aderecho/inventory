@@ -57,9 +57,20 @@ const menuItems = [
         ],
     },
     {
-        name: "User Management",
-        icon: "fa-solid fa-users-gear",
-        route: "user_management.index",
+        name: "Administration",
+        icon: "fa-solid fa-user-shield",
+        children: [
+            {
+                name: "User Management",
+                icon: "fa-solid fa-users-gear",
+                route: "user_management.index",
+            },
+            {
+                name: "API Clients",
+                icon: "fa-solid fa-key",
+                route: "api_clients.index",
+            },
+        ],
     },
 ];
 

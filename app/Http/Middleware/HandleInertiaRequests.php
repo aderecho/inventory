@@ -44,6 +44,11 @@ class HandleInertiaRequests extends Middleware
                     )
                     ->pluck('name') ?? [],
             ],
+            'flash' => [
+                'plain_api_key' => fn() => $request->session()->get('plain_api_key'),
+                'client_name' => fn() => $request->session()->get('client_name'),
+                'success' => fn() => $request->session()->get('success'),
+            ],
         ];
     }
 }

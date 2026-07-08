@@ -11,9 +11,9 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SupplierArchiveController;
-use App\Http\Controllers\EmbedTokenController;
 use App\Http\Controllers\EmbedDashboardController;
 use App\Http\Controllers\AcknowledgementController;
+use App\Http\Controllers\ApiClientController;
 use App\Http\Controllers\ItemLocationHistoryController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
@@ -44,11 +44,21 @@ Route::middleware(['auth'])->group(function () {
     // Update Profile
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
 
-    // Embed Tokens
-    Route::middleware('auth')->post('/dashboard/embed-tokens', [EmbedTokenController::class, 'store']);
-
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'searchBar'])->middleware('can:view dashboard')->name('dashboard.index');
+
+    // API Clients
+    Route::prefix('api-clients')->group(function () {
+        Route::get('/', [ApiClientController::class, 'index'])->middleware('can:view users')->name('api_clients.index');
+        Route::post('/', [ApiClientController::class, 'store'])->middleware('can:create users')->name('api_clients.store');
+        Route::put('/{apiClient}', [ApiClientController::class, 'update'])->middleware('can:edit users')->name('api_clients.update');
+        Route::delete('/{apiClient}', [ApiClientController::class, 'destroy'])->middleware('can:delete users')->name('api_clients.destroy');
+    });
+
+    // Regenerate API Key
+    Route::post('/{apiClient}/regenerate', [ApiClientController::class, 'regenerate'])
+        ->middleware('can:edit users')
+        ->name('api_clients.regenerate');
 
     // Item Archives
     Route::middleware('can:view archive_item')->get('/inventory/items/archive', [ItemArchivingController::class, 'index'])->name('items.archive.index');
