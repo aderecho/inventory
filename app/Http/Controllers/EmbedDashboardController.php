@@ -2,15 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\EmbedToken;
-use App\Services\DashboardService;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-use Inertia\Inertia;
-
-namespace App\Http\Controllers;
-
-use App\Models\EmbedToken;
+use App\Models\ApiClient;
 use App\Services\DashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -22,14 +14,21 @@ class EmbedDashboardController extends Controller
 
     public function show(Request $request, string $token)
     {
-        $embedToken = EmbedToken::where('token', $token)->firstOrFail();
+        try {
+            $payload = decrypt($token);
+        } catch (\Throwable $e) {
+            abort(403, 'Invalid embed link.');
+        }
 
-        abort_if($embedToken->isExpired(), 410, 'This embed link has expired.');
+        abort_if(now()->timestamp > $payload['exp'], 410, 'This embed link has expired.');
+
+        $client = ApiClient::find($payload['client_id']);
+        abort_unless($client && $client->is_active, 403, 'This embed link is no longer valid.');
 
         $origin = $request->headers->get('origin') ?? $request->headers->get('referer');
 
-        if (!empty($embedToken->allowed_domains) && $origin) {
-            $allowed = collect($embedToken->allowed_domains)
+        if (!empty($client->allowed_domains) && $origin) {
+            $allowed = collect($client->allowed_domains)
                 ->contains(fn ($domain) => Str::startsWith($origin, $domain));
 
             abort_unless($allowed, 403, 'This domain is not permitted to embed this dashboard.');
@@ -54,7 +53,7 @@ class EmbedDashboardController extends Controller
             ->toResponse($request)
             ->withHeaders([
                 'Content-Security-Policy' => 'frame-ancestors ' .
-                    ($embedToken->allowed_domains ? implode(' ', $embedToken->allowed_domains) : "'self'") . ';',
+                    ($client->allowed_domains ? implode(' ', $client->allowed_domains) : "'self'") . ';',
             ]);
     }
 }
