@@ -24,7 +24,7 @@ class InventoryStoreRequest extends FormRequest
         return [
             'item_classification_id' => 'required|integer',
             'supplier_id' => 'required|integer',
-            'room_id' => 'required|integer',
+            'room_id' => 'nullable|integer',
             'unit' => 'required|string|max:50',
             'status' => 'required|string|max:50',
             'date_acquired' => 'required|date',

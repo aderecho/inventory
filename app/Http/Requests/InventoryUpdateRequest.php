@@ -25,7 +25,7 @@ class InventoryUpdateRequest extends FormRequest
         return [
             'item_classification_id' => 'required|integer',
             'supplier_id' => 'required|integer',
-            'room_id' => 'required|integer',
+            'room_id' => 'nullable|integer',
             'invoice' => 'required|string|max:50',
             'fund_source' => 'required|string|max:50',
             'item_name' => 'required|string|max:255',

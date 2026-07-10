@@ -25,14 +25,14 @@ class EmbedDashboardController extends Controller
         $client = ApiClient::find($payload['client_id']);
         abort_unless($client && $client->is_active, 403, 'This embed link is no longer valid.');
 
-        $origin = $request->headers->get('origin') ?? $request->headers->get('referer');
+        // $origin = $request->headers->get('origin') ?? $request->headers->get('referer');
 
-        if (!empty($client->allowed_domains) && $origin) {
-            $allowed = collect($client->allowed_domains)
-                ->contains(fn ($domain) => Str::startsWith($origin, $domain));
+        // if (!empty($client->allowed_domains) && $origin) {
+        //     $allowed = collect($client->allowed_domains)
+        //         ->contains(fn ($domain) => Str::startsWith($origin, $domain));
 
-            abort_unless($allowed, 403, 'This domain is not permitted to embed this dashboard.');
-        }
+        //     abort_unless($allowed, 403, 'This domain is not permitted to embed this dashboard.');
+        // }
 
         $availableYears = $this->dashboardService->getAvailableYears();
         $selectedYear = $this->dashboardService->resolveSelectedYear($request, $availableYears);
