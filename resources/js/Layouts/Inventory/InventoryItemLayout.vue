@@ -288,6 +288,7 @@ const secondDropdown = [
             { label: "unit", value: "unit" },
             { label: "pcs", value: "pcs" },
             { label: "box", value: "box" },
+            { label: "lot", value: "lot" },
         ],
     },
     {

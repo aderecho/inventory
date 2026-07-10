@@ -18,3 +18,22 @@ export default defineConfig({
         }),
     ],
 });
+
+// export default defineConfig({
+//     server: {
+//         host: '0.0.0.0',
+//         port: 5173,
+//         hmr: {
+//             host: 'sterilize-grueling-extrovert.ngrok-free.dev',
+//             protocol: 'wss',
+//         },
+//     },
+
+//     plugins: [
+//         laravel({
+//             input: 'resources/js/app.js',
+//             refresh: true,
+//         }),
+//         vue(),
+//     ],
+// });

@@ -34,7 +34,7 @@ function handleGoogle() {
             <div>
                 <img
                     class="w-[150px] h-[100px] object-contain mb-5"
-                    src="images/UPC-LOGO.png"
+                    src="/images/UPC-LOGO.png"
                     alt="University of the Philippines seal"
                 />
             </div>

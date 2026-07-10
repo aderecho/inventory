@@ -28,7 +28,7 @@ class ApiEmbedController extends Controller
 
         return response()->json([
             'embed_url' => route('embed.dashboard', $token),
-            'expires_in' => 600,
+            'expires_in' => 86400,
         ]);
     }
 }

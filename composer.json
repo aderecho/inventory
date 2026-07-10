@@ -7,6 +7,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "aderecho/acme-up-php-crypto": "^1.0",
         "barryvdh/laravel-dompdf": "^3.1",
         "doctrine/dbal": "^4.4",
         "inertiajs/inertia-laravel": "^2.0",
@@ -67,11 +68,19 @@
             "@php artisan test"
         ]
     },
+    "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/aderecho/acme-UP-php-crypto.git"
+    }
+    ],
     "extra": {
         "laravel": {
             "dont-discover": []
         }
     },
+    
+    
     "config": {
         "optimize-autoloader": true,
         "preferred-install": "dist",
