@@ -49,12 +49,12 @@ return new class extends Migration
     ];
 
     /**
-     * Admin (role_id = 1) gets all permissions (1-35).
-     * Staff (role_id = 2) gets a limited subset.
+     * Admin gets all permissions (1-35).
+     * Staff gets a limited subset.
      */
     private array $rolePermissions = [
-        1 => [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35],
-        2 => [1,2,3,5,6,7,8,9,10,12,13,14,17],
+        'admin' => [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35],
+        'staff' => [1,2,3,5,6,7,8,9,10,12,13,14,17],
     ];
 
     /**
@@ -89,13 +89,25 @@ return new class extends Migration
             ]);
         }
 
-        // 4. Wipe existing role_has_permissions for roles 1 and 2 and re-insert cleanly
+        // 4. Only assign permissions to roles that already exist. On a fresh
+        // database roles are created later by RolePermissionSeeder.
+        $roles = DB::table('roles')
+            ->whereIn('name', array_keys($this->rolePermissions))
+            ->where('guard_name', 'web')
+            ->pluck('id', 'name');
+
         DB::table('role_has_permissions')
-            ->whereIn('role_id', [1, 2])
+            ->whereIn('role_id', $roles->values())
             ->delete();
 
         $inserts = [];
-        foreach ($this->rolePermissions as $roleId => $permissionIds) {
+        foreach ($this->rolePermissions as $roleName => $permissionIds) {
+            $roleId = $roles->get($roleName);
+
+            if (! $roleId) {
+                continue;
+            }
+
             foreach ($permissionIds as $permissionId) {
                 $inserts[] = [
                     'permission_id' => $permissionId,
@@ -104,7 +116,9 @@ return new class extends Migration
             }
         }
 
-        DB::table('role_has_permissions')->insert($inserts);
+        if ($inserts !== []) {
+            DB::table('role_has_permissions')->insert($inserts);
+        }
     }
 
     /**
@@ -112,9 +126,14 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Remove all role_has_permissions for roles 1 and 2
+        $roleIds = DB::table('roles')
+            ->whereIn('name', array_keys($this->rolePermissions))
+            ->where('guard_name', 'web')
+            ->pluck('id');
+
+        // Remove the assignments created for the configured roles.
         DB::table('role_has_permissions')
-            ->whereIn('role_id', [1, 2])
+            ->whereIn('role_id', $roleIds)
             ->delete();
 
         // Remove the new permissions

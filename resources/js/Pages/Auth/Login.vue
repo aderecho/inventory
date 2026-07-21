@@ -21,6 +21,10 @@ function handleSubmit() {
 function handleGoogle() {
     window.location.href = route("auth.google");
 }
+
+function handleSaml() {
+    window.location.href = route("saml.login");
+}
 </script>
 
 <template>
@@ -56,6 +60,10 @@ function handleGoogle() {
             >
                 {{ status }}
             </div>
+
+            <p v-if="form.errors.sso" class="w-full mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-center">
+                {{ form.errors.sso }}
+            </p>
 
             <form
                 class="w-full flex flex-col gap-[18px]"
@@ -192,6 +200,14 @@ function handleGoogle() {
                     class="h-6 w-6"
                 />
                 Continue with Google
+            </button>
+
+            <button
+                type="button"
+                class="mt-3 w-full flex items-center justify-center gap-2.5 py-3 rounded-full border border-[#005740] bg-[#005740] text-sm font-medium text-white cursor-pointer transition-colors duration-150 ease-in-out hover:bg-[#003f30]"
+                @click="handleSaml"
+            >
+                Continue with OnePortal
             </button>
         </div>
     </AuthLayout>

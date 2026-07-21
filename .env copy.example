@@ -2,7 +2,13 @@ APP_NAME=Laravel
 APP_ENV=local
 APP_KEY=
 APP_DEBUG=true
-APP_URL=http://localhost
+APP_URL=http://localhost:8001
+
+SAML_SP_ENTITY_ID="http://localhost:8001/saml2/metadata"
+SAML_IDP_NAME="OnePortal Local IdP"
+SAML_IDP_ENTITY_ID="http://127.0.0.1:8012/saml2/metadata"
+SAML_IDP_SSO_URL="http://127.0.0.1:8012/saml2/sso"
+SAML_IDP_SLO_URL="http://127.0.0.1:8012/saml2/slo"
 
 APP_LOCALE=en
 APP_FALLBACK_LOCALE=en

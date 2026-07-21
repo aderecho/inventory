@@ -17,7 +17,24 @@ use App\Http\Controllers\ApiClientController;
 use App\Http\Controllers\ItemLocationHistoryController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\SamlMetadataController;
+use App\Http\Controllers\SamlSpController;
+use App\Http\Controllers\SamlConfigurationController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
+
+Route::get('/saml2/metadata', SamlMetadataController::class)->name('saml.metadata');
+Route::get('/saml2/login', [SamlSpController::class, 'redirectToIdp'])->name('saml.login');
+Route::get('/saml2/acs', fn () => redirect()->route('saml.login'))->name('saml.acs.start');
+Route::post('/saml2/acs', [SamlSpController::class, 'acs'])->name('saml.acs');
+Route::match(['GET', 'POST'], '/saml2/logout', [SamlSpController::class, 'logout'])->name('saml.logout');
+Route::get('/saml2/user-not-found', function (Request $request) {
+    return Inertia::render('SamlUserNotFound', [
+        'email' => $request->session()->get('saml_email'),
+        'reason' => $request->session()->get('saml_reason'),
+    ]);
+})->name('saml.user-not-found');
 
 Route::middleware('guest')->group(function () {
     Route::get('/', fn() => redirect()->route('login'));
@@ -53,6 +70,13 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/', [ApiClientController::class, 'store'])->middleware('can:create users')->name('api_clients.store');
         Route::put('/{apiClient}', [ApiClientController::class, 'update'])->middleware('can:edit users')->name('api_clients.update');
         Route::delete('/{apiClient}', [ApiClientController::class, 'destroy'])->middleware('can:delete users')->name('api_clients.destroy');
+    });
+
+    Route::prefix('saml-configurations')->middleware('can:view roles')->group(function () {
+        Route::get('/', [SamlConfigurationController::class, 'index'])->name('saml_configurations.index');
+        Route::post('/', [SamlConfigurationController::class, 'store'])->name('saml_configurations.store');
+        Route::put('/{samlConfiguration}', [SamlConfigurationController::class, 'update'])->name('saml_configurations.update');
+        Route::delete('/{samlConfiguration}', [SamlConfigurationController::class, 'destroy'])->name('saml_configurations.destroy');
     });
 
     // Regenerate API Key
