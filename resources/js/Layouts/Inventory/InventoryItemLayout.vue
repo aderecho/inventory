@@ -207,6 +207,7 @@ const supplierOptions = [
         name: "suppliers",
         option: "supplier_name",
         value: "id",
+        allowCreate: true,
     },
 ];
 
@@ -258,6 +259,14 @@ const roomDropdown = [
         name: "rooms",
         option: "room_name",
         value: "id",
+        searchKeys: [
+            "room_name",
+            "room_code",
+            "description",
+            "building",
+            "building_name",
+            "capacity",
+        ],
     },
 ];
 
@@ -268,6 +277,9 @@ const firstDropdown = [
         name: "itemClass",
         option: "classification_name",
         value: "id",
+        searchKeys: ["classification_name", "classification_code"],
+        labelFormat: (option) =>
+            `${option.classification_name} - ${option.classification_code}`,
     },
 ];
 
@@ -347,7 +359,7 @@ const itemClassifications = computed(
     () => page.props.itemClassifications || [],
 );
 const suppliers = computed(() => page.props.suppliers || []);
-console.log(suppliers.data);
+
 // INVENTORY FILTER
 let search = ref("");
 let status = ref(null);

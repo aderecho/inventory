@@ -26,6 +26,10 @@ const menuItems = [
                 name: "Acknowledgements",
                 route: "acknowledgements.index",
             },
+            {
+                name: "Item Location",
+                route: "item-histories.index",
+            },
         ],
     },
     {

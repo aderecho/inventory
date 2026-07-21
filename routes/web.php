@@ -116,15 +116,14 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // Item Location Histories
-    // Route::prefix('item-histories')->group(function () {
-    //     Route::get('/',      [ItemLocationHistoryController::class, 'index'])
-    //         ->middleware('can:view item histories')
-    //         ->name('item-histories.index');
+    Route::prefix('item-histories')->group(function () {
+        Route::get('/',      [ItemLocationHistoryController::class, 'index'])
+            ->name('item-histories.index');
 
-    //     Route::get('/{id}',  [ItemLocationHistoryController::class, 'show'])
-    //         ->middleware('can:show item histories')
-    //         ->name('item-histories.show');
-    // });
+        Route::get('/{id}',  [ItemLocationHistoryController::class, 'show'])
+            ->middleware('can:show item histories')
+            ->name('item-histories.show');
+    });
 
     // Reports
     Route::get('/report', [ReportController::class, 'searchBar'])->middleware('can:view reports')->name('reports.index');

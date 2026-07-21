@@ -8,17 +8,11 @@ class InventoryApiService
 {
     public function getInventory()
     {
-        return InventoryItem::with([
-            'supplier',
-            'itemClassification'
-        ])->paginate(10);
+        return InventoryItem::all();
     }
 
     public function getById($id)
     {
-        return InventoryItem::with([
-            'supplier',
-            'itemClassification'
-        ])->findOrFail($id);
+        return InventoryItem::all()->findOrFail($id);
     }
 }

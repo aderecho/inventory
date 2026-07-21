@@ -37,7 +37,9 @@ class InventoryController extends Controller
                 return [
                     'id' => $room['id'],
                     'room_name' => $room['room_name'],
+                    'room_code' => $room['room_code'],
                     'description' => $room['description'],
+                    'building' => $room['building'],
                     'building_name' => $room['building_name'],
                     'capacity' => $room['capacity'],
                 ];
