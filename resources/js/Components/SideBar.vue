@@ -74,6 +74,11 @@ const menuItems = [
                 icon: "fa-solid fa-key",
                 route: "api_clients.index",
             },
+            {
+                name: "SAML Configuration",
+                icon: "fa-solid fa-shield-halved",
+                route: "saml_configurations.index",
+            },
         ],
     },
 ];

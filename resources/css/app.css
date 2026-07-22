@@ -28,6 +28,9 @@
   font-family: 'Palatino', sans-serif;
 }
 
+.p-toast {
+    z-index: 9999 !important;
+}
 
 
 @layer base {

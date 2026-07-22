@@ -20,12 +20,17 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    selected: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const emit = defineEmits([
     "view",
     "edit",
     "delete",
+    "print",
     "update:selected",
     "selection-changed",
 ]);
@@ -41,20 +46,36 @@ const goToPage = (url) => {
 };
 
 function getValue(obj, path) {
-    return path.split(".").reduce((acc, key) => acc?.[key], obj) ?? "N/A";
+    const result = path.split(".").reduce((acc, key) => acc?.[key], obj);
+    return result;
 }
 
 // SELECTABLE ROWS/IDS
-const selectedIDs = ref([]);
+const selectedIDs = ref([...props.selected]);
 
+// Keep in sync when the parent updates the selection externally
+// (e.g. removing an item from a "selected items" panel, or clearing
+// selection after a create/edit/archive/filter change).
 watch(
-    () => props.rows,
-    () => {
-        selectedIDs.value = [];
-        emit("update:selected", []);
-        emit("selection-changed", []);
+    () => props.selected,
+    (val) => {
+        const incoming = val ?? [];
+        const same =
+            incoming.length === selectedIDs.value.length &&
+            incoming.every((id) => selectedIDs.value.includes(id));
+
+        if (!same) {
+            selectedIDs.value = [...incoming];
+        }
     },
 );
+
+// NOTE: We intentionally do NOT watch `props.rows` to auto-clear the
+// selection anymore. `props.rows` gets a new reference on every page
+// navigation (pagination), which previously wiped out the selection
+// whenever the user moved between pages. Selection should only be
+// cleared explicitly by the parent (e.g. after submit/archive/filter
+// change), which it can do by updating the `selected` prop.
 
 const allSelected = computed(() => {
     return (
@@ -65,14 +86,25 @@ const allSelected = computed(() => {
 
 function toggleSelectAll() {
     if (allSelected.value) {
-        selectedIDs.value = [];
+        // Deselect only the items on the current page, keep selections
+        // made on other pages intact.
+        const currentPageIds = new Set(props.rows.data.map((i) => i.id));
+        selectedIDs.value = selectedIDs.value.filter(
+            (id) => !currentPageIds.has(id),
+        );
     } else {
-        selectedIDs.value = props.rows.data.map((i) => i.id);
+        // Merge current page ids into existing selection (avoid duplicates)
+        const merged = new Set(selectedIDs.value);
+        props.rows.data.forEach((i) => merged.add(i.id));
+        selectedIDs.value = Array.from(merged);
     }
 
     emit("update:selected", selectedIDs.value);
-    emit("selection-changed", selectedIDs.value);
+    // Pass along the full current-page row objects so the parent can
+    // build/maintain a details map without needing to look items up itself.
+    emit("selection-changed", selectedIDs.value, props.rows.data);
 }
+
 function toggleCheck(item) {
     const id = item.id;
 
@@ -83,7 +115,9 @@ function toggleCheck(item) {
     }
 
     emit("update:selected", selectedIDs.value);
-    emit("selection-changed", selectedIDs.value);
+    // Pass along the full row object(s) currently visible so the parent
+    // can keep a details map in sync even across pagination.
+    emit("selection-changed", selectedIDs.value, props.rows.data);
 }
 </script>
 

@@ -143,7 +143,7 @@ watch(
 
 const propertyNumberSuffix = computed(() => {
     const qty = parseInt(form.quantity) || 1;
-    return qty <= 1 ? "01" : `01–${String(qty).padStart(2, "0")}`;
+    return qty <= 1 ? "001" : `001–${String(qty).padStart(3, "0")}`;
 });
 
 function submit() {
@@ -255,55 +255,6 @@ function getFilteredOptions(fdp) {
     );
 }
 
-const localSuppliers = ref([...props.suppliers]);
-const supplierSearch = ref("");
-
-watch(
-    () => props.suppliers,
-    (val) => {
-        const createdOnly = localSuppliers.value.filter(
-            (s) => !val.some((real) => real.id === s.id),
-        );
-        localSuppliers.value = [...val, ...createdOnly];
-    },
-);
-
-const registerSupplier = ref(false);
-
-const isNewSupplier = computed(() => {
-    if (!form.supplier_id) return false;
-    return !props.suppliers.some((s) => s.id === form.supplier_id);
-});
-
-watch(isNewSupplier, (val) => {
-    if (!val) registerSupplier.value = false;
-});
-
-function handleSupplierCreate(option) {
-    localSuppliers.value.push(option);
-    return option;
-}
-
-// Fires whenever the dropdown closes — including plain blur, not just a click-select.
-function handleSupplierClose() {
-    const query = supplierSearch.value.trim();
-    if (!query) return;
-
-    const existing = localSuppliers.value.find(
-        (s) => s.supplier_name.toLowerCase() === query.toLowerCase(),
-    );
-
-    if (existing) {
-        form.supplier_id = existing.id;
-        return;
-    }
-
-    // Nothing matched what was typed — create and select it, same as
-    // clicking the "create new" row would have done.
-    const newOption = { id: query, supplier_name: query };
-    localSuppliers.value.push(newOption);
-    form.supplier_id = newOption.id;
-}
 </script>
 
 <template>
@@ -800,26 +751,12 @@ function handleSupplierClose() {
 
                                     <Multiselect
                                         v-model="form[sup.model]"
-                                        :options="
-                                            sup.allowCreate
-                                                ? localSuppliers
-                                                : props[sup.name]
-                                        "
+                                        :options="props[sup.name]"
                                         :searchable="true"
-                                        :create-option="sup.allowCreate"
-                                        @create="handleSupplierCreate"
-                                        @search-change="
-                                            (q) => (supplierSearch = q)
-                                        "
-                                        @close="
-                                            sup.allowCreate
-                                                ? handleSupplierClose()
-                                                : null
-                                        "
                                         :value-prop="sup.value"
                                         :label="sup.option"
                                         :track-by="sup.option"
-                                        placeholder="Select or type a new supplier"
+                                        placeholder="Select a supplier"
                                         class="supplier-select"
                                     />
 
@@ -829,13 +766,6 @@ function handleSupplierClose() {
                                     >
                                         {{ form.errors[sup.model] }}
                                     </div>
-
-                                    <p
-                                        v-if="isNewSupplier"
-                                        class="text-xs text-gray-400 mt-1"
-                                    >
-                                        This will be added as a new supplier.
-                                    </p>
                                 </div>
                             </div>
 

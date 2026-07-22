@@ -23,29 +23,7 @@ class InventoryStoreRequest extends FormRequest
     {
         return [
             'item_classification_id' => 'required|integer',
-            'supplier_id' => [
-                'required',
-                function ($attribute, $value, $fail) {
-                    if (is_numeric($value)) {
-                        $exists = \App\Models\Supplier::query()
-                            ->where('id', $value)
-                            ->exists();
-
-                        if (! $exists) {
-                            $fail('Selected supplier does not exist.');
-                        }
-                        return;
-                    }
-
-                    $name = trim((string) $value);
-
-                    if ($name === '') {
-                        $fail('Supplier name is required.');
-                    } elseif (strlen($name) > 180) {
-                        $fail('Supplier name must not exceed 180 characters.');
-                    }
-                },
-            ],
+            'supplier_id' => 'required|integer|exists:suppliers,id',
             'room_id' => 'nullable|integer',
             'unit' => 'required|string|max:50',
             'status' => 'required|string|max:50',

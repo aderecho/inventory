@@ -16,17 +16,17 @@ return new class extends Migration
     ];
 
     /**
-     * Admin (role_id = 1) gets all acknowledgement permissions plus view dashboard.
-     * Staff (role_id = 2) only gets view dashboard.
+     * Admin gets all acknowledgement permissions plus view dashboard.
+     * Staff only gets view dashboard.
      */
     private array $rolePermissions = [
-        1 => [
+        'admin' => [
             'view acknowledgements',
             'show acknowledgements',
             'upload acknowledgements',
             'view dashboard',
         ],
-        2 => [
+        'staff' => [
             'view dashboard',
         ],
     ];
@@ -47,7 +47,16 @@ return new class extends Migration
         }
 
         // 2. Assign permissions to roles by name lookup (not hardcoded ID)
-        foreach ($this->rolePermissions as $roleId => $permissionNames) {
+        foreach ($this->rolePermissions as $roleName => $permissionNames) {
+            $roleId = DB::table('roles')
+                ->where('name', $roleName)
+                ->where('guard_name', 'web')
+                ->value('id');
+
+            if (! $roleId) {
+                continue;
+            }
+
             foreach ($permissionNames as $name) {
                 $permissionId = DB::table('permissions')
                     ->where('name', $name)

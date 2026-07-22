@@ -14,7 +14,7 @@ Route::prefix('v1')
         Route::post('/auth/up/sso', [UPSSOController::class, 'ssoRedirect']);
         Route::post('/embed-token', [ApiEmbedController::class, 'issueToken']);
 
-        Route::middleware('auth:sanctum')->group(function () {
+        Route::middleware('api.token')->group(function () {
             Route::get('/inventory', [InventoryController::class, 'apiIndex']);
             Route::get('/inventory/{id}', [InventoryController::class, 'apiShow']);
         });

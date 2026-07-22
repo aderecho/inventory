@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\UserProfile;
 use Illuminate\Http\Request;
 use App\Models\InventoryItem;
-use App\Models\Supplier;
 use App\Models\AcknowledgementItem;
 use App\Models\ItemHistoryLocation;
 use App\Models\AcknowledgementReceipt;
@@ -137,14 +136,13 @@ class InventoryService
     public function createInventoryItems(array $data): void
     {
         $base = rtrim($data['property_number'], '-');
-        $supplierId = $this->resolveSupplierId($data['supplier_id']);
 
         foreach ($data['serial_numbers'] as $index => $serialNumber) {
-            $propertyNumber = $base . '-' . str_pad($index + 1, 2, '0', STR_PAD_LEFT);
+            $propertyNumber = $base . '-' . str_pad($index + 1, 3, '0', STR_PAD_LEFT);
 
             $inventoryItem = InventoryItem::create([
                 'item_classification_id' => $data['item_classification_id'],
-                'supplier_id' => $supplierId,
+                'supplier_id' => $data['supplier_id'],
                 'invoice' => $data['invoice'],
                 'fund_source' => $data['fund_source'],
                 'item_name' => $data['item_name'],
@@ -168,20 +166,6 @@ class InventoryService
                 'room_id' => $data['room_id'],
             ]);
         }
-    }
-
-    private function resolveSupplierId(mixed $supplierId): int
-    {
-        if (is_numeric($supplierId)) {
-            return (int) $supplierId;
-        }
-
-        $supplier = Supplier::firstOrCreate(
-            ['supplier_name' => trim($supplierId)],
-            ['status' => 1]
-        );
-
-        return $supplier->id;
     }
 
     public function updateInventoryItem(int $id, array $data): void

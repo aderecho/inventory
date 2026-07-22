@@ -2,6 +2,7 @@
     <div
         class="relative min-h-screen w-full flex items-center justify-center p-6 font-sans box-border overflow-hidden"
     >
+     <Toast appendTo="body" />
         <img
             :src="backgroundImage"
             alt=""
@@ -86,26 +87,13 @@
 </template>
 
 <script setup>
+import Toast from 'primevue/toast';
+
 defineProps({
-    badge: {
-        type: String,
-        default: "",
-    },
-    title: {
-        type: String,
-        default: "",
-    },
-    description: {
-        type: String,
-        default: "",
-    },
-    tags: {
-        type: Array,
-        default: () => [],
-    },
-    backgroundImage: {
-        type: String,
-        default: "/images/image (7).png",
-    },
+    badge: { type: String, default: "" },
+    title: { type: String, default: "" },
+    description: { type: String, default: "" },
+    tags: { type: Array, default: () => [] },
+    backgroundImage: { type: String, default: "/images/image (7).png" },
 });
 </script>
