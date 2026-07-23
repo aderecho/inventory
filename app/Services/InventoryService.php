@@ -135,8 +135,10 @@ class InventoryService
 
     public function createInventoryItems(array $data): void
     {
+        $base = rtrim($data['property_number'], '-');
+
         foreach ($data['serial_numbers'] as $index => $serialNumber) {
-            $propertyNumber = $data['property_number'] . '-' . str_pad($index + 1, 2, '0', STR_PAD_LEFT);
+            $propertyNumber = $base . '-' . str_pad($index + 1, 3, '0', STR_PAD_LEFT);
 
             $inventoryItem = InventoryItem::create([
                 'item_classification_id' => $data['item_classification_id'],

@@ -26,6 +26,10 @@ const menuItems = [
                 name: "Acknowledgements",
                 route: "acknowledgements.index",
             },
+            {
+                name: "Item Location",
+                route: "item-histories.index",
+            },
         ],
     },
     {
@@ -69,6 +73,11 @@ const menuItems = [
                 name: "API Clients",
                 icon: "fa-solid fa-key",
                 route: "api_clients.index",
+            },
+            {
+                name: "SAML Configuration",
+                icon: "fa-solid fa-shield-halved",
+                route: "saml_configurations.index",
             },
         ],
     },

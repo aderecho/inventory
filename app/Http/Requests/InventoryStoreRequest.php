@@ -23,7 +23,7 @@ class InventoryStoreRequest extends FormRequest
     {
         return [
             'item_classification_id' => 'required|integer',
-            'supplier_id' => 'required|integer',
+            'supplier_id' => 'required|integer|exists:suppliers,id',
             'room_id' => 'nullable|integer',
             'unit' => 'required|string|max:50',
             'status' => 'required|string|max:50',
@@ -45,13 +45,19 @@ class InventoryStoreRequest extends FormRequest
                 'string',
                 'max:50',
                 function ($attribute, $value, $fail) {
-                    $exists = \App\Models\InventoryItem::query()
-                        ->where('property_number', 'like', $value . '-%')
+                    $quantity = max((int) $this->input('quantity', 1), 1);
+                    $base = rtrim($value, '-'); // strip any trailing dash the user typed
+
+                    $generated = collect(range(1, $quantity))
+                        ->map(fn ($i) => $base . '-' . str_pad($i, 2, '0', STR_PAD_LEFT));
+
+                    $conflict = \App\Models\InventoryItem::query()
+                        ->whereIn('property_number', $generated)
                         ->whereNull('deleted_at')
                         ->exists();
 
-                    if ($exists) {
-                        $fail('The property number base already exists.');
+                    if ($conflict) {
+                        $fail('One or more property numbers in this batch already exist.');
                     }
                 },
             ],

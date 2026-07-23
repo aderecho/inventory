@@ -7,14 +7,15 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "aderecho/acme-up-php-crypto": "^1.0",
         "barryvdh/laravel-dompdf": "^3.1",
         "doctrine/dbal": "^4.4",
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/framework": "^12.0",
         "laravel/reverb": "^1.0",
         "laravel/sanctum": "^4.0",
+        "laravel/socialite": "^5.28",
         "laravel/tinker": "^2.10.1",
+        "onelogin/php-saml": "^4.3",
         "phpoffice/phpspreadsheet": "^5.3",
         "simplesoftwareio/simple-qrcode": "^4.2",
         "spatie/laravel-permission": "^6.24",
@@ -68,12 +69,6 @@
             "@php artisan test"
         ]
     },
-    "repositories": [
-    {
-      "type": "vcs",
-      "url": "https://github.com/aderecho/acme-UP-php-crypto.git"
-    }
-    ],
     "extra": {
         "laravel": {
             "dont-discover": []

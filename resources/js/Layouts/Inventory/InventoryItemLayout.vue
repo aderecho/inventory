@@ -33,6 +33,7 @@ import {
     RefreshCw,
     FileInput,
     FileOutput,
+    X,
 } from "lucide-vue-next";
 import { Plus } from "lucide-vue-next";
 import { useSidebar } from "@/Composables/useSidebar";
@@ -71,15 +72,15 @@ const columns = [
         label: "Accountable Person",
         key: "latest_acknowledgement_item",
         format: (val) => {
-            const assigned = !!val?.accountable_person;
+            const person = val?.accountable_person;
 
-            return assigned
-                ? `<span class="text-[#2E7D32] font-bold bg-[#D4F8D4] py-1 px-2 rounded-md">
-                    Assigned
-               </span>`
-                : `<span class="text-[#D32F2F] font-bold bg-[#F8D4D4] py-1 px-2 rounded-md">
-                    Unassigned
-               </span>`;
+            if (!person) {
+                return `<span class="text-[#D32F2F] font-bold">Unassigned</span>`;
+            }
+
+            const fullName = `${person.first_name ?? ""} ${person.last_name ?? ""}`.trim();
+
+            return fullName || `<span class="text-[#D32F2F] font-bold">Unassigned</span>`;
         },
     },
     {
@@ -258,6 +259,14 @@ const roomDropdown = [
         name: "rooms",
         option: "room_name",
         value: "id",
+        searchKeys: [
+            "room_name",
+            "room_code",
+            "description",
+            "building",
+            "building_name",
+            "capacity",
+        ],
     },
 ];
 
@@ -268,6 +277,9 @@ const firstDropdown = [
         name: "itemClass",
         option: "classification_name",
         value: "id",
+        searchKeys: ["classification_name", "classification_code"],
+        labelFormat: (option) =>
+            `${option.classification_name} - ${option.classification_code}`,
     },
 ];
 
@@ -347,7 +359,7 @@ const itemClassifications = computed(
     () => page.props.itemClassifications || [],
 );
 const suppliers = computed(() => page.props.suppliers || []);
-console.log(suppliers.data);
+
 // INVENTORY FILTER
 let search = ref("");
 let status = ref(null);
@@ -403,6 +415,68 @@ function handleDelete(item) {
     showArchiveModal.value = true;
 }
 
+// ------------------------------------------------------------------
+// SELECTION STATE
+//
+// `selectedItemsMap` is the single source of truth for what's selected.
+// It maps id -> full item object, and is built up incrementally as the
+// user checks/unchecks rows across different pages. Because it doesn't
+// get rebuilt from `items.value.data` (which only ever contains the
+// CURRENT page), selections survive pagination.
+// ------------------------------------------------------------------
+const selectedItemsMap = ref(new Map());
+
+const tempSelectedIds = computed(() => Array.from(selectedItemsMap.value.keys()));
+
+const selectedItemsDetails = computed(() =>
+    Array.from(selectedItemsMap.value.values()),
+);
+
+// Called by InventoryTable's @selection-changed="ids, rowsOnCurrentPage"
+function handleSelectionChanged(ids, currentPageRows = []) {
+    const idSet = new Set(ids);
+    const newMap = new Map(selectedItemsMap.value);
+
+    // Add / update entries for ids that are selected and present on the
+    // current page (so we capture their full details).
+    currentPageRows.forEach((row) => {
+        if (idSet.has(row.id)) {
+            newMap.set(row.id, row);
+        }
+    });
+
+    // Remove any id that is no longer selected.
+    for (const key of newMap.keys()) {
+        if (!idSet.has(key)) {
+            newMap.delete(key);
+        }
+    }
+
+    // Safety net: if an id is selected but we somehow don't have its
+    // details yet (shouldn't normally happen), keep it in the id list
+    // by storing a minimal placeholder so counts stay accurate.
+    idSet.forEach((id) => {
+        if (!newMap.has(id)) {
+            const existing = selectedItemsMap.value.get(id);
+            if (existing) {
+                newMap.set(id, existing);
+            }
+        }
+    });
+
+    selectedItemsMap.value = newMap;
+}
+
+function removeFromSelection(id) {
+    const newMap = new Map(selectedItemsMap.value);
+    newMap.delete(id);
+    selectedItemsMap.value = newMap;
+}
+
+function clearSelection() {
+    selectedItemsMap.value = new Map();
+}
+
 function handleSubmit() {
     stopLoading();
     showSuccessModal.value = true;
@@ -411,6 +485,9 @@ function handleSubmit() {
             ? "Item updated successfully!"
             : "Item added successfully!";
     showFormModal.value = false;
+
+    // Data set is changing (item added/edited) — selection may now be stale.
+    clearSelection();
 
     router.get(
         "/inventory/items",
@@ -435,6 +512,9 @@ function confirmArchive(item) {
             stopLoading();
             showArchiveModal.value = false;
             showDeleteSuccessModal.value = true;
+
+            // Item is gone — drop it (and refresh) from selection.
+            removeFromSelection(item.id);
 
             router.get(
                 "/inventory/items",
@@ -481,12 +561,15 @@ const successIcon = computed(() => {
     return formMode.value === "edit" ? iconEdit : iconAdded;
 });
 
-// PRINTING
-const tempSelectedIds = ref([]);
+// PRINTING / SELECTION
+const isPrintingSelected = ref(false);
 
-const handleSelectionChanged = (ids) => {
-    tempSelectedIds.value = ids;
-};
+// SELECTED ITEMS BADGE + PANEL
+const showSelectedPanel = ref(false);
+
+function toggleSelectedPanel() {
+    showSelectedPanel.value = !showSelectedPanel.value;
+}
 
 const printSelected = async () => {
     if (!tempSelectedIds.value.length) {
@@ -852,14 +935,14 @@ async function handleConvertFile(event) {
 
                                             <DropdownMenuItem
                                                 @click="printSelected"
-                                                :disabled="isPrinting"
+                                                :disabled="isPrintingSelected"
                                                 class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
                                             >
                                                 <Printer
                                                     class="w-4 h-4 mr-2 text-[#850038]"
                                                 />
                                                 {{
-                                                    isPrinting
+                                                    isPrintingSelected
                                                         ? "Printing..."
                                                         : "Print"
                                                 }}
@@ -907,7 +990,9 @@ async function handleConvertFile(event) {
                                 </div>
                             </div>
 
-                            <div class="flex md:flex-row justify-between mt-5">
+                            <div
+                                class="flex flex-col md:flex-row md:items-center justify-between gap-3 mt-5"
+                            >
                                 <ItemFilterControls
                                     :search="search"
                                     :cost_range="cost_range"
@@ -928,6 +1013,101 @@ async function handleConvertFile(event) {
                                     "
                                     :mode="'inventory'"
                                 />
+
+                                <!-- SELECTED ITEMS BADGE -->
+                                <div class="relative flex-shrink-0 self-start md:self-auto">
+                                    <button
+                                        type="button"
+                                        @click="toggleSelectedPanel"
+                                        class="flex items-center gap-2 bg-white border border-gray-300 rounded-full pl-1 pr-3 py-1 shadow-sm hover:bg-gray-50 transition-colors"
+                                    >
+                                        <span
+                                            class="flex items-center justify-center w-7 h-7 rounded-full bg-[#0E6021] text-white text-xs font-bold flex-shrink-0"
+                                        >
+                                            {{ tempSelectedIds.length }}
+                                        </span>
+                                        <span
+                                            class="text-xs font-medium text-gray-600 whitespace-nowrap"
+                                        >
+                                            Selected
+                                        </span>
+                                        <ChevronDown
+                                            class="w-4 h-4 text-gray-500 transition-transform duration-200"
+                                            :class="{
+                                                'rotate-180':
+                                                    showSelectedPanel,
+                                            }"
+                                        />
+                                    </button>
+
+                                    <div
+                                        v-if="showSelectedPanel"
+                                        class="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-30 max-h-80 overflow-y-auto"
+                                    >
+                                        <div
+                                            class="px-4 py-2 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white"
+                                        >
+                                            <p
+                                                class="text-xs font-semibold text-gray-500 uppercase tracking-wide"
+                                            >
+                                                Selected ({{
+                                                    tempSelectedIds.length
+                                                }})
+                                            </p>
+                                            <button
+                                                v-if="tempSelectedIds.length"
+                                                type="button"
+                                                @click="clearSelection"
+                                                class="text-xs text-[#850038] hover:underline"
+                                            >
+                                                Clear all
+                                            </button>
+                                        </div>
+
+                                        <ul
+                                            v-if="selectedItemsDetails.length"
+                                            class="divide-y divide-gray-100"
+                                        >
+                                            <li
+                                                v-for="item in selectedItemsDetails"
+                                                :key="item.id"
+                                                class="px-4 py-2 flex items-center gap-2 text-sm"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    @click="
+                                                        removeFromSelection(
+                                                            item.id,
+                                                        )
+                                                    "
+                                                    class="text-gray-400 hover:text-[#D71D1D] flex-shrink-0"
+                                                    title="Remove from selection"
+                                                >
+                                                    <X class="w-3.5 h-3.5" />
+                                                </button>
+                                                <span
+                                                    class="text-gray-700 truncate"
+                                                    >{{ item.item_name }}
+                                                    <template
+                                                        v-if="
+                                                            item.property_number
+                                                        "
+                                                        >- {{
+                                                            item.property_number
+                                                        }}</template
+                                                    ></span
+                                                >
+                                            </li>
+                                        </ul>
+
+                                        <p
+                                            v-else
+                                            class="px-4 py-6 text-center text-xs text-gray-400"
+                                        >
+                                            No items selected yet.
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
 
                             <AcknowledgementFormModal
@@ -1006,6 +1186,7 @@ async function handleConvertFile(event) {
                                 :rooms="rooms"
                                 :module="'inventory'"
                                 :actions="inventoryActions"
+                                :selected="tempSelectedIds"
                                 @selection-changed="handleSelectionChanged"
                                 @view="handleView"
                                 @edit="handleEdit"

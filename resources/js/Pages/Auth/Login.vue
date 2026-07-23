@@ -1,8 +1,12 @@
 <script setup>
-import { ref } from "vue";
-import { useForm } from "@inertiajs/vue3";
+import { ref, watch, onMounted } from "vue";
+import { useForm, usePage } from "@inertiajs/vue3";
 import AuthLayout from "@/Layouts/AuthLayout.vue";
 import { Mail, Lock } from "lucide-vue-next";
+import { useToast } from "primevue/usetoast";
+
+const toast = useToast();
+const page = usePage();
 
 const form = useForm({
     email: "",
@@ -12,6 +16,34 @@ const form = useForm({
 
 const showPassword = ref(false);
 
+function showSsoError() {
+    const message = page.props.errors?.sso;
+    if (message) {
+        toast.add({
+            severity: "error",
+            summary: "Sign-in failed",
+            detail: message,
+            life: 5000,
+        });
+    }
+}
+
+onMounted(() => {
+    showSsoError();
+});
+
+// keep the watcher too, for subsequent Inertia visits (non-hard-reload navigations)
+watch(() => page.props.errors?.sso, (message) => {
+    if (message) {
+        toast.add({
+            severity: "error",
+            summary: "Sign-in failed",
+            detail: message,
+            life: 5000,
+        });
+    }
+});
+
 function handleSubmit() {
     form.post(route("login"), {
         onFinish: () => form.reset("password"),
@@ -20,6 +52,10 @@ function handleSubmit() {
 
 function handleGoogle() {
     window.location.href = route("auth.google");
+}
+
+function handleSaml() {
+    window.location.href = route("saml.login");
 }
 </script>
 
@@ -57,7 +93,11 @@ function handleGoogle() {
                 {{ status }}
             </div>
 
-            <form
+            <p v-if="form.errors.sso" class="w-full mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-center">
+                {{ form.errors.sso }}
+            </p>
+
+            <!-- <form
                 class="w-full flex flex-col gap-[18px]"
                 @submit.prevent="handleSubmit"
             >
@@ -151,7 +191,7 @@ function handleGoogle() {
                     <p v-if="form.errors.password" class="text-xs text-red-600">
                         {{ form.errors.password }}
                     </p>
-                </div>
+                </div> -->
 
                 <!-- <label
                     class="flex items-center gap-2 text-[13px] text-gray-600 select-none"
@@ -164,22 +204,22 @@ function handleGoogle() {
                     Remember me
                 </label> -->
 
-                <button
+                <!-- <button
                     type="submit"
                     class="mt-1.5 py-[13px] border-0 rounded-full bg-[#005740] text-white text-sm font-medium tracking-wide cursor-pointer transition-colors duration-150 ease-in-out hover:not-disabled:bg-[#005740] disabled:opacity-70 disabled:cursor-not-allowed"
                     :disabled="form.processing"
                 >
                     {{ form.processing ? "Signing in…" : "Sign in" }}
                 </button>
-            </form>
+            </form> -->
 
-            <div
+            <!-- <div
                 class="flex items-center justify-center w-full my-5 text-gray-400 text-xs font-semibold uppercase"
             >
                 <div class="flex-1 h-px bg-gray-200"></div>
                 <span class="px-3">or</span>
                 <div class="flex-1 h-px bg-gray-200"></div>
-            </div>
+            </div> -->
 
             <button
                 type="button"
@@ -192,6 +232,14 @@ function handleGoogle() {
                     class="h-6 w-6"
                 />
                 Continue with Google
+            </button>
+
+            <button
+                type="button"
+                class="mt-3 w-full flex items-center justify-center gap-2.5 py-3 rounded-full border border-[#005740] bg-[#005740] text-sm font-medium text-white cursor-pointer transition-colors duration-150 ease-in-out hover:bg-[#003f30]"
+                @click="handleSaml"
+            >
+                Continue with OnePortal
             </button>
         </div>
     </AuthLayout>

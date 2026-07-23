@@ -1,6 +1,6 @@
 <script setup>
 import { useForm, usePage } from "@inertiajs/vue3";
-import { watch, ref } from "vue";
+import { computed, watch, ref } from "vue";
 import Toast from "primevue/toast";
 import { useToast } from "primevue/usetoast";
 import Multiselect from "@vueform/multiselect";
@@ -40,7 +40,7 @@ const form = useForm({
     fund_source: "",
     item_name: "",
     description: "",
-    quantity: "",
+    quantity: "1",
     unit: "",
     unit_cost: "",
     total_amount: 0,
@@ -138,7 +138,13 @@ watch(
             (_, i) => form.serial_numbers[i] || "",
         );
     },
+    { immediate: true },
 );
+
+const propertyNumberSuffix = computed(() => {
+    const qty = parseInt(form.quantity) || 1;
+    return qty <= 1 ? "001" : `001–${String(qty).padStart(3, "0")}`;
+});
 
 function submit() {
     form.total_amount = parseFloat(form.total_amount);
@@ -230,6 +236,25 @@ function getViewValue(view) {
     }
     return rawValue ?? "N/A";
 }
+
+const searchQueries = ref({});
+
+function getFilteredOptions(fdp) {
+    const query = (searchQueries.value[fdp.model] || "").toLowerCase().trim();
+    const options = props[fdp.name] || [];
+
+    if (!query) return options;
+
+    const keys = fdp.searchKeys ?? [fdp.option];
+    return options.filter((opt) =>
+        keys.some((key) =>
+            String(opt[key] ?? "")
+                .toLowerCase()
+                .includes(query),
+        ),
+    );
+}
+
 </script>
 
 <template>
@@ -247,7 +272,9 @@ function getViewValue(view) {
             <Toast />
 
             <!-- Header -->
-            <div class="bg-gradient-to-r from-[#003d2c] via-[#005740] to-[#00795a] px-6 py-5 flex items-center justify-between flex-shrink-0">
+            <div
+                class="bg-gradient-to-r from-[#003d2c] via-[#005740] to-[#00795a] px-6 py-5 flex items-center justify-between flex-shrink-0"
+            >
                 <div>
                     <h3 class="text-lg font-bold text-white">
                         {{
@@ -286,7 +313,9 @@ function getViewValue(view) {
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <!-- LEFT -->
                         <div class="space-y-4 col-span-1 md:col-span-1">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5">
+                            <div
+                                class="grid grid-cols-1 md:grid-cols-2 gap-x-5"
+                            >
                                 <div class="space-y-4">
                                     <!-- FIRST DROP DOWN -->
                                     <div
@@ -298,21 +327,55 @@ function getViewValue(view) {
                                         >
                                             <label
                                                 class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
-                                                >{{ fdp.label }}
+                                            >
+                                                {{ fdp.label }}
                                                 <span class="text-red-500"
                                                     >*</span
-                                                ></label
-                                            >
+                                                >
+                                            </label>
                                             <Multiselect
                                                 v-model="form[fdp.model]"
-                                                :options="props[fdp.name]"
+                                                :options="
+                                                    getFilteredOptions(fdp)
+                                                "
                                                 :searchable="true"
+                                                :filter-results="false"
+                                                @search-change="
+                                                    (q) =>
+                                                        (searchQueries[
+                                                            fdp.model
+                                                        ] = q)
+                                                "
                                                 :value-prop="fdp.value"
                                                 :label="fdp.option"
                                                 :track-by="fdp.option"
                                                 placeholder="Select"
                                                 class="first-dropdown-select"
-                                            />
+                                            >
+                                                <template
+                                                    v-if="fdp.labelFormat"
+                                                    #singlelabel="{ value }"
+                                                >
+                                                    <div
+                                                        class="multiselect-single-label"
+                                                    >
+                                                        {{
+                                                            fdp.labelFormat(
+                                                                value,
+                                                            )
+                                                        }}
+                                                    </div>
+                                                </template>
+
+                                                <template
+                                                    v-if="fdp.labelFormat"
+                                                    #option="{ option }"
+                                                >
+                                                    <span>{{
+                                                        fdp.labelFormat(option)
+                                                    }}</span>
+                                                </template>
+                                            </Multiselect>
                                             <div
                                                 v-if="form.errors[fdp.model]"
                                                 class="text-red-500 text-xs mt-1"
@@ -329,12 +392,45 @@ function getViewValue(view) {
                                         >
                                             <label
                                                 class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
-                                                >{{ fif.label }}
+                                            >
+                                                {{ fif.label }}
                                                 <span class="text-red-500"
                                                     >*</span
-                                                ></label
+                                                >
+                                            </label>
+
+                                            <!-- Property number: editable prefix + locked suffix -->
+                                            <div
+                                                v-if="
+                                                    fif.model ===
+                                                    'property_number'
+                                                "
+                                                :class="[
+                                                    'flex items-center w-full sm:w-[15.7rem] rounded-md border bg-[#F8F8F8] focus-within:ring-1',
+                                                    form.errors[fif.model]
+                                                        ? 'border-red-500 focus-within:ring-red-500 focus-within:border-red-500'
+                                                        : 'border-gray-300 focus-within:ring-[#005740] focus-within:border-[#005740]',
+                                                ]"
                                             >
+                                                <input
+                                                    type="text"
+                                                    v-model="form[fif.model]"
+                                                    :placeholder="
+                                                        fif.placeholder
+                                                    "
+                                                    :required="fif.required"
+                                                    class="flex-1 min-w-0 rounded-l-md px-3 py-3 bg-transparent text-[#3B3B3B] text-sm focus:outline-none"
+                                                />
+                                                <span
+                                                    class="px-3 py-3 text-gray-400 text-sm font-mono select-none border-l border-gray-300 whitespace-nowrap"
+                                                >
+                                                    {{ propertyNumberSuffix }}
+                                                </span>
+                                            </div>
+
+                                            <!-- Every other first-input-field, unchanged -->
                                             <input
+                                                v-else
                                                 :type="fif.type || 'text'"
                                                 v-model="form[fif.model]"
                                                 :placeholder="fif.placeholder"
@@ -346,6 +442,7 @@ function getViewValue(view) {
                                                         : 'border-gray-300 focus:ring-[#005740] focus:border-[#005740]',
                                                 ]"
                                             />
+
                                             <div
                                                 v-if="form.errors[fif.model]"
                                                 class="text-red-500 text-xs mt-1"
@@ -356,7 +453,9 @@ function getViewValue(view) {
                                     </div>
 
                                     <!-- SECOND DROP DOWN -->
-                                    <div class="w-full flex md:flex-row gap-4 mb-8">
+                                    <div
+                                        class="w-full flex md:flex-row gap-4 mb-8"
+                                    >
                                         <div
                                             v-for="sdf in secondDropdown"
                                             :key="sdf.label"
@@ -379,7 +478,9 @@ function getViewValue(view) {
                                                             : 'border-gray-300 focus:ring-[#005740] focus:border-[#005740]',
                                                     ]"
                                                 >
-                                                    <option value="">Select</option>
+                                                    <option value="">
+                                                        Select
+                                                    </option>
                                                     <option
                                                         v-for="op in sdf.options"
                                                         :key="op.value"
@@ -389,7 +490,9 @@ function getViewValue(view) {
                                                     </option>
                                                 </select>
                                                 <div
-                                                    v-if="form.errors[sdf.model]"
+                                                    v-if="
+                                                        form.errors[sdf.model]
+                                                    "
                                                     class="text-red-500 text-xs mt-1"
                                                 >
                                                     {{ form.errors[sdf.model] }}
@@ -454,7 +557,9 @@ function getViewValue(view) {
                                             <!-- Formatted input for comma display -->
                                             <input
                                                 v-else
-                                                :value="qcf.format(form[qcf.model])"
+                                                :value="
+                                                    qcf.format(form[qcf.model])
+                                                "
                                                 @input="
                                                     form[qcf.model] =
                                                         $event.target.value.replace(
@@ -492,7 +597,9 @@ function getViewValue(view) {
                                             :key="index"
                                         >
                                             <input
-                                                v-model="form.serial_numbers[index]"
+                                                v-model="
+                                                    form.serial_numbers[index]
+                                                "
                                                 type="text"
                                                 :placeholder="`SER-${String(index + 1).padStart(3, '0')}`"
                                                 class="w-full sm:w-[32rem] rounded-md border border-gray-300 px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:ring-[#005740] focus:outline-none focus:border-[#005740]"
@@ -567,14 +674,19 @@ function getViewValue(view) {
                             >
                                 <label
                                     class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
-                                    >{{ rdp.label }}
-                                    <span class="text-red-500">*</span></label
                                 >
+                                    {{ rdp.label }}
+                                    <span class="text-red-500">*</span>
+                                </label>
 
                                 <Multiselect
                                     v-model="form[rdp.model]"
-                                    :options="props.rooms"
+                                    :options="getFilteredOptions(rdp)"
                                     :searchable="true"
+                                    :filter-results="false"
+                                    @search-change="
+                                        (q) => (searchQueries[rdp.model] = q)
+                                    "
                                     :value-prop="rdp.value"
                                     :label="rdp.option"
                                     :track-by="rdp.option"
@@ -591,16 +703,19 @@ function getViewValue(view) {
                                                 }}</span>
                                                 <span
                                                     class="text-right text-xs text-gray-400 truncate"
-                                                    >{{
-                                                        option.description || "N/A"
-                                                    }}</span
                                                 >
+                                                    {{
+                                                        option.description ||
+                                                        "N/A"
+                                                    }}
+                                                </span>
                                             </div>
                                             <div
                                                 class="grid grid-cols-2 gap-2 text-xs text-gray-400 mt-0.5"
                                             >
                                                 <span>{{
-                                                    option.building_name || "N/A"
+                                                    option.building_name ||
+                                                    "N/A"
                                                 }}</span>
                                                 <span class="text-right"
                                                     >Cap:
@@ -629,9 +744,11 @@ function getViewValue(view) {
                                 >
                                     <label
                                         class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
-                                        >{{ sup.label }}
-                                        <span class="text-red-500">*</span></label
                                     >
+                                        {{ sup.label }}
+                                        <span class="text-red-500">*</span>
+                                    </label>
+
                                     <Multiselect
                                         v-model="form[sup.model]"
                                         :options="props[sup.name]"
@@ -639,9 +756,10 @@ function getViewValue(view) {
                                         :value-prop="sup.value"
                                         :label="sup.option"
                                         :track-by="sup.option"
-                                        placeholder="Select"
+                                        placeholder="Select a supplier"
                                         class="supplier-select"
                                     />
+
                                     <div
                                         v-if="form.errors[sup.model]"
                                         class="text-red-500 text-xs mt-1"
@@ -698,7 +816,9 @@ function getViewValue(view) {
                                     <label
                                         class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
                                         >{{ inv.label }}
-                                        <span class="text-red-500">*</span></label
+                                        <span class="text-red-500"
+                                            >*</span
+                                        ></label
                                     >
                                     <input
                                         v-model="form[inv.model]"
@@ -762,7 +882,9 @@ function getViewValue(view) {
                 </div>
 
                 <!-- Footer -->
-                <div class="flex justify-between items-center gap-4 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+                <div
+                    class="flex justify-between items-center gap-4 px-6 py-4 border-t border-gray-100 flex-shrink-0"
+                >
                     <!-- TOTAL COST -->
                     <div class="flex items-center gap-4">
                         <div
@@ -770,7 +892,9 @@ function getViewValue(view) {
                             :key="total.label"
                             class="flex items-center gap-3"
                         >
-                            <label class="text-sm text-gray-500 font-semibold uppercase tracking-wide">
+                            <label
+                                class="text-sm text-gray-500 font-semibold uppercase tracking-wide"
+                            >
                                 {{ total.label }}:
                             </label>
 
@@ -806,14 +930,18 @@ function getViewValue(view) {
             <!-- VIEW MODAL -->
             <div v-else class="flex flex-col flex-1 overflow-hidden">
                 <div class="p-6 overflow-y-auto flex-1">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+                    <div
+                        class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3"
+                    >
                         <div
                             v-for="view in viewItem"
                             :key="view.key"
                             class="flex items-start justify-between gap-4 border-b pb-2"
                         >
                             <!-- LABEL -->
-                            <div class="text-sm font-semibold text-[#1f2d27] w-1/2">
+                            <div
+                                class="text-sm font-semibold text-[#1f2d27] w-1/2"
+                            >
                                 {{ view.label }}:
                             </div>
 
@@ -826,11 +954,16 @@ function getViewValue(view) {
                     </div>
 
                     <!-- Accountable Person -->
-                    <div v-if="item?.acknowledgement_history?.length" class="pb-4">
+                    <div
+                        v-if="item?.acknowledgement_history?.length"
+                        class="pb-4"
+                    >
                         <hr class="pt-4" />
 
                         <!-- Current Accountable Person -->
-                        <div class="flex flex-col items-center text-center mb-4">
+                        <div
+                            class="flex flex-col items-center text-center mb-4"
+                        >
                             <p class="text-lg font-bold text-[#005740]">
                                 {{
                                     item.acknowledgement_history[0]
@@ -890,9 +1023,11 @@ function getViewValue(view) {
                                 <p class="text-xs text-gray-500">
                                     PAR Date:
                                     {{
-                                        history.acknowledgement_receipts?.par_date
+                                        history.acknowledgement_receipts
+                                            ?.par_date
                                             ? new Date(
-                                                  history.acknowledgement_receipts
+                                                  history
+                                                      .acknowledgement_receipts
                                                       .par_date,
                                               ).toLocaleDateString()
                                             : "N/A"
@@ -908,7 +1043,9 @@ function getViewValue(view) {
                         <div
                             class="flex flex-col items-center justify-center text-center py-4"
                         >
-                            <p class="text-lg font-bold text-red-600">Unassigned</p>
+                            <p class="text-lg font-bold text-red-600">
+                                Unassigned
+                            </p>
 
                             <p class="text-xs text-red-500 font-medium">
                                 No accountable person assigned
@@ -918,7 +1055,9 @@ function getViewValue(view) {
                 </div>
 
                 <!-- BUTTON -->
-                <div class="flex justify-end px-6 py-4 border-t border-gray-100 flex-shrink-0">
+                <div
+                    class="flex justify-end px-6 py-4 border-t border-gray-100 flex-shrink-0"
+                >
                     <button
                         @click="closeWithAnimation"
                         class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
