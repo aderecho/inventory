@@ -3,15 +3,21 @@ import { computed, reactive, ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import {
-    Bell, Boxes, Building2, Check, ChevronDown, ChevronUp, Clipboard,
-    FileCog, Gauge, LogOut, Menu, MoreVertical, Package, Pencil, Search,
-    Settings, SlidersHorizontal, Users, Warehouse, X, ArrowLeftRight, BarChart3,
+    Check, Clipboard, MoreVertical, Pencil, X,
 } from 'lucide-vue-next';
+import SideBar from '@/Components/SideBar.vue';
+import NavHeader from '@/Components/NavHeader.vue';
+import LoadingOverlay from '@/Components/LoadingOverlay.vue';
+import { useLoading } from '@/Composables/useLoading';
+import { useSidebar } from '@/Composables/useSidebar';
 
 const props = defineProps({
     configurations: { type: Array, default: () => [] },
     endpoints: { type: Object, default: () => ({}) },
 });
+
+const { isSidebarOpen, toggleSidebar } = useSidebar();
+const { isLoading, loadingTitle, loadingMessage } = useLoading();
 
 const page = usePage();
 const configurations = ref([...props.configurations]);
@@ -22,15 +28,7 @@ const openActionsId = ref(null);
 const message = ref('');
 const error = ref('');
 const fieldErrors = ref({});
-const mobileMenuOpen = ref(false);
-const settingsOpen = ref(true);
 
-const profile = computed(() => page.props.auth?.user?.user_profiles);
-const initials = computed(() => {
-    const value = `${profile.value?.first_name?.[0] || ''}${profile.value?.last_name?.[0] || ''}`;
-    return value.toUpperCase() || 'AA';
-});
-const accountName = computed(() => profile.value?.first_name ? `${profile.value.first_name} ${profile.value.last_name || ''}`.trim() : 'Admin Account');
 const activeProvider = computed(() => configurations.value.find((item) => item.is_active));
 const configurationValid = computed(() => Boolean(
     activeProvider.value?.status === 'active'
@@ -38,18 +36,6 @@ const configurationValid = computed(() => Boolean(
     && activeProvider.value?.sso_url
     && activeProvider.value?.x509_cert
 ));
-
-const mainNavigation = [
-    { label: 'Dashboard', icon: Gauge, route: 'dashboard.index' },
-    { label: 'Items', icon: Package, route: 'inventory.items' },
-    { label: 'Stock', icon: Warehouse },
-    { label: 'Procurement', icon: FileCog },
-    { label: 'Transfers', icon: ArrowLeftRight },
-    { label: 'Reports', icon: BarChart3 },
-    { label: 'Users', icon: Users, route: 'user_management.index' },
-    { label: 'Departments', icon: Building2 },
-];
-const settingsNavigation = ['General', 'Inventory', 'Users & Roles', 'SAML Configuration'];
 
 const blankForm = () => ({
     name: '', metadata_xml: '', entity_id: '', sso_url: '', slo_url: '', x509_cert: '',
@@ -199,180 +185,112 @@ async function copyEndpoint(value) {
 </script>
 
 <template>
-    <div class="saml-page">
-        <div v-if="mobileMenuOpen" class="mobile-scrim" @click="mobileMenuOpen = false"></div>
-        <aside class="app-sidebar" :class="{ 'mobile-open': mobileMenuOpen }">
-            <button class="mobile-close" aria-label="Close navigation" @click="mobileMenuOpen = false"><X /></button>
-            <div class="brand">
-                <img src="/images/up-logo.png" alt="University of the Philippines Cebu" />
-                <div class="university-name">University of the Philippines<br />Cebu</div>
-            </div>
-            <div class="system-name">INVENTORY<br />MANAGEMENT SYSTEM</div>
+    <LoadingOverlay :show="isLoading" :title="loadingTitle" :message="loadingMessage" />
 
-            <nav class="sidebar-nav" aria-label="Main navigation">
-                <component
-                    :is="item.route ? Link : 'button'"
-                    v-for="item in mainNavigation"
-                    :key="item.label"
-                    :href="item.route ? route(item.route) : undefined"
-                    class="nav-row"
-                >
-                    <component :is="item.icon" /><span>{{ item.label }}</span>
-                </component>
+    <div class="h-screen flex flex-col bg-gray-50/50">
+        <div class="flex flex-1 overflow-hidden">
+            <aside class="h-full transition-all duration-300 ease-in-out flex-shrink-0">
+                <SideBar :isOpen="isSidebarOpen" @toggleSidebar="toggleSidebar" />
+            </aside>
 
-                <button class="nav-row settings-row" @click="settingsOpen = !settingsOpen">
-                    <span class="nav-row-label"><Settings /><span>Settings</span></span>
-                    <ChevronUp v-if="settingsOpen" class="chevron" /><ChevronDown v-else class="chevron" />
-                </button>
-                <div v-show="settingsOpen" class="settings-links">
-                    <button v-for="item in settingsNavigation" :key="item" :class="{ active: item === 'SAML Configuration' }" @click="item === 'SAML Configuration' && (mobileMenuOpen = false)">
-                        <span v-if="item === 'SAML Configuration'" class="active-dot"></span>{{ item }}
-                    </button>
-                </div>
-            </nav>
+            <div class="flex flex-col flex-1 overflow-hidden">
+                <NavHeader :isSidebarOpen="isSidebarOpen" @toggleSidebar="toggleSidebar" />
 
-            <Link :href="route('logout')" method="post" as="button" class="logout-row"><LogOut /><span>Logout</span></Link>
-        </aside>
+                <main class="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
+                    <div class="saml-config">
+                        <h1>SAML Configuration</h1>
 
-        <div class="content-shell">
-            <header class="topbar">
-                <button class="menu-button" aria-label="Open navigation" @click="mobileMenuOpen = true"><Menu /></button>
-                <div class="app-title">UP Cebu Inventory Management System</div>
-                <div class="topbar-actions">
-                    <label class="search-box"><span class="sr-only">Search</span><input type="search" placeholder="Search..." /><Search /></label>
-                    <button class="icon-button" aria-label="Notifications"><Bell /></button>
-                    <div class="avatar">{{ initials }}</div>
-                    <button class="account-button">{{ accountName }} <ChevronDown /></button>
-                </div>
-            </header>
+                        <div v-if="message" class="notice success">{{ message }}</div>
+                        <div v-if="error" class="notice danger">{{ error }}</div>
 
-            <main class="main-content">
-                <h1>SAML Configuration</h1>
-
-                <div v-if="message" class="notice success">{{ message }}</div>
-                <div v-if="error" class="notice danger">{{ error }}</div>
-
-                <section class="status-panel">
-                    <div class="connection-status status-cell">
-                        <div class="status-check" :class="{ invalid: !configurationValid }"><Check v-if="configurationValid" /><X v-else /></div>
-                        <div><strong>SAML connection</strong><span>{{ configurationValid ? 'All systems operational' : 'Configuration required' }}</span></div>
-                    </div>
-                    <div class="status-cell"><span>Active provider</span><strong>{{ activeProvider?.name || 'None selected' }}</strong></div>
-                    <div class="status-cell"><span>Last successful login</span><strong>{{ activeProvider?.last_successful_login_at || 'No SAML login yet' }}</strong></div>
-                    <div class="status-cell"><span>Configuration status</span><strong>{{ configurationValid ? 'Valid' : 'Not configured' }}</strong></div>
-                </section>
-
-                <section class="providers-section">
-                    <div class="section-heading"><h2>Identity providers</h2><button class="primary-button" @click="resetForm(true)">Add configuration</button></div>
-                    <div class="table-wrap">
-                        <table>
-                            <thead><tr><th>Name</th><th>Entity ID</th><th>Status</th><th>Last used</th><th class="actions-heading">Actions</th></tr></thead>
-                            <tbody>
-                                <tr v-if="!configurations.length"><td colspan="5" class="empty-state">No identity providers configured.</td></tr>
-                                <tr v-for="configuration in configurations" :key="configuration.id">
-                                    <td>{{ configuration.name }}<span v-if="configuration.is_active"> (Default)</span></td>
-                                    <td class="entity-cell" :title="configuration.entity_id">{{ configuration.entity_id }}</td>
-                                    <td><span class="status-pill" :class="configuration.status"><i></i>{{ configuration.status === 'active' ? 'Active' : 'Inactive' }}</span></td>
-                                    <td>{{ configuration.last_used_at || '—' }}</td>
-                                    <td>
-                                        <div class="row-actions">
-                                            <button aria-label="Edit configuration" @click="editConfiguration(configuration)"><Pencil /></button>
-                                            <div class="actions-menu-wrap">
-                                                <button aria-label="Provider actions" :aria-expanded="openActionsId === configuration.id" @click="openActionsId = openActionsId === configuration.id ? null : configuration.id"><MoreVertical /></button>
-                                                <div v-if="openActionsId === configuration.id" class="actions-menu">
-                                                    <button v-if="!configuration.is_active" @click="updateProviderState(configuration, { is_active: true, status: 'active' }, `${configuration.name} is now the default provider.`)">Set as default</button>
-                                                    <button @click="updateProviderState(configuration, { status: configuration.status === 'active' ? 'inactive' : 'active', is_active: configuration.status === 'active' ? false : configuration.is_active }, `${configuration.name} ${configuration.status === 'active' ? 'deactivated' : 'activated'}.`)">{{ configuration.status === 'active' ? 'Deactivate' : 'Activate' }}</button>
-                                                    <button class="danger-action" :disabled="deletingId === configuration.id" @click="deleteConfiguration(configuration)">Delete</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-
-                <section class="editor-grid">
-                    <form id="configuration-form" class="panel configuration-panel" @submit.prevent="saveConfiguration">
-                        <div class="form-title"><h2>{{ editingId ? 'Edit configuration' : 'Configuration' }}</h2><button v-if="editingId" type="button" @click="resetForm(false)">Create new</button></div>
-                        <div class="form-fields">
-                            <label class="field"><span>Name</span><div><input v-model="form.name" placeholder="e.g., UP Cebu SSO" /><small v-if="fieldErrors.name">{{ fieldErrors.name[0] }}</small></div></label>
-                            <label class="field metadata-field">
-                                <span>IdP Metadata XML</span>
-                                <div>
-                                    <textarea v-model="form.metadata_xml" rows="5" placeholder="Paste the authoritative IdP metadata XML here"></textarea>
-                                    <div class="metadata-help">
-                                        <p>Imports the Entity ID, SSO URL, SLO URL, and X.509 signing certificate.</p>
-                                        <button type="button" class="metadata-button" @click="importMetadata">Import metadata</button>
-                                    </div>
-                                    <small v-if="fieldErrors.metadata_xml">{{ fieldErrors.metadata_xml[0] }}</small>
-                                </div>
-                            </label>
-                            <label class="field"><span>Entity ID</span><div><input v-model="form.entity_id" placeholder="e.g., https://idp.example.com/saml/metadata" /><small v-if="fieldErrors.entity_id">{{ fieldErrors.entity_id[0] }}</small></div></label>
-                            <label class="field"><span>SSO URL</span><div><input v-model="form.sso_url" type="url" placeholder="e.g., https://idp.example.com/saml/sso" /><small v-if="fieldErrors.sso_url">{{ fieldErrors.sso_url[0] }}</small></div></label>
-                            <label class="field"><span>SLO URL</span><div><input v-model="form.slo_url" type="url" placeholder="e.g., https://idp.example.com/saml/slo" /><small v-if="fieldErrors.slo_url">{{ fieldErrors.slo_url[0] }}</small></div></label>
-                            <label class="field certificate-field"><span>X.509 Certificate</span><div><textarea v-model="form.x509_cert" rows="3" placeholder="-----BEGIN CERTIFICATE-----&#10;.....&#10;-----END CERTIFICATE-----"></textarea><p>Paste the IdP signing certificate (Base64 encoded).</p><small v-if="fieldErrors.x509_cert">{{ fieldErrors.x509_cert[0] }}</small></div></label>
-                            <label class="field"><span>Default Relay State</span><div><input v-model="form.default_relay_state" placeholder="e.g., /dashboard" /></div></label>
-                            <label class="field"><span>Active Provider</span><span class="checkbox-row"><input v-model="form.is_active" type="checkbox" /> Set as the default active provider</span></label>
-                        </div>
-                        <div class="form-actions"><button class="primary-button save-button" :disabled="saving">{{ saving ? 'Saving…' : 'Save configuration' }}</button><a :href="route('saml.login')" class="secondary-button">Test SAML Login</a></div>
-                    </form>
-
-                    <aside class="panel endpoints-panel">
-                        <h2>Local endpoints</h2>
-                        <div class="endpoint-list">
-                            <div v-for="(value, key) in endpoints" :key="key" class="endpoint-item">
-                                <label>{{ key === 'metadata' ? 'Metadata URL' : key === 'acs' ? 'ACS URL' : 'Logout URL' }}</label>
-                                <div class="endpoint-input"><span>{{ value }}</span><button type="button" aria-label="Copy endpoint" @click="copyEndpoint(value)"><Clipboard /></button></div>
-                                <p>{{ key === 'metadata' ? 'URL to the SP metadata that you can provide to your Identity Provider.' : key === 'acs' ? 'Assertion Consumer Service (ACS) endpoint.' : 'Single Logout (SLO) endpoint.' }}</p>
+                        <section class="status-panel">
+                            <div class="connection-status status-cell">
+                                <div class="status-check" :class="{ invalid: !configurationValid }"><Check v-if="configurationValid" /><X v-else /></div>
+                                <div><strong>SAML connection</strong><span>{{ configurationValid ? 'All systems operational' : 'Configuration required' }}</span></div>
                             </div>
-                        </div>
-                    </aside>
-                </section>
-            </main>
+                            <div class="status-cell"><span>Active provider</span><strong>{{ activeProvider?.name || 'None selected' }}</strong></div>
+                            <div class="status-cell"><span>Last successful login</span><strong>{{ activeProvider?.last_successful_login_at || 'No SAML login yet' }}</strong></div>
+                            <div class="status-cell"><span>Configuration status</span><strong>{{ configurationValid ? 'Valid' : 'Not configured' }}</strong></div>
+                        </section>
+
+                        <section class="providers-section">
+                            <div class="section-heading"><h2>Identity providers</h2><button class="primary-button" @click="resetForm(true)">Add configuration</button></div>
+                            <div class="table-wrap">
+                                <table>
+                                    <thead><tr><th>Name</th><th>Entity ID</th><th>Status</th><th>Last used</th><th class="actions-heading">Actions</th></tr></thead>
+                                    <tbody>
+                                        <tr v-if="!configurations.length"><td colspan="5" class="empty-state">No identity providers configured.</td></tr>
+                                        <tr v-for="configuration in configurations" :key="configuration.id">
+                                            <td>{{ configuration.name }}<span v-if="configuration.is_active"> (Default)</span></td>
+                                            <td class="entity-cell" :title="configuration.entity_id">{{ configuration.entity_id }}</td>
+                                            <td><span class="status-pill" :class="configuration.status"><i></i>{{ configuration.status === 'active' ? 'Active' : 'Inactive' }}</span></td>
+                                            <td>{{ configuration.last_used_at || '—' }}</td>
+                                            <td>
+                                                <div class="row-actions">
+                                                    <button aria-label="Edit configuration" @click="editConfiguration(configuration)"><Pencil /></button>
+                                                    <div class="actions-menu-wrap">
+                                                        <button aria-label="Provider actions" :aria-expanded="openActionsId === configuration.id" @click="openActionsId = openActionsId === configuration.id ? null : configuration.id"><MoreVertical /></button>
+                                                        <div v-if="openActionsId === configuration.id" class="actions-menu">
+                                                            <button v-if="!configuration.is_active" @click="updateProviderState(configuration, { is_active: true, status: 'active' }, `${configuration.name} is now the default provider.`)">Set as default</button>
+                                                            <button @click="updateProviderState(configuration, { status: configuration.status === 'active' ? 'inactive' : 'active', is_active: configuration.status === 'active' ? false : configuration.is_active }, `${configuration.name} ${configuration.status === 'active' ? 'deactivated' : 'activated'}.`)">{{ configuration.status === 'active' ? 'Deactivate' : 'Activate' }}</button>
+                                                            <button class="danger-action" :disabled="deletingId === configuration.id" @click="deleteConfiguration(configuration)">Delete</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <section class="editor-grid">
+                            <form id="configuration-form" class="panel configuration-panel" @submit.prevent="saveConfiguration">
+                                <div class="form-title"><h2>{{ editingId ? 'Edit configuration' : 'Configuration' }}</h2><button v-if="editingId" type="button" @click="resetForm(false)">Create new</button></div>
+                                <div class="form-fields">
+                                    <label class="field"><span>Name</span><div><input v-model="form.name" placeholder="e.g., UP Cebu SSO" /><small v-if="fieldErrors.name">{{ fieldErrors.name[0] }}</small></div></label>
+                                    <label class="field metadata-field">
+                                        <span>IdP Metadata XML</span>
+                                        <div>
+                                            <textarea v-model="form.metadata_xml" rows="5" placeholder="Paste the authoritative IdP metadata XML here"></textarea>
+                                            <div class="metadata-help">
+                                                <p>Imports the Entity ID, SSO URL, SLO URL, and X.509 signing certificate.</p>
+                                                <button type="button" class="metadata-button" @click="importMetadata">Import metadata</button>
+                                            </div>
+                                            <small v-if="fieldErrors.metadata_xml">{{ fieldErrors.metadata_xml[0] }}</small>
+                                        </div>
+                                    </label>
+                                    <label class="field"><span>Entity ID</span><div><input v-model="form.entity_id" placeholder="e.g., https://idp.example.com/saml/metadata" /><small v-if="fieldErrors.entity_id">{{ fieldErrors.entity_id[0] }}</small></div></label>
+                                    <label class="field"><span>SSO URL</span><div><input v-model="form.sso_url" type="url" placeholder="e.g., https://idp.example.com/saml/sso" /><small v-if="fieldErrors.sso_url">{{ fieldErrors.sso_url[0] }}</small></div></label>
+                                    <label class="field"><span>SLO URL</span><div><input v-model="form.slo_url" type="url" placeholder="e.g., https://idp.example.com/saml/slo" /><small v-if="fieldErrors.slo_url">{{ fieldErrors.slo_url[0] }}</small></div></label>
+                                    <label class="field certificate-field"><span>X.509 Certificate</span><div><textarea v-model="form.x509_cert" rows="3" placeholder="-----BEGIN CERTIFICATE-----&#10;.....&#10;-----END CERTIFICATE-----"></textarea><p>Paste the IdP signing certificate (Base64 encoded).</p><small v-if="fieldErrors.x509_cert">{{ fieldErrors.x509_cert[0] }}</small></div></label>
+                                    <label class="field"><span>Default Relay State</span><div><input v-model="form.default_relay_state" placeholder="e.g., /dashboard" /></div></label>
+                                    <label class="field"><span>Active Provider</span><span class="checkbox-row"><input v-model="form.is_active" type="checkbox" /> Set as the default active provider</span></label>
+                                </div>
+                                <div class="form-actions"><button class="primary-button save-button" :disabled="saving">{{ saving ? 'Saving…' : 'Save configuration' }}</button><a :href="route('saml.login')" class="secondary-button">Test SAML Login</a></div>
+                            </form>
+
+                            <aside class="panel endpoints-panel">
+                                <h2>Local endpoints</h2>
+                                <div class="endpoint-list">
+                                    <div v-for="(value, key) in endpoints" :key="key" class="endpoint-item">
+                                        <label>{{ key === 'metadata' ? 'Metadata URL' : key === 'acs' ? 'ACS URL' : 'Logout URL' }}</label>
+                                        <div class="endpoint-input"><span>{{ value }}</span><button type="button" aria-label="Copy endpoint" @click="copyEndpoint(value)"><Clipboard /></button></div>
+                                        <p>{{ key === 'metadata' ? 'URL to the SP metadata that you can provide to your Identity Provider.' : key === 'acs' ? 'Assertion Consumer Service (ACS) endpoint.' : 'Single Logout (SLO) endpoint.' }}</p>
+                                    </div>
+                                </div>
+                            </aside>
+                        </section>
+                    </div>
+                </main>
+            </div>
         </div>
     </div>
 </template>
 
 <style scoped>
-:global(body) { margin: 0; background: #fff; color: #111418; }
-:global(*) { box-sizing: border-box; }
-.saml-page { --green: #006142; --deep-green: #00563c; --border: #d9dde2; min-height: 100vh; display: flex; background: #fff; font-family: Figtree, Arial, sans-serif; font-size: 14px; }
-.app-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 40; width: 238px; display: flex; flex-direction: column; overflow-y: auto; color: white; background: linear-gradient(150deg, #00674a 0%, #005d43 56%, #006b4e 100%); }
-.brand { display: flex; align-items: center; gap: 10px; padding: 18px 15px 0; }
-.brand img { width: 64px; height: 64px; object-fit: contain; }
-.university-name { font-family: Optima, serif; font-size: 12px; line-height: 1.25; }
-.system-name { margin-top: 11px; text-align: center; font-family: Optima, serif; font-size: 19px; line-height: 1.25; }
-.sidebar-nav { padding: 22px 14px 8px; }
-.nav-row { width: 100%; min-height: 48px; display: flex; align-items: center; gap: 14px; padding: 0 10px; border: 0; border-radius: 7px; color: #fff; background: transparent; text-decoration: none; font: inherit; font-size: 14px; cursor: pointer; }
-.nav-row:hover { background: rgba(255,255,255,.1); }
-.nav-row svg, .logout-row svg { width: 20px; height: 20px; stroke-width: 1.8; flex: none; }
-.settings-row { justify-content: space-between; font-weight: 600; }
-.nav-row-label { display: flex; align-items: center; gap: 14px; }
-.settings-row .chevron { width: 15px; height: 15px; }
-.settings-links { display: grid; gap: 1px; padding: 2px 0 4px; }
-.settings-links button { position: relative; height: 38px; border: 0; border-radius: 7px; padding: 0 12px 0 44px; color: #fff; background: transparent; text-align: left; font: inherit; font-size: 13px; cursor: pointer; }
-.settings-links button:hover { background: rgba(255,255,255,.1); }
-.settings-links button.active { background: rgba(255,255,255,.19); }
-.active-dot { position: absolute; left: 19px; top: 16px; width: 6px; height: 6px; border-radius: 50%; background: #fff; }
-.logout-row { width: calc(100% - 28px); min-height: 58px; margin: auto 14px 0; display: flex; align-items: center; gap: 14px; border: 0; border-top: 1px solid rgba(255,255,255,.38); color: #fff; background: transparent; font: inherit; cursor: pointer; }
-.content-shell { width: calc(100% - 238px); margin-left: 238px; min-width: 0; }
-.topbar { position: sticky; top: 0; z-index: 20; height: 64px; display: flex; align-items: center; border-bottom: 1px solid #e0e3e6; background: rgba(255,255,255,.98); }
-.menu-button { width: 58px; height: 64px; display: grid; place-items: center; border: 0; background: transparent; color: #34383d; cursor: pointer; }
-.menu-button svg { width: 21px; }
-.app-title { font-size: 15px; font-weight: 600; color: #111; }
-.topbar-actions { margin-left: auto; padding-right: 29px; display: flex; align-items: center; gap: 15px; }
-.search-box { width: 275px; height: 37px; display: flex; align-items: center; border: 1px solid var(--border); border-radius: 6px; color: #52575d; }
-.search-box input { width: 100%; height: 100%; border: 0; outline: 0; padding: 0 14px; background: transparent; font: inherit; font-size: 13px; box-shadow: none; }
-.search-box input:focus { outline: none; box-shadow: none; }
-.search-box svg { width: 18px; margin-right: 12px; }
-.icon-button { display: grid; place-items: center; border: 0; background: transparent; color: #4f555b; }
-.icon-button svg { width: 19px; }
-.avatar { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: var(--deep-green); color: #fff; font-size: 12px; font-weight: 600; }
-.account-button { display: flex; align-items: center; gap: 10px; border: 0; background: transparent; color: #292d31; font: inherit; font-size: 13px; }
-.account-button svg { width: 13px; }
-.main-content { padding: 22px 28px 30px; }
+.saml-config { --green: #006142; --deep-green: #00563c; --border: #d9dde2; font-family: Figtree, Arial, sans-serif; font-size: 14px; color: #111418; }
+.saml-config * { box-sizing: border-box; }
 h1 { margin: 0; font-size: 33px; line-height: 1.15; letter-spacing: -.035em; font-weight: 500; color: #0a0b0c; }
 h2 { margin: 0; font-size: 16px; font-weight: 600; color: #151719; }
 .notice { margin-top: 14px; border: 1px solid; border-radius: 7px; padding: 10px 14px; font-size: 13px; }
@@ -456,33 +374,18 @@ th:nth-child(5), td:nth-child(5) { width: 10%; }
 .endpoint-input button:hover { background: #f5f7f8; color: var(--green); }
 .endpoint-input svg { width: 16px; }
 .endpoint-item p { margin: 8px 0 0; color: #777e85; font-size: 11px; line-height: 1.5; }
-.mobile-close, .mobile-scrim { display: none; }
 
 @media (max-width: 1100px) {
-    .search-box { width: 210px; }
-    .account-button { display: none; }
     .status-cell { padding: 0 16px; }
     .editor-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 820px) {
-    .app-sidebar { transform: translateX(-100%); transition: transform .22s ease; box-shadow: 12px 0 30px rgba(0,0,0,.18); }
-    .app-sidebar.mobile-open { transform: translateX(0); }
-    .mobile-close { position: absolute; top: 10px; right: 10px; display: grid; place-items: center; border: 0; color: white; background: transparent; }
-    .mobile-close svg { width: 20px; }
-    .mobile-scrim { position: fixed; inset: 0; z-index: 35; display: block; background: rgba(7,20,15,.4); }
-    .content-shell { width: 100%; margin-left: 0; }
     .status-panel { grid-template-columns: 1fr 1fr; }
     .status-cell { min-height: 58px; border-top: 1px solid var(--border); }
     .status-cell:nth-child(1), .status-cell:nth-child(2) { border-top: 0; }
     .status-cell:nth-child(3) { border-left: 0; }
 }
 @media (max-width: 600px) {
-    .topbar { height: 58px; }
-    .menu-button { width: 48px; height: 58px; }
-    .app-title { font-size: 13px; }
-    .topbar-actions { padding-right: 12px; gap: 8px; }
-    .search-box, .avatar { display: none; }
-    .main-content { padding: 19px 14px 28px; }
     h1 { font-size: 27px; }
     .status-panel { grid-template-columns: 1fr; }
     .status-cell, .status-cell:nth-child(2) { min-height: 64px; border-top: 1px solid var(--border); border-left: 0; }

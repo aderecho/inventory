@@ -8,11 +8,11 @@ class InventoryApiService
 {
     public function getInventory()
     {
-        return InventoryItem::all();
+        return InventoryItem::with('latestHistoryLocation', 'itemClassification')->get();
     }
 
     public function getById($id)
     {
-        return InventoryItem::all()->findOrFail($id);
+        return InventoryItem::with('latestHistoryLocation', 'itemClassification')->findOrFail($id);
     }
 }

@@ -19,6 +19,7 @@ class InventoryApiResource extends JsonResource
             'PR_number' => $this->pr_number,
             'PO_number' => $this->po_number,
             'is_private' => $this->is_private,
+            'facility_id' => $this->latestHistoryLocation?->room_id,
         ];
     }
 }

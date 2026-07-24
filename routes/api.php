@@ -5,6 +5,7 @@ use App\Http\Controllers\UPSSOController;
 use App\Http\Controllers\API\ApiEmbedController;
 use App\Http\Controllers\API\QrScanController;
 use App\Http\Controllers\mobileAPI\AuthController;
+use App\Http\Controllers\Auth\GoogleController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 
@@ -21,8 +22,8 @@ Route::prefix('v1')
 
         // Mobile
         Route::post('/login', [AuthController::class, 'login']);
-        Route::middleware('auth:sanctum')->group(function() {
-            Route::get('/me', function(Request $request){
+        Route::middleware('auth:sanctum')->group(function () {
+            Route::get('/me', function (Request $request) {
                 return response()->json($request->user());
             });
             Route::post('/logout', [AuthController::class, 'logout']);
