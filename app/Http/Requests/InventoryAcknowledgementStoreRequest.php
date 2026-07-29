@@ -27,6 +27,7 @@ class InventoryAcknowledgementStoreRequest extends FormRequest
 
             'accountable_persons_id' => 'required|exists:users,id',
             'issued_by_id' => 'required|exists:users,id',
+            'room_id' => 'required|integer',
             'category' => 'required',
             'created_by' => 'required|exists:users,id',
             'par_date' => 'required|date',

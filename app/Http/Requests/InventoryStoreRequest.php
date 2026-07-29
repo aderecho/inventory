@@ -31,6 +31,8 @@ class InventoryStoreRequest extends FormRequest
             'quantity' => 'required|integer|min:1',
             'unit_cost' => 'required|numeric',
             'item_name' => 'required|string|max:255',
+            'brand' => 'nullable|string|max:255',
+            'model' => 'nullable|string|max:255',
             'pr_number' => 'required|string|max:50',
             'po_number' => 'required|string|max:50',
             'remarks' => 'nullable|string|max:50',

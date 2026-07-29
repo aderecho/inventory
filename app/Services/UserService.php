@@ -41,7 +41,8 @@ class UserService
         ?string $search = null,
         ?string $sort = null,
         string $direction = 'asc',
-        int $perPage = 10
+        int $perPage = 10,
+        array $matchingRoomIds = []
     ) {
         $sortable = ['item_name', 'date_acquired', 'date_assigned'];
         $sort = in_array($sort, $sortable, true) ? $sort : null;
@@ -52,20 +53,40 @@ class UserService
                 'supplier',
                 'latestAcknowledgementItem.acknowledgementReceipts:id,par_date,category',
                 'latestAcknowledgementItem.files',
+                'latestHistoryLocation',
             ])
             ->whereHas('latestAcknowledgementItem', function ($q) use ($userId) {
                 $q->where('accountable_person_id', $userId);
-            })
-            ->when(
-                $search,
-                fn($q, $search) => $q->searchAssignedItems($search)
-            );
+            });
+
+        if ($search) {
+            $query->where(function ($q) use ($search, $matchingRoomIds) {
+
+                // Existing search scope
+                $q->searchAssignedItems($search);
+
+                // Search by room from API
+                if (!empty($matchingRoomIds)) {
+                    $q->orWhereHas('latestHistoryLocation', function ($room) use ($matchingRoomIds) {
+                        $room->whereIn('room_id', $matchingRoomIds);
+                    });
+                }
+            });
+        }
 
         if ($sort === 'date_assigned') {
             $query->addSelect([
                 'sort_par_date' => AcknowledgementReceipt::select('par_date')
-                    ->join('acknowledgement_items', 'acknowledgement_items.acknowledgement_id', '=', 'acknowledgement_receipts.id')
-                    ->whereColumn('acknowledgement_items.inventory_item_id', 'inventory_items.id')
+                    ->join(
+                        'acknowledgement_items',
+                        'acknowledgement_items.acknowledgement_id',
+                        '=',
+                        'acknowledgement_receipts.id'
+                    )
+                    ->whereColumn(
+                        'acknowledgement_items.inventory_item_id',
+                        'inventory_items.id'
+                    )
                     ->orderByDesc('acknowledgement_items.id')
                     ->limit(1),
             ]);
@@ -73,8 +94,8 @@ class UserService
 
         match ($sort) {
             'date_assigned' => $query->orderBy('sort_par_date', $direction),
-            null             => $query->orderByDesc('created_at'),
-            default          => $query->orderBy("inventory_items.{$sort}", $direction),
+            null            => $query->orderByDesc('created_at'),
+            default         => $query->orderBy("inventory_items.{$sort}", $direction),
         };
 
         return $query->paginate($perPage)->withQueryString();

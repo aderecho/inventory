@@ -5,16 +5,21 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Models\Activity;
 
 class InventoryItem extends Model
 {
-    use HasFactory, softDeletes;
+    use HasFactory, softDeletes, LogsActivity;
     protected $fillable = [
         'item_classification_id',
         'fund_source',
         'invoice',
         'supplier_id',
         'item_name',
+        'brand',
+        'model',
         'description',
         'quantity',
         'unit',
@@ -29,6 +34,30 @@ class InventoryItem extends Model
         'status',
         'is_private'
     ];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('inventory')
+            ->logFillable()
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(function (string $eventName) {
+                $verb = match ($eventName) {
+                    'deleted' => $this->isForceDeleting() ? 'deleted' : 'archived',
+                    default => $eventName,
+                };
+
+                return "Item \"{$this->item_name}\" ({$this->property_number}) was {$verb}";
+            });
+    }
+
+    public function tapActivity(Activity $activity, string $eventName)
+    {
+        if ($eventName === 'deleted' && ! $this->isForceDeleting()) {
+            $activity->event = 'archived';
+        }
+    }
 
     public function supplier()
     {
@@ -75,7 +104,8 @@ class InventoryItem extends Model
 
     public function historyLocations()
     {
-        return $this->hasMany(ItemHistoryLocation::class);
+        return $this->hasMany(ItemHistoryLocation::class)
+            ->latest('created_at');
     }
 
     public function latestHistoryLocation()
@@ -98,6 +128,38 @@ class InventoryItem extends Model
                 ->orWhereHas('supplier', function ($supplier) use ($term) {
                     $supplier->where('supplier_name', 'like', "%{$term}%");
                 });
+        });
+    }
+
+    public function scopeSearchItemHistory($query, $term)
+    {
+        if (!$term) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($term) {
+            $q->where('item_name', 'like', "%{$term}%")
+                ->orWhere('property_number', 'like', "%{$term}%")
+                ->orWhere('serial_number', 'like', "%{$term}%")
+                ->orWhereHas('latestAcknowledgementItem.accountablePerson', function ($person) use ($term) {
+                    $person->where('first_name', 'like', "%{$term}%")
+                        ->orWhere('last_name', 'like', "%{$term}%")
+                        ->orWhereRaw(
+                            "CONCAT(first_name, ' ', last_name) LIKE ?",
+                            ["%{$term}%"]
+                        );
+                });
+        });
+    }
+
+    public function scopeFilterByRoom($query, $roomId)
+    {
+        if (!$roomId) {
+            return $query;
+        }
+
+        return $query->whereHas('latestHistoryLocation', function ($q) use ($roomId) {
+            $q->where('room_id', $roomId);
         });
     }
 

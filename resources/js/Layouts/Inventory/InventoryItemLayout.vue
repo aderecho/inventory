@@ -179,8 +179,23 @@ const inputFields = [
     {
         label: "Item Name",
         model: "item_name",
-        placeholder: "Laptops, Ceiling Fan...",
+        placeholder: "Input Item name...",
         type: "text",
+        required: true,
+    },
+    {
+        label: "Brand",
+        model: "brand",
+        placeholder: "Input brand...",
+        type: "text",
+        required: false,
+    },
+    {
+        label: "Model",
+        model: "model",
+        placeholder: "Input model...",
+        type: "text",
+        required: false,
     },
 ];
 
@@ -190,12 +205,26 @@ const inputFieldsEdit = [
         model: "serial_number",
         placeholder: "SER-####.",
         type: "text",
-        readonly: false,
+        readonly: true,
     },
     {
         label: "Item Name",
         model: "item_name",
         placeholder: "Laptops, Ceiling Fan...",
+        type: "text",
+        readonly: false,
+    },
+    {
+        label: "Brand",
+        model: "brand",
+        placeholder: "Input brand...",
+        type: "text",
+        readonly: false,
+    },
+    {
+        label: "Model",
+        model: "model",
+        placeholder: "Input model...",
         type: "text",
         readonly: false,
     },
@@ -1118,6 +1147,7 @@ async function handleConvertFile(event) {
                                 :adminProfiles="adminProfiles"
                                 :selectedIDs="tempSelectedIds"
                                 :items="items"
+                                :rooms="rooms"
                                 :userProfiles="userProfiles"
                                 :users="users"
                                 @close="() => (showAssignModal = false)"

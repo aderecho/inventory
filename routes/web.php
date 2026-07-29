@@ -7,6 +7,7 @@ use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\ItemArchivingController;
+use App\Http\Controllers\CategoriesArchiveController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\RolePermissionController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\SamlMetadataController;
 use App\Http\Controllers\SamlSpController;
+use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\SamlConfigurationController;
 use App\Http\Controllers\Auth\GoogleController;
 use Illuminate\Http\Request;
@@ -79,6 +81,10 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/{apiClient}', [ApiClientController::class, 'destroy'])->middleware('can:delete users')->name('api_clients.destroy');
     });
 
+    Route::prefix('audit_logs')->middleware('can:view inventory')->group(function () {
+        Route::get('/', [AuditLogsController::class, 'index'])->name('audit_logs.index');
+    });
+
     Route::prefix('saml-configurations')->middleware('can:view roles')->group(function () {
         Route::get('/', [SamlConfigurationController::class, 'index'])->name('saml_configurations.index');
         Route::post('/', [SamlConfigurationController::class, 'store'])->name('saml_configurations.store');
@@ -137,6 +143,11 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/', [Categories::class, 'store'])->middleware('can:create categories')->name('categories.store');
         Route::put('/{id}', [Categories::class, 'update'])->middleware('can:edit categories')->name('categories.update');
         Route::delete('/{id}', [Categories::class, 'destroy'])->middleware('can:delete categories')->name('categories.destroy');
+
+            // Categories Archive
+        Route::middleware('can:view categories')->get('/archive', [CategoriesArchiveController::class, 'index'])->name('categories.archive.index');
+        Route::patch('/{id}/archive', [CategoriesArchiveController::class, 'restore'])->name('categories.restore');
+        Route::delete('/{id}/force-delete', [CategoriesArchiveController::class, 'forceDelete'])->name('categories.forceDelete');
     });
 
     // Acknowledgements

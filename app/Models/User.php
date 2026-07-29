@@ -6,16 +6,33 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-     use HasApiTokens, HasFactory, HasRoles, SoftDeletes {
+    use HasApiTokens, LogsActivity, HasFactory, HasRoles, SoftDeletes {
         HasRoles::hasPermissionTo as protected spatieHasPermissionTo;
     }
     protected $fillable = ['email', 'password', 'status'];
 
     protected $hidden = ['password'];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('users')
+            ->logOnly([
+                'email',
+                'status',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(
+                fn(string $eventName) => "{$eventName} user"
+            );
+    }
 
     public function accountableReceipts()
     {

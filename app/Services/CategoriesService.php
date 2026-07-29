@@ -62,4 +62,15 @@ class CategoriesService
             // 'status' => 1,
         ]);
     }
+
+    public function filterAndPaginateArchiveCategories(
+        ?string $search = null,
+        int $perPage = 10
+    ) {
+        return ItemClassification::onlyTrashed()
+            ->when($search, fn($query, $search) => $query->search($search))
+            ->orderBy('deleted_at', 'desc')
+            ->paginate($perPage)
+            ->withQueryString();
+    }
 }
