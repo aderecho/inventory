@@ -11,29 +11,43 @@ import {
 const menuItems = [
     {
         name: "Dashboard",
+        description: "Overview & quick analytics",
         icon: "fas fa-chart-line",
         route: "dashboard.index",
     },
     {
         name: "Inventory",
-        icon: "fa-solid fa-boxes-packing",
+        description: "Asset records & assignments",
+        icon: "fa-solid fa-boxes-stacked",
         children: [
             {
-                name: "Items",
+                name: "Item List",
                 route: "inventory.items",
             },
             {
-                name: "Acknowledgements",
+                name: "Item Evidence",
                 route: "acknowledgements.index",
             },
             {
-                name: "Item Location",
+                name: "Location History",
                 route: "item-histories.index",
             },
         ],
     },
     {
+        name: "Asset Inspection",
+        description: "Condition & maintenance logs",
+        icon: "fa-solid fa-clipboard-list",
+        children: [
+            {
+                name: "Inspection Records",
+                route: "inspection.index",
+            },
+        ],
+    },
+    {
         name: "Core Records",
+        description: "Suppliers & item categories",
         icon: "fa-solid fa-layer-group",
         children: [
             {
@@ -45,8 +59,21 @@ const menuItems = [
         ],
     },
     {
-        name: "Archives",
+        name: "Disposal",
+        description: "Disposed Items",
         icon: "fa-solid fa-box-archive",
+        children: [
+            {
+                name: "Disposal Table",
+                icon: "fa-solid fa-recycle",
+                route: "disposal.index",
+            },
+        ],
+    },
+    {
+        name: "Archives",
+        description: "Archived master files",
+        icon: "fa-solid fa-folder",
         children: [
             {
                 name: "Item Archive",
@@ -67,6 +94,7 @@ const menuItems = [
     },
     {
         name: "Administration",
+        description: "System control & access",
         icon: "fa-solid fa-user-shield",
         children: [
             {
@@ -84,7 +112,7 @@ const menuItems = [
                 icon: "fa-solid fa-shield-halved",
                 route: "saml_configurations.index",
             },
-              {
+            {
                 name: "Audit Logs",
                 icon: "fa-solid fa-shield-halved",
                 route: "audit_logs.index",
@@ -118,33 +146,21 @@ defineProps({ isOpen: { type: Boolean, default: true } });
 <template>
     <div
         class="text-lg font-semibold bg-[#005740] h-full shadow-lg flex flex-col transition-all duration-300 ease-in-out overflow-hidden"
-        :class="isOpen ? 'w-[15rem] sm:w-[16rem]' : 'w-12'"
+        :class="isOpen ? 'w-[15rem] sm:w-[16rem]' : 'w-16'"
     >
         <!-- Sidebar Header -->
         <div
-            class="flex items-center justify-center h-24 border-b border-white/20 shrink-0 overflow-hidden relative"
-            :class="isOpen ? 'px-4 gap-3' : 'justify-center px-0'"
+            class="flex items-center justify-center h-20 border-b border-white/20 shrink-0 relative px-2"
         >
             <Link
                 v-if="isOpen"
                 href="/"
-                class="flex items-center justify-center gap-3 w-full"
+                class="flex items-center justify-center gap-3 w-full pr-8"
             >
-                <div
-                    class="h-16 w-16 rounded-full overflow-hidden flex-shrink-0"
-                >
+                <div class="flex-shrink-0">
                     <img
-                        class="h-full w-full object-cover scale-125"
-                        src="/images/uplogo-2.png"
-                        alt="Logo"
-                    />
-                </div>
-                <div
-                    class="h-16 w-16 rounded-full overflow-hidden flex-shrink-0"
-                >
-                    <img
-                        class="h-full w-full object-cover scale-125"
-                        src="/images/uplogo-1.png"
+                        class="h-32 w-32 object-contain"
+                        src="/images/UPC-LOGO.png"
                         alt="Logo"
                     />
                 </div>
@@ -152,8 +168,8 @@ defineProps({ isOpen: { type: Boolean, default: true } });
 
             <button
                 @click="$emit('toggleSidebar')"
-                class="text-white hover:text-white/70 focus:outline-none"
-                :class="isOpen ? 'absolute top-2 right-2' : 'mx-auto'"
+                class="text-white hover:text-white/70 focus:outline-none flex items-center justify-center"
+                :class="isOpen ? 'absolute right-3 top-1/2 -translate-y-1/2' : 'mx-auto'"
             >
                 <component
                     :is="isOpen ? CircleX : CircleChevronRight"
@@ -163,8 +179,8 @@ defineProps({ isOpen: { type: Boolean, default: true } });
         </div>
 
         <!-- Menu -->
-        <ul class="flex-1 py-3">
-            <li v-for="item in menuItems" :key="item.name" class="rounded-md">
+        <ul class="flex-1 py-3 overflow-y-auto space-y-1">
+            <li v-for="item in menuItems" :key="item.name">
                 <!-- If item has children -->
                 <div
                     v-if="item.children"
@@ -173,11 +189,11 @@ defineProps({ isOpen: { type: Boolean, default: true } });
                             ? toggleDropdown(item.name)
                             : $emit('toggleSidebar')
                     "
-                    class="flex items-center gap-3 py-4 px-4 mx-2 rounded-md cursor-pointer transition-all duration-300 text-white"
+                    class="flex items-center py-3 rounded-md cursor-pointer transition-all duration-300 text-white"
                     :class="[
                         isOpen
-                            ? 'justify-between sm:mx-3'
-                            : 'justify-center mx-1',
+                            ? 'justify-between px-4 mx-2 sm:mx-3 gap-3'
+                            : 'justify-center px-0 mx-1 w-full',
                         item.children.some((child) =>
                             route().current(child.route),
                         )
@@ -185,13 +201,18 @@ defineProps({ isOpen: { type: Boolean, default: true } });
                             : 'hover:bg-white/20',
                     ]"
                 >
-                    <div class="flex items-center gap-3">
-                        <i :class="item.icon" class="shrink-0"></i>
-                        <span v-if="isOpen">{{ item.name }}</span>
+                    <div class="flex items-center gap-3 min-w-0 justify-center">
+                        <i :class="item.icon" class="shrink-0 text-lg"></i>
+                        <div v-if="isOpen" class="flex flex-col leading-tight overflow-hidden">
+                            <span class="truncate text-base">{{ item.name }}</span>
+                            <span v-if="item.description" class="text-[11px] font-normal text-white/70 truncate">
+                                {{ item.description }}
+                            </span>
+                        </div>
                     </div>
                     <i
                         v-if="isOpen"
-                        class="fa-solid transform transition-transform duration-300"
+                        class="fa-solid transform transition-transform duration-300 shrink-0 text-sm"
                         :class="
                             openDropdown === item.name
                                 ? 'fa-chevron-up'
@@ -209,16 +230,21 @@ defineProps({ isOpen: { type: Boolean, default: true } });
                     class="w-full block"
                 >
                     <div
-                        class="flex items-center gap-3 py-4 px-4 mx-2 rounded-md transition-all duration-300 cursor-pointer text-white hover:bg-white/20"
+                        class="flex items-center py-3 rounded-md transition-all duration-300 cursor-pointer text-white hover:bg-white/20"
                         :class="[
-                            isOpen ? 'sm:mx-3' : 'justify-center mx-1',
+                            isOpen ? 'px-4 mx-2 sm:mx-3 gap-3' : 'justify-center px-0 mx-1 w-full',
                             route().current(item.route)
                                 ? 'bg-white/20 font-semibold'
                                 : '',
                         ]"
                     >
-                        <i :class="item.icon" class="shrink-0"></i>
-                        <span v-if="isOpen">{{ item.name }}</span>
+                        <i :class="item.icon" class="shrink-0 text-lg"></i>
+                        <div v-if="isOpen" class="flex flex-col leading-tight overflow-hidden text-left">
+                            <span class="truncate text-base">{{ item.name }}</span>
+                            <span v-if="item.description" class="text-[11px] font-normal text-white/70 truncate">
+                                {{ item.description }}
+                            </span>
+                        </div>
                     </div>
                 </Link>
 
@@ -228,11 +254,11 @@ defineProps({ isOpen: { type: Boolean, default: true } });
                     class="overflow-hidden transition-all duration-500 ease-in-out"
                     :class="
                         openDropdown === item.name
-                            ? 'max-h-60 opacity-100 mt-2'
+                            ? 'max-h-60 opacity-100 mt-1 mb-2'
                             : 'max-h-0 opacity-0'
                     "
                 >
-                    <ul class="ml-10 mt-1 space-y-1 text-[15px]">
+                    <ul class="ml-10 space-y-1 text-[15px]">
                         <li v-for="child in item.children" :key="child.name">
                             <Link
                                 :href="route(child.route)"
@@ -254,13 +280,13 @@ defineProps({ isOpen: { type: Boolean, default: true } });
         <a
             href="https://support.upcebu.edu.ph/open.php?topicId=62"
             target="_blank"
-            class="mt-auto py-3 border-t border-white/20 flex flex-col items-center gap-1"
+            class="mt-auto py-3 border-t border-white/20 flex flex-col items-center justify-center gap-1 shrink-0"
         >
             <span
-                class="flex items-center gap-1 text-center text-xs text-white"
+                class="flex items-center justify-center gap-2 text-center text-xs text-white"
             >
-                <Headset :size="16" />
-                <p class="underline underline-offset-4">ITC Support</p>
+                <Headset :size="18" />
+                <p class="underline underline-offset-4" v-if="isOpen">ITC Support</p>
             </span>
         </a>
     </div>

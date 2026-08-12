@@ -23,6 +23,7 @@ class InventoryService
         ?string $costRange = null,
         int|string|null $status = null,
         ?string $acknowledgementStatus = null,
+        ?int $roomId = null,
         int $perPage = 10
     ) {
         return InventoryItem::with([
@@ -64,6 +65,11 @@ class InventoryService
                 if ($acknowledgementStatus === 'without_acknowledgement') {
                     $query->whereDoesntHave('latestAcknowledgementItem');
                 }
+            })
+             ->when($roomId, function ($query, $roomId) {
+                $query->whereHas('latestHistoryLocation', function ($q) use ($roomId) {
+                    $q->where('room_id', $roomId);
+                });
             })
             ->orderByDesc('created_at')
             ->paginate($perPage)
@@ -154,6 +160,7 @@ class InventoryService
 
         foreach ($data['serial_numbers'] as $index => $serialNumber) {
             $propertyNumber = $base . '-' . str_pad($index + 1, 3, '0', STR_PAD_LEFT);
+            $description = $data['descriptions'][$index] ?? $data['description'] ?? null;
 
             $inventoryItem = InventoryItem::create([
                 'item_classification_id' => $data['item_classification_id'],
@@ -163,7 +170,7 @@ class InventoryService
                 'item_name' => $data['item_name'],
                 'brand' => $data['brand'],
                 'model' => $data['model'],
-                'description' => $data['description'],
+                'description' => $description,
                 'quantity' => 1,
                 'unit' => $data['unit'],
                 'unit_cost' => $data['unit_cost'],
@@ -191,6 +198,27 @@ class InventoryService
 
         $totalAmount = $data['quantity'] * $data['unit_cost'];
 
+        // Normalize property_number: if frontend sent a prefix ending with '-',
+        // re-append the existing suffix for this item (keep the same -NNN),
+        // otherwise accept the provided full property number.
+        $propertyNumberToSave = $data['property_number'] ?? $item->property_number;
+        if (str_ends_with((string) ($data['property_number'] ?? ''), '-')) {
+            $base = rtrim($data['property_number'], '-');
+
+            $existing = $item->property_number ?? '';
+            $suffix = '001';
+
+            if (str_starts_with($existing, $base . '-')) {
+                $parts = explode('-', $existing);
+                $last = end($parts);
+                if (preg_match('/^\d{3}$/', $last)) {
+                    $suffix = $last;
+                }
+            }
+
+            $propertyNumberToSave = $base . '-' . $suffix;
+        }
+
         $item->update([
             'item_classification_id' => $data['item_classification_id'],
             'supplier_id' => $data['supplier_id'],
@@ -199,12 +227,13 @@ class InventoryService
             'item_name' => $data['item_name'],
             'brand' => $data['brand'] ?? null,
             'model' => $data['model'] ?? null,
-            'description' => $data['description'] ?? null,
+            // Prefer per-item descriptions if provided (descriptions[0] mirrors main description)
+            'description' => $data['descriptions'][0] ?? $data['description'] ?? null,
             'quantity' => $data['quantity'],
             'unit' => $data['unit'],
             'unit_cost' => $data['unit_cost'],
             'total_amount' => $totalAmount,
-            'property_number' => $data['property_number'],
+            'property_number' => $propertyNumberToSave,
             'serial_number' => $data['serial_number'],
             'pr_number' => $data['pr_number'],
             'po_number' => $data['po_number'],

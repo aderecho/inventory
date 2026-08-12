@@ -1,6 +1,6 @@
 <script setup>
 import { router } from "@inertiajs/vue3";
-import { watch, ref, computed, onMounted } from "vue";
+import { watch, ref, computed, onMounted, nextTick } from "vue";
 import { debounce } from "lodash";
 
 const props = defineProps({
@@ -10,6 +10,7 @@ const props = defineProps({
     search: { type: String, default: "" },
     status: { type: String, default: "" },
     cost_range: { type: String, default: "" },
+    acknowledgement_status: { type: String, default: "" },
     mode: { type: String, default: "inventory" },
 });
 
@@ -28,17 +29,50 @@ const emit = defineEmits([
 // Local storage for filters & searching
 const storageKey = `filters-${props.mode}`;
 
-onMounted(() => {
+// While true, ref assignments below are restoring state (from localStorage)
+// rather than a user edit, so the per-field watchers must not fire a fetch
+// for them — otherwise every restore triggers a *second*, debounced request
+// on top of the explicit one issued right after restoring.
+let isRestoring = false;
+
+onMounted(async () => {
     const saved = localStorage.getItem(storageKey);
 
     if (!saved) return;
 
     const filters = JSON.parse(saved);
+    const restored = {
+        search: filters.search ?? "",
+        status: filters.status ?? "",
+        cost_range: filters.cost_range ?? "",
+        acknowledgement_status: filters.acknowledgement_status ?? "",
+    };
 
-    search.value = filters.search ?? "";
-    status.value = filters.status ?? "";
-    cost_range.value = filters.cost_range ?? "";
-    acknowledgement_status.value = filters.acknowledgement_status ?? "";
+    // Inertia already rendered `items`/`disposal` for the current URL. If the
+    // saved filters are identical to what's already showing, there is
+    // nothing to restore — skip the fetch entirely instead of firing a
+    // redundant request on every plain page load.
+    const unchanged =
+        restored.search === (search.value ?? "") &&
+        restored.status === (status.value ?? "") &&
+        restored.cost_range === (cost_range.value ?? "") &&
+        restored.acknowledgement_status ===
+            (acknowledgement_status.value ?? "");
+
+    if (unchanged) return;
+
+    isRestoring = true;
+    search.value = restored.search;
+    status.value = restored.status;
+    cost_range.value = restored.cost_range;
+    acknowledgement_status.value = restored.acknowledgement_status;
+
+    // watch() callbacks are queued and flushed as a microtask, not run
+    // synchronously on assignment — nextTick() waits for that flush before
+    // we drop the guard, otherwise it's already false by the time the
+    // watchers actually execute and the double-fetch comes right back.
+    await nextTick();
+    isRestoring = false;
 
     if (props.mode === "inventory") {
         fetchInventory({
@@ -46,6 +80,18 @@ onMounted(() => {
             cost_range: cost_range.value,
             status: status.value,
             acknowledgement_status: acknowledgement_status.value,
+        });
+    } else if (props.mode === "disposal") {
+        fetchDisposalSearch({
+            search: search.value,
+            cost_range: cost_range.value,
+            status: status.value,
+        });
+    } else if (props.mode === "inspection") {
+        fetchInspectionSearch({
+            search: search.value,
+            cost_range: cost_range.value,
+            status: status.value,
         });
     }
 });
@@ -65,6 +111,7 @@ function saveFilters() {
 watch(
     [search, status, cost_range, acknowledgement_status],
     () => {
+        if (isRestoring) return;
         saveFilters();
     },
     { deep: true },
@@ -76,6 +123,7 @@ function fetchInventory(params = {}) {
     router.get("/inventory/items", params, {
         preserveState: true,
         preserveScroll: true,
+        replace: true,
         only: ["items"],
     });
 }
@@ -119,6 +167,26 @@ function fetchReportSearch(params = {}) {
 }
 
 const debouncedFetchReport = debounce(fetchReportSearch, 1000);
+
+//------------------DISPOSAL----------------------
+function fetchDisposalSearch(params = {}) {
+    router.get("/disposal", params, {
+        preserveState: true,
+        replace: true,
+        preserveScroll: true,
+    });
+}
+const debouncedFetchDisposal = debounce(fetchDisposalSearch, 1000);
+
+//------------------INSPECTION----------------------
+function fetchInspectionSearch(params = {}) {
+    router.get("/inspection", params, {
+        preserveState: true,
+        replace: true,
+        preserveScroll: true,
+    });
+}
+const debouncedFetchInspection = debounce(fetchInspectionSearch, 1000);
 
 //------------------SUPPLIERS----------------------
 function fetchSuppliersSearch(searchValue) {
@@ -168,35 +236,54 @@ const debouncedFetchUsers = debounce(fetchUsersSearch, 1000);
 
 //------------------SEARCH WATCHER---------------------
 watch(search, (value) => {
-    if (props.mode === "inventory") {
-        debouncedFetchInventory({
-            search: value,
-            cost_range: cost_range.value,
-            status: status.value,
-            acknowledgement_status: acknowledgement_status.value,
-        });
-    } else if (props.mode === "acknowledgements") {
-        debouncedFetchAcknowledgement(value, cost_range.value, status.value);
-    } else if (props.mode === "transactions") {
-        debouncedFetchTransaction({
-            search: value,
-            cost_range: cost_range.value,
-            status: status.value,
-        });
-    } else if (props.mode === "reports") {
-        debouncedFetchReport({
-            search: value,
-            cost_range: cost_range.value,
-            status: status.value,
-        });
-    } else if (props.mode === "suppliers") {
-        debouncedFetchSuppliers(value);
-    } else if (props.mode === "accountable-person") {
-        debouncedFetchAccountablePerson(value);
-    } else if (props.mode === "categories") {
-        debouncedFetchCategories(value);
-    } else if (props.mode === "users") {
-        debouncedFetchUsers(value, status.value);
+    if (!isRestoring) {
+        if (props.mode === "inventory") {
+            debouncedFetchInventory({
+                search: value,
+                cost_range: cost_range.value,
+                status: status.value,
+                acknowledgement_status: acknowledgement_status.value,
+            });
+        } else if (props.mode === "acknowledgements") {
+            debouncedFetchAcknowledgement(
+                value,
+                cost_range.value,
+                status.value,
+            );
+        } else if (props.mode === "transactions") {
+            debouncedFetchTransaction({
+                search: value,
+                cost_range: cost_range.value,
+                status: status.value,
+            });
+        } else if (props.mode === "reports") {
+            debouncedFetchReport({
+                search: value,
+                cost_range: cost_range.value,
+                status: status.value,
+            });
+        } else if (props.mode === "disposal") {
+            debouncedFetchDisposal({
+                search: value,
+                cost_range: cost_range.value,
+                status: status.value,
+            });
+        } else if (props.mode === "suppliers") {
+            debouncedFetchSuppliers(value);
+        } else if (props.mode === "accountable-person") {
+            debouncedFetchAccountablePerson(value);
+        } else if (props.mode === "categories") {
+            debouncedFetchCategories(value);
+        } else if (props.mode === "users") {
+            debouncedFetchUsers(value, status.value);
+        } else if (props.mode === "inspection") {
+            debouncedFetchInspection({
+                search: value,
+                cost_range: cost_range.value,
+                status: status.value,
+                acknowledgement_status: acknowledgement_status.value,
+            });
+        }
     }
 
     emit("update:search", value);
@@ -204,23 +291,42 @@ watch(search, (value) => {
 
 //--------------------STATUS WATCHER----------------------
 watch(status, (value) => {
-    if (props.mode === "inventory") {
-        debouncedFetchInventory({
-            search: search.value,
-            cost_range: cost_range.value,
-            status: value,
-            acknowledgement_status: acknowledgement_status.value,
-        });
-    } else if (props.mode === "transactions") {
-        debouncedFetchTransaction({
-            search: search.value,
-            cost_range: cost_range.value,
-            status: value,
-        });
-    } else if (props.mode === "acknowledgements") {
-        debouncedFetchAcknowledgement(search.value, cost_range.value, value);
-    } else if (props.mode === "users") {
-        debouncedFetchUsers(search.value, value); // ← add this
+    if (!isRestoring) {
+        if (props.mode === "inventory") {
+            debouncedFetchInventory({
+                search: search.value,
+                cost_range: cost_range.value,
+                status: value,
+                acknowledgement_status: acknowledgement_status.value,
+            });
+        } else if (props.mode === "transactions") {
+            debouncedFetchTransaction({
+                search: search.value,
+                cost_range: cost_range.value,
+                status: value,
+            });
+        } else if (props.mode === "acknowledgements") {
+            debouncedFetchAcknowledgement(
+                search.value,
+                cost_range.value,
+                value,
+            );
+        } else if (props.mode === "disposal") {
+            debouncedFetchDisposal({
+                search: search.value,
+                cost_range: cost_range.value,
+                status: value,
+            });
+        } else if (props.mode === "users") {
+            debouncedFetchUsers(search.value, value);
+        } else if (props.mode === "inspection") {
+            debouncedFetchInspection({
+                search: search.value,
+                cost_range: cost_range.value,
+                status: value,
+                acknowledgement_status: acknowledgement_status.value,
+            });
+        }
     }
 
     emit("update:status", value);
@@ -228,21 +334,36 @@ watch(status, (value) => {
 
 //-----------------COST RANGE WATCHER-------------------------
 watch(cost_range, (value) => {
-    if (props.mode === "inventory") {
-        debouncedFetchInventory({
-            search: search.value,
-            cost_range: value,
-            status: status.value,
-            acknowledgement_status: acknowledgement_status.value,
-        });
-    } else if (props.mode === "transactions") {
-        debouncedFetchTransaction({
-            search: search.value,
-            cost_range: value,
-            status: status.value,
-        });
-    } else if (props.mode === "acknowledgements") {
-        debouncedFetchAcknowledgement(search.value, value, status.value);
+    if (!isRestoring) {
+        if (props.mode === "inventory") {
+            debouncedFetchInventory({
+                search: search.value,
+                cost_range: value,
+                status: status.value,
+                acknowledgement_status: acknowledgement_status.value,
+            });
+        } else if (props.mode === "transactions") {
+            debouncedFetchTransaction({
+                search: search.value,
+                cost_range: value,
+                status: status.value,
+            });
+        } else if (props.mode === "acknowledgements") {
+            debouncedFetchAcknowledgement(search.value, value, status.value);
+        } else if (props.mode === "disposal") {
+            debouncedFetchDisposal({
+                search: search.value,
+                cost_range: value,
+                status: status.value,
+            });
+        } else if (props.mode === "inspection") {
+            debouncedFetchInspection({
+                search: search.value,
+                cost_range: value,
+                status: status.value,
+                acknowledgement_status: acknowledgement_status.value,
+            });
+        }
     }
 
     emit("update:cost_range", value);
@@ -250,8 +371,15 @@ watch(cost_range, (value) => {
 
 //-----------------ACKNOWLEDGEMENT RANGE WATCHER-------------------------
 watch(acknowledgement_status, (value) => {
-    if (props.mode === "inventory") {
+    if (!isRestoring && props.mode === "inventory") {
         debouncedFetchInventory({
+            search: search.value,
+            cost_range: cost_range.value,
+            status: status.value,
+            acknowledgement_status: value,
+        });
+    } else if (!isRestoring && props.mode === "inspection") {
+        debouncedFetchInspection({
             search: search.value,
             cost_range: cost_range.value,
             status: status.value,
@@ -271,12 +399,16 @@ const searchPlaceholder = computed(() => {
             return "Search receipt...";
         case "transactions":
             return "Search";
+        case "disposal":
+            return "Search Item...";
         case "users":
             return "Search user...";
         case "suppliers":
             return "Search supplier...";
         case "categories":
             return "Search categories...";
+        case "inspection":
+            return "Search item...";
         default:
             return "Search item";
     }

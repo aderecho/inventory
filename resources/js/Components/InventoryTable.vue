@@ -53,9 +53,6 @@ function getValue(obj, path) {
 // SELECTABLE ROWS/IDS
 const selectedIDs = ref([...props.selected]);
 
-// Keep in sync when the parent updates the selection externally
-// (e.g. removing an item from a "selected items" panel, or clearing
-// selection after a create/edit/archive/filter change).
 watch(
     () => props.selected,
     (val) => {
@@ -69,13 +66,6 @@ watch(
         }
     },
 );
-
-// NOTE: We intentionally do NOT watch `props.rows` to auto-clear the
-// selection anymore. `props.rows` gets a new reference on every page
-// navigation (pagination), which previously wiped out the selection
-// whenever the user moved between pages. Selection should only be
-// cleared explicitly by the parent (e.g. after submit/archive/filter
-// change), which it can do by updating the `selected` prop.
 
 const allSelected = computed(() => {
     return (

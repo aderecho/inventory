@@ -21,6 +21,8 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\SamlMetadataController;
 use App\Http\Controllers\SamlSpController;
 use App\Http\Controllers\AuditLogsController;
+use App\Http\Controllers\DisposalController;
+use App\Http\Controllers\InspectionController;
 use App\Http\Controllers\SamlConfigurationController;
 use App\Http\Controllers\Auth\GoogleController;
 use Illuminate\Http\Request;
@@ -29,7 +31,7 @@ use Inertia\Inertia;
 
 Route::get('/saml2/metadata', SamlMetadataController::class)->name('saml.metadata');
 Route::get('/saml2/login', [SamlSpController::class, 'redirectToIdp'])->name('saml.login');
-Route::get('/saml2/acs', fn () => redirect()->route('saml.login'))->name('saml.acs.start');
+Route::get('/saml2/acs', fn() => redirect()->route('saml.login'))->name('saml.acs.start');
 Route::post('/saml2/acs', [SamlSpController::class, 'acs'])->name('saml.acs');
 Route::match(['GET', 'POST'], '/saml2/logout', [SamlSpController::class, 'logout'])->name('saml.logout');
 Route::get('/saml2/user-not-found', function (Request $request) {
@@ -57,15 +59,26 @@ Route::get('/embed/dashboard/{token}', [EmbedDashboardController::class, 'show']
     ->middleware('throttle:60,1')
     ->name('embed.dashboard');
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'check.session.timeout'])->get('/test-logout', function () {
+    return response()->json([
+        'authenticated' => auth()->check(),
+        'message' => 'If you see this, middleware passed. Wait 1+ min and refresh this page.',
+    ]);
+})->name('test.logout');
+
+// All authenticated routes with session timeout check
+Route::middleware(['auth', 'check.session.timeout'])->group(function () {
+
+    Route::get('/session/ping', function (Request $request) {
+        return response()->json([
+            'success' => true,
+        ]);
+    })->name('session.ping');
+    // User Dashboard
     Route::get('/user/dashboard', [UserController::class, 'index'])->name('user.dashboard');
-});
 
-Route::middleware(['auth'])->group(function () {
+    // Logout
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-});
-
-Route::middleware(['auth'])->group(function () {
 
     // Update Profile
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -116,6 +129,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/items/{id}', [InventoryController::class, 'destroy'])->middleware('can:delete inventory')->name('items.destroy');
     Route::middleware('can:print inventory')->group(function () {
         Route::post('/inventory/qr-pngs', [InventoryController::class, 'downloadQrPngs'])->name('inventory.qr.pngs');
+        Route::post('/inventory/qr-pdfs', [InventoryController::class, 'downloadQrPdfs'])->name('inventory.qr.pdfs');
         Route::post('/print/receipt', [PrintController::class, 'printReceipt'])->name('print.receipt');
     });
     Route::middleware('can:import inventory')->group(function () {
@@ -144,27 +158,43 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/{id}', [Categories::class, 'update'])->middleware('can:edit categories')->name('categories.update');
         Route::delete('/{id}', [Categories::class, 'destroy'])->middleware('can:delete categories')->name('categories.destroy');
 
-            // Categories Archive
+        // Categories Archive
         Route::middleware('can:view categories')->get('/archive', [CategoriesArchiveController::class, 'index'])->name('categories.archive.index');
         Route::patch('/{id}/archive', [CategoriesArchiveController::class, 'restore'])->name('categories.restore');
         Route::delete('/{id}/force-delete', [CategoriesArchiveController::class, 'forceDelete'])->name('categories.forceDelete');
     });
 
+    // Disposal
+    Route::prefix('disposal')->group(function () {
+        Route::get('/', [DisposalController::class, 'index'])->name('disposal.index');
+    });
+
+    // Inspection Items
+    Route::prefix('inspection')->group(function () {
+        Route::get('/', [InspectionController::class, 'index'])->name('inspection.index');
+        Route::post('/', [InspectionController::class, 'store'])->name('inspection.store');
+        Route::get('/item/{itemId}/history', [InspectionController::class, 'getItemInspectionHistory'])->name('inspection.history');
+        Route::get('/stats', [InspectionController::class, 'getStats'])->name('inspection.stats');
+    });
+
+    Route::prefix('asset-conditions')->group(function () {
+        Route::get('/', [InspectionController::class, 'getConditions'])->name('asset-conditions.index');
+        Route::post('/', [InspectionController::class, 'storeCondition'])->name('asset-conditions.store');
+        Route::delete('/asset-conditions/{assetCondition}', [InspectionController::class, 'destroyCondition'])
+            ->name('asset-conditions.destroy');
+    });
+
     // Acknowledgements
     Route::prefix('acknowledgements')->group(function () {
-        Route::get('/',             [AcknowledgementController::class, 'index'])->middleware('can:view acknowledgements')->name('acknowledgements.index');
-        Route::get('/{id}',         [AcknowledgementController::class, 'show'])->middleware('can:show acknowledgements')->name('acknowledgements.show');
+        Route::get('/', [AcknowledgementController::class, 'index'])->middleware('can:view acknowledgements')->name('acknowledgements.index');
+        Route::get('/{id}', [AcknowledgementController::class, 'show'])->middleware('can:show acknowledgements')->name('acknowledgements.show');
         Route::post('/upload-file', [AcknowledgementController::class, 'uploadFile'])->middleware('can:upload acknowledgements')->name('acknowledgements.upload-file');
     });
 
     // Item Location Histories
     Route::prefix('item-histories')->group(function () {
-        Route::get('/',      [ItemLocationHistoryController::class, 'index'])
-            ->name('item-histories.index');
-
-        Route::get('/{id}',  [ItemLocationHistoryController::class, 'show'])
-            ->middleware('can:show item histories')
-            ->name('item-histories.show');
+        Route::get('/', [ItemLocationHistoryController::class, 'index'])->name('item-histories.index');
+        Route::get('/{id}', [ItemLocationHistoryController::class, 'show'])->middleware('can:show item histories')->name('item-histories.show');
     });
 
     // Reports
@@ -177,8 +207,7 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/{user}', [UserManagementController::class, 'update'])->middleware('can:edit users')->name('user_management.update');
         Route::delete('/{user}', [UserManagementController::class, 'destroy'])->middleware('can:delete users')->name('user_management.destroy');
     });
-    Route::put('/users/{user}/permissions', [RolePermissionController::class, 'updateUserPermissions'])
-        ->name('user_management.permissions');
+    Route::put('/users/{user}/permissions', [RolePermissionController::class, 'updateUserPermissions'])->name('user_management.permissions');
 
     // Roles & Permissions
     Route::middleware('can:create roles')->group(function () {

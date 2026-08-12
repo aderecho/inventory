@@ -32,6 +32,8 @@ class InventoryUpdateRequest extends FormRequest
             'brand' => 'nullable|string|max:255',
             'model' => 'nullable|string|max:255',
             'description' => 'nullable|string',
+            'descriptions' => 'nullable|array',
+            'descriptions.*' => 'nullable|string',
             'quantity' => 'required|integer',
             'unit' => 'required|string|max:50',
             'unit_cost' => 'required|numeric',

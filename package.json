@@ -36,10 +36,12 @@
         "lucide-vue-next": "^1.0.0",
         "primeicons": "^7.0.0",
         "primevue": "^4.5.4",
+        "puppeteer": "^25.5.0",
         "reka-ui": "^2.10.0",
         "tailwind-merge": "^3.6.0",
         "tailwindcss-animate": "^1.0.7",
         "vue-chartjs": "^5.3.3",
-        "vue3-select-component": "^1.0.0"
+        "vue3-select-component": "^1.0.0",
+        "vuedraggable": "^4.1.0"
     }
 }

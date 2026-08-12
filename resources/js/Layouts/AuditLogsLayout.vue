@@ -3,7 +3,7 @@ import SideBar from "@/Components/SideBar.vue";
 import NavHeader from "@/Components/NavHeader.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import LoadingOverlay from "@/Components/LoadingOverlay.vue";
-
+import SessionTimeoutWarning from "@/Components/SessionTimeoutWarning.vue";
 import { useSidebar } from "@/Composables/useSidebar";
 import { useLoading } from "@/Composables/useLoading";
 
@@ -36,6 +36,7 @@ const getModelName = (subjectType) => {
 </script>
 
 <template>
+     <SessionTimeoutWarning />
     <LoadingOverlay
         :show="isLoading"
         :title="loadingTitle"

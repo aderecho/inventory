@@ -1,10 +1,12 @@
 <script setup>
 import { useForm, usePage } from "@inertiajs/vue3";
-import { computed, watch, ref } from "vue";
+import { computed, watch, ref, nextTick } from "vue";
 import Toast from "primevue/toast";
 import { useToast } from "primevue/usetoast";
 import Multiselect from "@vueform/multiselect";
 import "/node_modules/@vueform/multiselect/themes/default.css";
+import draggable from "vuedraggable";
+import SessionTimeoutWarning from "@/Components/SessionTimeoutWarning.vue";
 
 const props = defineProps({
     mode: { type: String, default: "create" },
@@ -49,6 +51,7 @@ const form = useForm({
     property_number: "",
     serial_numbers: [], // FOR ADD ITEM
     serial_number: "", // FOR EDIT ITEM
+    descriptions: [], // per-item descriptions (descriptions[0] mirrors `description`)
     pr_number: "",
     po_number: "",
     remarks: "",
@@ -58,6 +61,7 @@ const form = useForm({
 });
 
 const isEditing = ref(false);
+const separateDescriptions = ref(false);
 
 const calculateTotalAmount = () => {
     const qty = Number(form.quantity) || 0;
@@ -114,7 +118,13 @@ watch(
         form.unit = item.unit ?? "";
         form.unit_cost = item.unit_cost ?? 0;
         form.total_amount = item.total_amount ?? 0;
-        form.property_number = item.property_number ?? "";
+        // If the API provided a full property number (with -NNN), store only the prefix
+        if (item.property_number) {
+            const m = String(item.property_number).match(/^(.*)-(\d{3})$/);
+            form.property_number = m ? m[1] + "-" : item.property_number;
+        } else {
+            form.property_number = "";
+        }
         form.serial_number = item.serial_number ?? [];
         form.pr_number = item.pr_number ?? "";
         form.po_number = item.po_number ?? "";
@@ -133,19 +143,125 @@ watch(
     (newVal) => {
         if (props.mode !== "create") return;
 
-        const qty = parseInt(newVal);
+        const qty = parseInt(newVal) || 0;
 
-        if (!qty || qty <= 0) {
+        if (qty <= 0) {
             form.serial_numbers = [];
+            form.descriptions = [];
             return;
         }
 
+        // Ensure arrays match the quantity. Keep existing values when present.
         form.serial_numbers = Array.from(
             { length: qty },
-            (_, i) => form.serial_numbers[i] || "",
+            (_, i) => form.serial_numbers[i] ?? "",
         );
+
+        if (separateDescriptions.value) {
+            form.descriptions = Array.from({ length: qty }, (_, i) => {
+                if (form.descriptions && form.descriptions[i] !== undefined)
+                    return form.descriptions[i];
+                return i === 0 ? form.description || "" : "";
+            });
+        } else {
+            // Shared mode: replicate main description across all items but keep fields visible
+            form.descriptions = Array.from(
+                { length: qty },
+                () => form.description || "",
+            );
+        }
     },
     { immediate: true },
+);
+
+// Keep the main description and descriptions[0] in sync
+watch(
+    () => form.description,
+    (val) => {
+        form.descriptions = form.descriptions || [];
+        form.descriptions[0] = val;
+        if (!separateDescriptions.value) {
+            const qty = parseInt(form.quantity) || 1;
+            form.descriptions = Array.from({ length: qty }, () => val || "");
+        }
+    },
+);
+
+watch(separateDescriptions, (val) => {
+    const qty = parseInt(form.quantity) || 1;
+    if (!val) {
+        // turning OFF separate descriptions -> replicate main description
+        form.descriptions = Array.from(
+            { length: qty },
+            () => form.description || "",
+        );
+    } else {
+        // turning ON separate descriptions -> ensure array length and preserve existing values
+        form.descriptions = Array.from(
+            { length: qty },
+            (_, i) =>
+                form.descriptions[i] ?? (i === 0 ? form.description || "" : ""),
+        );
+    }
+});
+
+watch(
+    () => form.descriptions && form.descriptions[0],
+    (val) => {
+        if (val !== form.description) form.description = val || "";
+    },
+);
+
+function getPropertyNumberFor(index) {
+    const prefix = form.property_number || "";
+    return `${prefix}${String(index + 1).padStart(3, "0")}`;
+}
+
+const propertyEditing = ref(false);
+const propertyInput = ref("");
+
+const displayPropertyValue = computed(() => {
+    if (propertyEditing.value) return propertyInput.value;
+    return getPropertyNumberFor(0);
+});
+
+function startEditingProperty() {
+    propertyEditing.value = true;
+    propertyInput.value = (form.property_number || "").replace(/-$/, "");
+}
+
+function onPropertyInput(e) {
+    propertyInput.value = e.target.value || "";
+}
+
+function finishEditingProperty() {
+    propertyEditing.value = false;
+    const v = propertyInput.value || "";
+    form.property_number = v === "" ? "" : v.endsWith("-") ? v : v + "-";
+}
+
+function autoResize(e) {
+    const el = e.target;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+}
+
+function resizeAllDescriptions() {
+    nextTick(() => {
+        document.querySelectorAll(".auto-resize-textarea").forEach((el) => {
+            el.style.height = "auto";
+            el.style.height = `${el.scrollHeight}px`;
+        });
+    });
+}
+
+watch(
+    () => form.descriptions,
+    () => {
+        resizeAllDescriptions();
+    },
+    { deep: true, immediate: true },
 );
 
 const propertyNumberSuffix = computed(() => {
@@ -261,9 +377,187 @@ function getFilteredOptions(fdp) {
         ),
     );
 }
+
+const initialSerialRaw = ref(""); // controlled display value for the initial serial input
+
+function countSerialTokens(raw) {
+    return raw.split(/[\s,]+/).filter(Boolean).length;
+}
+
+// Truncates raw text so it never contains more than `qty` comma/space-separated tokens
+function enforceSerialLimit(raw, qty) {
+    const tokens = countSerialTokens(raw);
+    if (tokens <= qty) return raw; // still under the cap, allow typing (incl. trailing separator)
+
+    // Walk through raw and cut right after the qty-th token
+    const re = /[^\s,]+/g;
+    let match;
+    let count = 0;
+    let cutIndex = raw.length;
+
+    while ((match = re.exec(raw)) !== null) {
+        count++;
+        if (count === qty) {
+            cutIndex = match.index + match[0].length;
+            break;
+        }
+    }
+    return raw.slice(0, cutIndex);
+}
+
+function onInitialSerialInput(e) {
+    const qty = parseInt(form.quantity) || 1;
+    const limited = enforceSerialLimit(e.target.value, qty);
+    initialSerialRaw.value = limited;
+
+    // If we truncated, force the DOM input back in sync (blocks the extra keystroke visually too)
+    if (limited !== e.target.value) {
+        nextTick(() => {
+            e.target.value = limited;
+        });
+    }
+}
+
+function incrementSerial(base, offset) {
+    const match = String(base).match(/^(.*?)(\d+)$/);
+    if (!match) return `${base}-${offset + 1}`;
+    const [, prefix, numStr] = match;
+    const next = parseInt(numStr, 10) + offset;
+    return `${prefix}${String(next).padStart(numStr.length, "0")}`;
+}
+
+function parseSerialParts(raw) {
+    return raw
+        .split(/[\s,]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+}
+
+// Rebuild form.serial_numbers whenever the raw initial input or quantity changes
+watch(
+    () => [initialSerialRaw.value, form.quantity],
+    () => {
+        const qty = parseInt(form.quantity) || 1;
+        const raw = initialSerialRaw.value || "";
+
+        if (/[\s,]/.test(raw.trim())) {
+            const parts = parseSerialParts(raw);
+            form.serial_numbers = Array.from(
+                { length: qty },
+                (_, i) => parts[i] ?? "",
+            );
+        } else {
+            form.serial_numbers = Array.from({ length: qty }, (_, i) =>
+                i === 0 ? raw : raw ? incrementSerial(raw, i) : "",
+            );
+        }
+    },
+);
+
+watch(
+    () => [initialSerialRaw.value, form.quantity],
+    () => {
+        const qty = parseInt(form.quantity) || 1;
+        const raw = initialSerialRaw.value || "";
+
+        const parts = parseSerialParts(raw);
+        // index 0 = first typed value, rest come only from comma/space separated entries
+        // if the user typed a single value with no separators, everything past index 0 stays blank
+        form.serial_numbers = Array.from(
+            { length: qty },
+            (_, i) => parts[i] ?? "",
+        );
+    },
+);
+
+const serialInputText = ref(""); // what's currently being typed, not yet committed as a badge
+
+function commitSerialToken() {
+    const qty = parseInt(form.quantity) || 1;
+    const val = serialInputText.value.trim();
+    if (!val) return;
+
+    const current = form.serial_numbers.filter(Boolean);
+    if (current.length >= qty) {
+        serialInputText.value = ""; // at cap, discard
+        return;
+    }
+
+    form.serial_numbers = Array.from({ length: qty }, (_, i) =>
+        i < current.length ? current[i] : i === current.length ? val : "",
+    );
+    serialInputText.value = "";
+}
+
+function onSerialKeydown(e) {
+    if (e.key === "Enter" || e.key === "," || e.key === " ") {
+        e.preventDefault();
+        commitSerialToken();
+    } else if (e.key === "Backspace" && !serialInputText.value) {
+        // backspace on empty input removes the last badge
+        removeSerialAt(form.serial_numbers.filter(Boolean).length - 1);
+    }
+}
+
+function removeSerialAt(index) {
+    const qty = parseInt(form.quantity) || 1;
+    const current = form.serial_numbers.filter(Boolean);
+    if (index < 0 || index >= current.length) return;
+    current.splice(index, 1);
+    form.serial_numbers = Array.from(
+        { length: qty },
+        (_, i) => current[i] ?? "",
+    );
+}
+
+// Wrapper so vuedraggable can bind v-model to only the filled badges, then we pad back to qty on change
+const serialBadges = computed({
+    get: () =>
+        form.serial_numbers
+            .filter(Boolean)
+            .map((val, i) => ({ id: i + "-" + val, val })),
+    set: (newList) => {
+        const qty = parseInt(form.quantity) || 1;
+        const vals = newList.map((b) => b.val);
+        form.serial_numbers = Array.from(
+            { length: qty },
+            (_, i) => vals[i] ?? "",
+        );
+    },
+});
+
+function onSerialPaste(e) {
+    e.preventDefault();
+    const qty = parseInt(form.quantity) || 1;
+    const pasted = (e.clipboardData || window.clipboardData).getData("text");
+
+    const newTokens = pasted
+        .split(/[\s,]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    if (newTokens.length === 0) return;
+
+    const current = form.serial_numbers.filter(Boolean);
+    const combined = [...current, ...newTokens].slice(0, qty);
+    form.serial_numbers = Array.from(
+        { length: qty },
+        (_, i) => combined[i] ?? "",
+    );
+    serialInputText.value = "";
+
+    if (current.length + newTokens.length > qty) {
+        toast.add({
+            severity: "warn",
+            summary: "Serial limit reached",
+            detail: `Only ${qty} serial(s) allowed for the current quantity. Extra entries were discarded.`,
+            life: 4000,
+        });
+    }
+}
 </script>
 
 <template>
+    <SessionTimeoutWarning />
     <div
         class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
         @click="closeWithAnimation"
@@ -412,26 +706,30 @@ function getFilteredOptions(fdp) {
                                                     'property_number'
                                                 "
                                                 :class="[
-                                                    'flex items-center w-full sm:w-[15.7rem] rounded-md border bg-[#F8F8F8] focus-within:ring-1',
+                                                    'w-full sm:w-[15.7rem] rounded-md',
                                                     form.errors[fif.model]
-                                                        ? 'border-red-500 focus-within:ring-red-500 focus-within:border-red-500'
-                                                        : 'border-gray-300 focus-within:ring-[#005740] focus-within:border-[#005740]',
+                                                        ? 'border-red-500 border focus-within:ring-red-500'
+                                                        : 'border-gray-300',
                                                 ]"
                                             >
                                                 <input
                                                     type="text"
-                                                    v-model="form[fif.model]"
+                                                    :value="
+                                                        displayPropertyValue
+                                                    "
+                                                    @focus="
+                                                        startEditingProperty
+                                                    "
+                                                    @input="onPropertyInput"
+                                                    @blur="
+                                                        finishEditingProperty
+                                                    "
                                                     :placeholder="
                                                         fif.placeholder
                                                     "
                                                     :required="fif.required"
-                                                    class="flex-1 min-w-0 rounded-l-md px-3 py-3 bg-transparent text-[#3B3B3B] text-sm focus:outline-none"
+                                                    class="w-full rounded-md px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:outline-none"
                                                 />
-                                                <span
-                                                    class="px-3 py-3 text-gray-400 text-sm font-mono select-none border-l border-gray-300 whitespace-nowrap"
-                                                >
-                                                    {{ propertyNumberSuffix }}
-                                                </span>
                                             </div>
 
                                             <!-- Every other first-input-field, unchanged -->
@@ -598,26 +896,75 @@ function getFilteredOptions(fdp) {
                                             </div>
                                         </div>
                                     </div>
-                                    <!-- SERIAL NUMBERS -->
-                                    <div
-                                        v-if="form.quantity > 0"
-                                        class="flex flex-col gap-2"
-                                    >
-                                        <div
-                                            v-for="(
-                                                sn, index
-                                            ) in form.serial_numbers"
-                                            :key="index"
+                                    <!-- INITIAL SERIAL NUMBER (first item) -->
+                                    <div class="flex flex-col gap-2">
+                                        <label
+                                            class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
                                         >
+                                            Serial Number
+                                        </label>
+
+                                        <div
+                                            class="w-full sm:w-[32rem] min-h-[3rem] rounded-md border border-gray-300 bg-[#F8F8F8] px-2 py-2 flex flex-wrap gap-1.5 items-center focus-within:ring-1 focus-within:ring-[#005740] focus-within:border-[#005740]"
+                                        >
+                                            <draggable
+                                                v-model="serialBadges"
+                                                item-key="id"
+                                                class="flex flex-wrap gap-1.5"
+                                                :animation="150"
+                                                ghost-class="serial-badge-ghost"
+                                            >
+                                                <template
+                                                    #item="{ element, index }"
+                                                >
+                                                    <span
+                                                        class="inline-flex items-center gap-1 bg-[#005740] text-white text-xs font-medium px-2 py-1 rounded-full cursor-grab active:cursor-grabbing select-none"
+                                                    >
+                                                        {{ element.val }}
+                                                        <button
+                                                            type="button"
+                                                            @click="
+                                                                removeSerialAt(
+                                                                    index,
+                                                                )
+                                                            "
+                                                            class="hover:bg-white/20 rounded-full h-4 w-4 flex items-center justify-center"
+                                                        >
+                                                            <i
+                                                                class="fa-solid fa-xmark text-[10px]"
+                                                            ></i>
+                                                        </button>
+                                                    </span>
+                                                </template>
+                                            </draggable>
+
                                             <input
-                                                v-model="
-                                                    form.serial_numbers[index]
-                                                "
+                                                v-model="serialInputText"
+                                                @keydown="onSerialKeydown"
+                                                @paste="onSerialPaste"
+                                                @blur="commitSerialToken"
                                                 type="text"
-                                                :placeholder="`SER-${String(index + 1).padStart(3, '0')}`"
-                                                class="w-full sm:w-[32rem] rounded-md border border-gray-300 px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:ring-[#005740] focus:outline-none focus:border-[#005740]"
+                                                :placeholder="
+                                                    form.serial_numbers.filter(
+                                                        Boolean,
+                                                    ).length === 0
+                                                        ? 'Type SER-001 then press space/comma/enter'
+                                                        : ''
+                                                "
+                                                class="flex-1 min-w-[8rem] bg-transparent text-sm text-[#3B3B3B] focus:outline-none py-1"
                                             />
                                         </div>
+
+                                        <p class="text-xs text-gray-400">
+                                            {{
+                                                form.serial_numbers.filter(
+                                                    Boolean,
+                                                ).length
+                                            }}/{{
+                                                parseInt(form.quantity) || 1
+                                            }}
+                                            serials entered — drag to reorder
+                                        </p>
                                     </div>
 
                                     <!-- ITEM NAME / BRAND / MODEL -->
@@ -721,8 +1068,50 @@ function getFilteredOptions(fdp) {
                                         <textarea
                                             v-model="form.description"
                                             placeholder="Input a description"
-                                            class="w-full sm:w-[32rem] h-32 rounded-md border border-gray-300 px-3 py-2 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:ring-[#005740] focus:outline-none focus:border-[#005740]"
+                                            @input="autoResize"
+                                            class="auto-resize-textarea w-full sm:w-[32rem] rounded-md border border-gray-300 px-3 py-2 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:ring-[#005740] focus:outline-none focus:border-[#005740] resize-none overflow-hidden"
+                                            rows="2"
                                         ></textarea>
+
+                                        <div
+                                            class="flex items-center gap-3 mt-2"
+                                        >
+                                            <label
+                                                class="text-xs font-semibold text-gray-500 uppercase tracking-wide"
+                                                >Separate descriptions</label
+                                            >
+                                            <button
+                                                type="button"
+                                                @click="
+                                                    separateDescriptions =
+                                                        !separateDescriptions
+                                                "
+                                                class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none"
+                                                :class="
+                                                    separateDescriptions
+                                                        ? 'bg-[#005740]'
+                                                        : 'bg-gray-300'
+                                                "
+                                            >
+                                                <span
+                                                    class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-300"
+                                                    :class="
+                                                        separateDescriptions
+                                                            ? 'translate-x-6'
+                                                            : 'translate-x-1'
+                                                    "
+                                                />
+                                            </button>
+                                            <span
+                                                class="text-sm text-gray-500"
+                                                >{{
+                                                    separateDescriptions
+                                                        ? "Per item editable"
+                                                        : "Shared (mirrored)"
+                                                }}</span
+                                            >
+                                        </div>
+
                                         <div
                                             v-if="form.errors.description"
                                             class="text-red-500 text-xs mt-1"
@@ -945,6 +1334,68 @@ function getFilteredOptions(fdp) {
                                             : "Public"
                                     }}
                                 </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- List of items -->
+                    <div
+                        v-if="parseInt(form.quantity) > 1"
+                        class="px-6 pb-4 border-t"
+                    >
+                        <p
+                            class="text-sm font-semibold text-gray-600 mb-2 mt-5"
+                        >
+                            List of Items
+                        </p>
+
+                        <div
+                            v-for="(_, idx) in form.serial_numbers"
+                            :key="idx"
+                            class="grid grid-cols-12 gap-2 items-start mb-2"
+                        >
+                            <div class="col-span-3">
+                                <label class="text-xs text-gray-500 uppercase">
+                                    Property No.
+                                </label>
+                                <input
+                                    type="text"
+                                    :value="getPropertyNumberFor(idx)"
+                                    readonly
+                                    class="w-full rounded-md px-3 py-2 bg-gray-100 text-sm border"
+                                />
+                            </div>
+
+                            <div class="col-span-6">
+                                <label class="text-xs text-gray-500 uppercase">
+                                    Description
+                                </label>
+                                <textarea
+                                    v-model="form.descriptions[idx]"
+                                    :readonly="!separateDescriptions"
+                                    placeholder="Input description"
+                                    @input="autoResize"
+                                    :class="[
+                                        'auto-resize-textarea w-full rounded-md px-3 py-2 text-sm border resize-none overflow-hidden',
+                                        !separateDescriptions
+                                            ? 'bg-gray-100 text-gray-600'
+                                            : 'bg-[#F8F8F8] text-[#3B3B3B] border-gray-300 focus:ring-1 focus:ring-[#005740]',
+                                    ]"
+                                    rows="2"
+                                ></textarea>
+                            </div>
+
+                            <div class="col-span-3">
+                                <label class="text-xs text-gray-500 uppercase">
+                                    Serial No.
+                                </label>
+                                <input
+                                    :value="form.serial_numbers[idx]"
+                                    type="text"
+                                    disabled
+                                    placeholder="—"
+                                    class="w-full rounded-md px-3 py-2 bg-gray-100 text-gray-400 text-sm border cursor-not-allowed"
+                                />
                             </div>
                         </div>
                     </div>

@@ -2,431 +2,812 @@
 <html lang="en">
 
 <head>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
     <title>Inventory Custodian Slip</title>
 
     <style>
         @page {
-            size: A4;
+            size: A4 portrait;
             margin: 0;
         }
 
         * {
             box-sizing: border-box;
+        }
+
+        html,
+        body {
             margin: 0;
             padding: 0;
+            width: 210mm;
+            min-height: 297mm;
+            background: #fff;
         }
 
         body {
-            font-family: "Times New Roman", serif;
-            font-size: 11pt;
-            background: #fff;
+            font-family: "Times New Roman", Times, serif;
             color: #000;
+            font-size: 10pt;
         }
 
-        /* A4 PAGE */
-        .a4-page {
+        .page {
             width: 210mm;
-            height: 297mm;
+            min-height: 297mm;
+            padding: 12mm 10mm;
             margin: 0 auto;
-            background: #fff;
-            position: relative;
-            overflow: hidden;
-            outline: 1px solid #000;
-            /* ✅ USE OUTLINE, NOT BORDER */
         }
 
-        /* CONTENT */
-        .content-area {
-            padding: 15mm 20mm 32mm 20mm;
-            /* 🔽 reduced bottom */
-        }
+        /* =========================
+           HEADER
+        ========================= */
 
-        /* HEADER */
         .header {
-            display: table;
             width: 100%;
-            margin-bottom: 6mm;
-            /* 🔽 */
-            table-layout: fixed;
+            margin-bottom: 5mm;
+            position: relative;
         }
 
-        .header-left,
-        .header-center,
-        .header-right {
-            display: table-cell;
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .header-table td {
+            border: none;
             vertical-align: middle;
-            text-align: center;
+            padding: 0;
         }
 
-        .header-left,
-        .header-right {
+        .logo-cell {
             width: 25%;
+            text-align: left;
+        }
+
+        .logo-cell img {
+            width: 30mm;
+            height: auto;
+            object-fit: contain;
         }
 
         .header-center {
             width: 50%;
+            text-align: center;
         }
 
-        .header img {
-            max-width: 140px;
-            /* 🔽 logo size */
+        .header-center .republic {
+            font-size: 8.5pt;
+            margin-bottom: 1mm;
         }
 
-        .header-center h1 {
-            font-size: 14pt;
-            font-weight: bold;
-        }
-
-        .header-center p {
-            font-size: 10pt;
-        }
-
-        .header-center h2 {
-            font-size: 12pt;
+        .header-center .university {
+            font-size: 11pt;
             font-weight: bold;
             text-transform: uppercase;
         }
 
-        /* TITLE */
-        .title-header {
-            text-align: center;
-            margin: 6mm 0 10mm 0;
-            /* space above & below */
+        .header-center .campus {
+            font-size: 8.5pt;
+            margin-top: 1mm;
         }
 
-        .title-header h1 {
+        .right-logo {
+            width: 25%;
+            text-align: right;
+        }
+
+        .right-logo img {
+            width: 25mm;
+            height: auto;
+            object-fit: contain;
+        }
+
+        .title {
+            text-align: center;
+            margin-top: 3mm;
+            margin-bottom: 5mm;
+        }
+
+        .title h1 {
             font-size: 12pt;
             font-weight: bold;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.2px;
         }
 
-        /* META */
-        .meta-section {
-            margin-bottom: 3mm;
-        }
+        /* =========================
+           ENTITY / ICS INFORMATION
+        ========================= */
 
         .meta-table {
             width: 100%;
-            font-size: 12pt;
             border-collapse: collapse;
+            margin-bottom: 2mm;
         }
 
         .meta-table td {
-            padding: 4px 0;
-            vertical-align: top;
-            line-height: 1.6;
-            /* 👈 spacing between Entity Name / Fund Cluster */
+            vertical-align: bottom;
+            font-size: 10pt;
+            padding: 1px 0;
         }
 
-        .meta-table td span {
-            color: #363636;
+        .entity {
+            width: 65%;
         }
 
-        /* spacing between left (Entity) and right (PAR / Date) */
-        .meta-table td:first-child {
-            padding-right: 10mm;
+        .ics-number {
+            width: 35%;
+            text-align: right;
+            white-space: nowrap;
         }
 
+        /* =========================
+           MAIN INVENTORY TABLE
+        ========================= */
 
-        /* TABLE */
-        .ics-table {
+        .inventory-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 10.5pt;
-            /* margin-bottom: 5mm; */
-            /* 🔽 */
+            table-layout: fixed;
         }
 
-        .ics-table th,
-        .ics-table td {
+        .inventory-table th,
+        .inventory-table td {
             border: 1px solid #000;
-            padding: 3px;
+        }
+
+        .inventory-table th {
+            font-weight: bold;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .inventory-table td {
+            vertical-align: middle;
+        }
+
+        /* COLUMN WIDTHS */
+
+        .col-quantity {
+            width: 7%;
+        }
+
+        .col-unit {
+            width: 6%;
+        }
+
+        .col-unit-cost {
+            width: 9%;
+        }
+
+        .col-total-cost {
+            width: 10%;
+        }
+
+        .col-description {
+            width: 36%;
+        }
+
+        .col-item-no {
+            width: 9%;
+        }
+
+        .col-property {
+            width: 13%;
+        }
+
+        .col-life {
+            width: 10%;
+        }
+
+        /* =========================
+           TABLE HEADER
+        ========================= */
+
+        .header-row-1 th {
+            height: 12mm;
+            font-size: 9pt;
+        }
+
+        .header-row-2 th {
+            height: 12mm;
+            font-size: 9pt;
+        }
+
+        .quantity-header {
+            font-size: 9pt;
+            line-height: 1.1;
+        }
+
+        .unit-header {
+            font-size: 9pt;
+        }
+
+        .amount-header {
+            height: 7mm !important;
+            font-size: 9pt;
+        }
+
+        .description-header {
+            font-size: 9pt;
+        }
+
+        .property-header {
+            line-height: 1.1;
+        }
+
+        .life-header {
+            line-height: 1.1;
+        }
+
+        /* =========================
+           PURCHASE REQUEST ROW
+        ========================= */
+
+        .pr-row td {
+            height: 7mm;
+            text-align: center;
+            font-weight: bold;
+            font-size: 9pt;
+        }
+
+        /* =========================
+           ITEM ROWS
+        ========================= */
+
+        .item-row td {
+            padding: 2mm 1.5mm;
+            font-size: 9pt;
+        }
+
+        .center {
             text-align: center;
         }
 
-        .ics-table td:nth-child(5) {
+        .description {
             text-align: left;
-            padding-left: 5px;
+            vertical-align: top !important;
+            line-height: 1.25;
+            padding-left: 2mm !important;
+            padding-right: 2mm !important;
         }
 
-        /* PURCHASE INFO */
-        .purchase-section {
-            width: 100%;
+        .description strong {
+            font-weight: bold;
         }
 
-        /* TABLE */
+        .serial {
+            font-weight: bold;
+        }
+
+        .cost {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        /* =========================
+           NOTHING FOLLOWS
+        ========================= */
+
+        .nothing-row td {
+            height: 7mm;
+            text-align: center;
+            font-size: 9pt;
+        }
+
+        /* =========================
+           PURCHASE INFORMATION
+        ========================= */
+
         .purchase-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 10.5pt;
+            table-layout: fixed;
         }
 
         .purchase-table td {
             border: 1px solid #000;
-            border-top: none;
-            height: 35 mm;
-            padding: 6px;
             vertical-align: top;
         }
 
-        /* FLEX INSIDE THE CELL */
         .purchase-info {
-            display: flex;
-            flex-direction: column;
-            gap: 2mm;
+            width: 55%;
+            padding: 3mm;
+            font-size: 9pt;
+            line-height: 1.8;
         }
 
-        .purchase-info .label {
+        .purchase-empty {
+            width: 45%;
+        }
+
+        .purchase-line {
+            margin-bottom: 1mm;
+        }
+
+        .label {
             font-weight: bold;
         }
 
-        .purchase-info .value {
-            margin-left: 0;
+        /* =========================
+           REMARKS / LOCATION
+        ========================= */
+
+        .remarks-location {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
         }
 
-        .purchase-info>div {
-            display: flex;
-            gap: 2mm;
+        .remarks-location td {
+            width: 50%;
+            height: 8mm;
+            border: 1px solid #000;
+            padding: 1.5mm;
+            font-size: 9pt;
+            vertical-align: top;
         }
 
-        .purchase-info h2 {
-            font-size: 10.5pt;
-        }
-
-        .purchase-second-content {
-            margin-top: 1em;
-        }
-
-        .purchase-right-content {
-            padding: 10px;
-        }
-
-        .second-right-content {
-            margin-top: 2em;
-        }
-
-        /* SIGNATURE */
-        .signature-section {
-            position: absolute;
-            display: flex;
-            margin-top: -8.3em;
-            left: 20mm;
-            right: 20mm;
-        }
+        /* =========================
+           SIGNATURE SECTION
+        ========================= */
 
         .signature-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 10.5pt;
+            table-layout: fixed;
         }
 
         .signature-table td {
+            width: 50%;
+            height: 55mm;
             border: 1px solid #000;
-            border-top: none;
-            height: 26mm;
-            padding-top: 15px;
-            padding-left: 6px;
             vertical-align: top;
-            position: relative;
+            padding: 2mm;
         }
 
-        .signature-table td span {
+        .signature-label {
+            font-weight: bold;
+            font-size: 9pt;
+        }
+
+        .signature-content {
+            text-align: center;
+            margin-top: 5mm;
+        }
+
+        .signature-name {
             display: block;
-            text-align: center;
-            margin-top: 4px;
-            /* Reduced from 8px to bring it up */
-            position: relative;
-            top: -4px;
-            /* Added to move it up slightly more */
+            font-size: 10pt;
+            font-weight: bold;
+            text-decoration: underline;
+            margin-top: 12mm;
+            margin-bottom: 2mm;
         }
 
-        .name-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 40px;
-            margin: 12px 0 8px 0;
-            /* Reduced bottom margin to bring text up */
+        .signature-subtext {
+            display: block;
+            font-size: 8pt;
+            margin-bottom: 2mm;
         }
 
-        .underline {
+        .signature-position {
+            display: block;
+            font-size: 9pt;
+            font-weight: bold;
+            text-decoration: underline;
+            margin-top: 2mm;
+        }
+
+        .signature-position-label {
+            display: block;
+            font-size: 8pt;
+            margin-top: 1mm;
+        }
+
+        .date-line {
+            display: inline-block;
+            width: 35mm;
             border-bottom: 1px solid #000;
-            width: 250px;
-            padding-bottom: 4px;
-            text-align: center;
-            margin: 0 auto;
+            margin-top: 7mm;
         }
 
-        /* PRINT SAFETY */
+        .date-label {
+            display: block;
+            font-size: 8pt;
+            margin-top: 1mm;
+        }
+
+        /* =========================
+           PRINT
+        ========================= */
+
         @media print {
+
+            html,
             body {
-                margin: 0;
+                width: 210mm;
+                height: 297mm;
             }
 
-            * {
-                page-break-inside: avoid !important;
+            .page {
+                page-break-after: always;
             }
         }
     </style>
 </head>
 
 <body>
-    @php $acknowledgementItems = $acknowledgementItems ?? $parItems ?? $icsItems; @endphp
-    @foreach ($acknowledgementItems->groupBy('acknowledgement_id') as $receiptItems)
+
+    @foreach ($groupedIcsItems as $propertyGroup => $receiptItems)
+
         @php
             $firstAckItem = $receiptItems->first();
             $receipt = $firstAckItem->acknowledgementReceipts;
             $firstItem = $firstAckItem->inventoryItems;
-            $lastItem = $receiptItems->last()->inventoryItems;
         @endphp
 
-        <div class="a4-page">
-            <div class="content-area">
+        <div class="page">
 
-                <!-- HEADER -->
-                <div class="header">
-                    <div class="header-left">
-                        <img src="{{ public_path('images/uplogo-2.png') }}">
-                    </div>
-                    <div class="header-center">
-                        <h1>University of the Philippines</h1>
-                        <p>Region VII - Central Visayas</p>
-                    </div>
-                    <div class="header-right">
-                        <img src="{{ public_path('images/uplogo-1.png') }}">
-                    </div>
-                </div>
+            <!-- ================= HEADER ================= -->
 
-                <!-- TITLE -->
-                <div class="title-header">
-                    <h1>INVENTORY CUSTODIAN SLIP</h1>
-                </div>
+            <table class="header-table">
+                <tr>
+                    <td class="logo-cell">
+                        <img src="{{ public_path('images/uplogo-2.png') }}" alt="UP Logo">
+                    </td>
 
-                <!-- META -->
-                <div class="meta-section">
-                    <table class="meta-table">
-                        <tr>
-                            <td width="60%">
-                                <strong>Entity Name:</strong> <span>{{ $firstItem->item_name ?? 'N/A' }}</span>
-                                <br>
-                                <strong>Fund Cluster:</strong> <span>{{ $firstItem->fund_source ?? 'N/A' }}</span>
-                            </td>
-                            <td width="40%">
-                                <strong>ICS No.:</strong> <span>{{ $receipt->category ?? 'N/A' }}</span>
-                                <br>
-                                <strong>Date:</strong> <span>{{ optional($receipt->created_at)->format('m/d/Y') }}</span>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
+                    <td class="header-center">
+                        <div class="republic">
+                            Republic of the Philippines
+                        </div>
 
-                <!-- ITEMS TABLE -->
-                <table class="ics-table">
-                    <thead>
-                        <tr>
-                            <th rowspan="2">Quantity</th>
-                            <th rowspan="2">Unit</th>
-                            <th colspan="2">Amount</th>
-                            <th rowspan="2">Description</th>
-                            <th rowspan="2">Property No.</th>
-                            <th rowspan="2">Estimated Useful Life</th>
-                        </tr>
-                        <tr>
-                            <th>Unit Cost</th>
-                            <th>Total Cost</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($receiptItems as $item)
-                            <tr>
-                                <td>{{ $item->inventoryItems->quantity ?? 1 }}</td>
-                                <td>{{ $item->inventoryItems->unit ?? 'unit' }}</td>
-                                <td>{{ number_format($item->inventoryItems->unit_cost, 2) }}</td>
-                                <td>{{ number_format($item->inventoryItems->unit_cost * ($item->inventoryItems->quantity ?? 1), 2) }}
-                                </td>
-                                <td>{{ $item->inventoryItems->description }}</td>
-                                <td>{{ $item->inventoryItems->property_number }}</td>
-                                <td>{{ $item->inventoryItems->useful_life ?? '' }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        <div class="university">
+                            University of the Philippines
+                        </div>
 
-                <!-- PURCHASE INFO -->
-                <div class="purchase-section">
-                    <table class="purchase-table">
-                        <tr>
-                            <td width="60%">
-                                <div class="purchase-info">
-                                    <div>
-                                        <span class="label">Supplier:</span>
-                                        <span class="value">{{ $lastItem->supplier->supplier_name ?? 'N/A' }}</span>
-                                    </div>
-                                    <div class="purchase-second-content">
-                                        <div>
-                                            <span class="label">Invoice No.:</span>
-                                            <span class="value">{{ $lastItem->invoice ?? 'N/A' }}</span>
-                                        </div>
-                                        <div>
-                                            <span class="label">PO No.:</span>
-                                            <span class="value">{{ $lastItem->po_number ?? 'N/A' }}</span>
-                                        </div>
-                                        <div>
-                                            <span class="label">PR No.:</span>
-                                            <span class="value">{{ $lastItem->pr_number ?? 'N/A' }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td width="40%">
-                                <div class="purchase-info">
-                                    <div class="purchase-right-content">
-                                        <div>
-                                            <span class="label">Serial No.:</span>
-                                            <span class="value">{{ $lastItem->serial_number ?? 'N/A' }}</span>
-                                        </div>
-                                        <div class="second-right-content">
-                                            <span class="label">Location:</span>
-                                            {{ $roomNames[$item->inventoryItems->id] ?? 'N/A' }}
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
+                        <div class="campus">
+                            Cebu
+                        </div>
+                    </td>
+
+                    <td class="right-logo">
+                        <img src="{{ public_path('images/uplogo-1.png') }}" alt="UP Cebu Logo">
+                    </td>
+                </tr>
+            </table>
+
+            <div class="title">
+                <h1>INVENTORY CUSTODIAN SLIP</h1>
             </div>
 
-            <!-- SIGNATURE -->
-            <div class="signature-section">
-                <table class="signature-table">
-                    <tr>
-                        <td width="50%">
-                            <strong>Received From:</strong>
-                            <div class="name-container">
-                                <div class="underline">
-                                    {{ $firstAckItem->issuedBy->first_name ?? '' }}
-                                    {{ $firstAckItem->issuedBy->middle_name ?? '' }}
-                                    {{ $firstAckItem->issuedBy->last_name ?? '' }}
-                                </div>
+            <!-- ================= META ================= -->
+
+            <table class="meta-table">
+                <tr>
+                    <td class="entity">
+                        <strong>Entity Name :</strong>
+                        University of the Philippines Cebu
+                    </td>
+
+                    <td class="ics-number">
+                        <strong>ICS No :</strong>
+                        {{ $receipt->category ?? 'N/A' }}
+                    </td>
+                </tr>
+
+                <tr>
+                    <td class="entity">
+                        <strong>Fund Cluster :</strong>
+                        {{ $firstItem->fund_source ?? '' }}
+                    </td>
+
+                    <td></td>
+                </tr>
+            </table>
+
+            <!-- ================= INVENTORY TABLE ================= -->
+
+            <table class="inventory-table">
+
+                <colgroup>
+                    <col class="col-quantity">
+                    <col class="col-unit">
+                    <col class="col-unit-cost">
+                    <col class="col-total-cost">
+                    <col class="col-description">
+                    <col class="col-item-no">
+                    <col class="col-property">
+                    <col class="col-life">
+                </colgroup>
+
+                <thead>
+
+                    <tr class="header-row-1">
+
+                        <th rowspan="2">
+                            <div class="quantity-header">
+                                Quantity
                             </div>
-                            <span>Signature over Printed Name</span>
-                        </td>
-                        <td width="50%">
-                            <strong>Received By:</strong>
-                            <div class="name-container">
-                                <div class="underline">
-                                    {{ $firstAckItem->accountablePerson->full_name ?? ' ' }}
-                                </div>
+                        </th>
+
+                        <th rowspan="2">
+                            <div class="unit-header">
+                                Unit
                             </div>
-                            <span>Signature over Printed Name</span>
+                        </th>
+
+                        <th colspan="2" class="amount-header">
+                            Amount
+                        </th>
+
+                        <th rowspan="2">
+                            Description
+                        </th>
+
+                        <th rowspan="2">
+                            Item No.
+                        </th>
+
+                        <th rowspan="2">
+                            <div class="property-header">
+                                Property<br>
+                                Number
+                            </div>
+                        </th>
+
+                        <th rowspan="2">
+                            <div class="life-header">
+                                Estimated<br>
+                                Useful Life
+                            </div>
+                        </th>
+
+                    </tr>
+
+                    <tr class="header-row-2">
+
+                        <th>
+                            Unit<br>
+                            Cost
+                        </th>
+
+                        <th>
+                            Total Cost
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    <!-- PR NUMBER -->
+
+                    <tr class="pr-row">
+                        <td colspan="8">
+                            PR {{ $firstItem->pr_number ?? 'N/A' }}
                         </td>
                     </tr>
-                </table>
-            </div>
+
+                    <!-- ITEMS -->
+
+                    @foreach ($receiptItems as $index => $item)
+
+                        @php
+                            $inventory = $item->inventoryItems;
+                            $quantity = $inventory->quantity ?? 1;
+                            $unitCost = (float) ($inventory->unit_cost ?? 0);
+                            $totalCost = $unitCost * $quantity;
+                        @endphp
+
+                        <tr class="item-row">
+
+                            <td class="center">
+                                {{ $quantity }}
+                            </td>
+
+                            <td class="center">
+                                {{ $inventory->unit ?? 'unit' }}
+                            </td>
+
+                            <td class="cost">
+                                {{ number_format($unitCost, 2) }}
+                            </td>
+
+                            <td class="cost">
+                                {{ number_format($totalCost, 2) }}
+                            </td>
+
+                            <td class="description">
+
+                                {{ $inventory->item_name ?? 'N/A' }}
+
+                                @if (!empty($inventory->description))
+                                    <br>
+                                    {{ $inventory->description }}
+                                @endif
+
+                                @if (!empty($inventory->serial_number))
+                                    <br>
+                                    <strong class="serial">
+                                        SN: {{ $inventory->serial_number }}
+                                    </strong>
+                                @endif
+
+                            </td>
+
+                            <td class="center">
+                                {{ $index + 1 }}
+                            </td>
+
+                            <td class="center">
+                                {{ $inventory->property_number ?? 'N/A' }}
+                            </td>
+
+                            <td class="center">
+                                5 Years
+                            </td>
+
+                        </tr>
+
+                    @endforeach
+
+                </tbody>
+
+            </table>
+
+            <!-- ================= PURCHASE INFORMATION ================= -->
+
+            <table class="purchase-table">
+
+                <tr>
+
+                    <td class="purchase-info">
+
+                        <div class="purchase-line">
+                            <span class="label">Supplier:</span>
+                            {{ $firstItem->supplier->supplier_name ?? 'N/A' }}
+                        </div>
+
+                        <div class="purchase-line">
+                            <span class="label">SI # / Date:</span>
+                            {{ $firstItem->invoice ?? 'N/A' }}
+                        </div>
+
+                        <div class="purchase-line">
+                            <span class="label">PO No. / Date:</span>
+                            {{ $firstItem->po_number ?? 'N/A' }}
+                        </div>
+
+                        <div class="purchase-line">
+                            <span class="label">PR No.:</span>
+                            {{ $firstItem->pr_number ?? 'N/A' }}
+                        </div>
+
+                        <div class="purchase-line">
+                            <span class="label">Date of Issuance:</span>
+                            {{ $receipt->par_date ?? 'N/A' }}
+                        </div>
+
+                    </td>
+
+                    <td class="purchase-empty"></td>
+
+                </tr>
+
+            </table>
+
+            <!-- ================= REMARKS / LOCATION ================= -->
+
+            <table class="remarks-location">
+
+                <tr>
+
+                    <td>
+                        <strong>Remarks:</strong>
+                        {{ $receipt->remarks ?? '' }}
+                    </td>
+
+                    <td>
+                        <strong>Location:</strong>
+                        {{ $roomNames[$firstItem->id] ?? 'N/A' }}
+                    </td>
+
+                </tr>
+
+            </table>
+
+            <!-- ================= SIGNATURES ================= -->
+
+            <table class="signature-table">
+
+                <tr>
+
+                    <!-- RECEIVED FROM -->
+
+                    <td>
+
+                        <span class="signature-label">
+                            Received from:
+                        </span>
+
+                        <div class="signature-content">
+
+                            <span class="signature-name">
+                                {{
+            trim(
+                ($firstAckItem->issuedBy->first_name ?? '') . ' ' .
+                ($firstAckItem->issuedBy->middle_name ?? '') . ' ' .
+                ($firstAckItem->issuedBy->last_name ?? '')
+            ) ?: '________________________'
+                                }}
+                            </span>
+
+                            <span class="signature-subtext">
+                                Signature Over Printed Name
+                            </span>
+
+                            <span class="signature-position">
+                                {{ $firstAckItem->issuedBy->primaryOrganization->name ?? 'N/A' }}
+                            </span>
+
+                            <span class="signature-position-label">
+                                Position/Office
+                            </span>
+
+                            <span class="date-line"></span>
+
+                            <span class="date-label">
+                                Date
+                            </span>
+
+                        </div>
+
+                    </td>
+
+                    <!-- RECEIVED BY -->
+
+                    <td>
+
+                        <span class="signature-label">
+                            Received by:
+                        </span>
+
+                        <div class="signature-content">
+
+                            <span class="signature-name">
+                                {{ $firstAckItem->accountablePerson->full_name ?? '________________________' }}
+                            </span>
+
+                            <span class="signature-subtext">
+                                Signature Over Printed Name
+                            </span>
+
+                            <span class="signature-position">
+                                {{ $firstAckItem->accountablePerson->primaryOrganization->name ?? 'N/A' }}
+                            </span>
+
+                            <span class="signature-position-label">
+                                Position/Office
+                            </span>
+
+                            <span class="date-line"></span>
+
+                            <span class="date-label">
+                                Date
+                            </span>
+
+                        </div>
+
+                    </td>
+
+                </tr>
+
+            </table>
+
         </div>
+
     @endforeach
+
 </body>
+
 </html>

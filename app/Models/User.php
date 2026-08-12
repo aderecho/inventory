@@ -15,7 +15,7 @@ class User extends Authenticatable
     use HasApiTokens, LogsActivity, HasFactory, HasRoles, SoftDeletes {
         HasRoles::hasPermissionTo as protected spatieHasPermissionTo;
     }
-    protected $fillable = ['email', 'password', 'status'];
+    protected $fillable = ['email', 'password', 'status', 'last_activity'];
 
     protected $hidden = ['password'];
 
@@ -52,6 +52,11 @@ class User extends Authenticatable
     public function userProfiles()
     {
         return $this->hasOne(UserProfile::class, 'user_id', 'id');
+    }
+
+    public function assetInspections()
+    {
+        return $this->hasMany(AssetInspection::class, 'inspected_by');
     }
 
     public function hasPermissionTo($permission, $guardName = null): bool

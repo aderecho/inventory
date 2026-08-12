@@ -8,8 +8,8 @@ class ItemLocationHistoryService
 {
     public function filterAndPaginateHistory(
         ?string $search = null,
-        int|string|null $status = null,
-        int|string|null $room = null,
+        ?string $acknowledgementStatus = null,
+        ?int $roomId = null,
         int $perPage = 10
     ) {
         return InventoryItem::with([
@@ -23,14 +23,20 @@ class ItemLocationHistoryService
                 $search,
                 fn($query, $search) => $query->searchItemHistory($search)
             )
-            ->when(
-                !is_null($status),
-                fn($query) => $query->where('status', $status)
-            )
-            ->when(
-                $room,
-                fn($query, $room) => $query->filterByRoom($room)
-            )
+             ->when($acknowledgementStatus, function ($query, $acknowledgementStatus) {
+                if ($acknowledgementStatus === 'with_acknowledgement') {
+                    $query->whereHas('latestAcknowledgementItem');
+                }
+
+                if ($acknowledgementStatus === 'without_acknowledgement') {
+                    $query->whereDoesntHave('latestAcknowledgementItem');
+                }
+            })
+            ->when($roomId, function ($query, $roomId) {
+                $query->whereHas('latestHistoryLocation', function ($q) use ($roomId) {
+                    $q->where('room_id', $roomId);
+                });
+            })
             ->whereHas('historyLocations') // only items that have location history
             ->orderByDesc('created_at')
             ->paginate($perPage)

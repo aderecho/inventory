@@ -4,6 +4,7 @@ import NavHeader from "@/Components/NavHeader.vue";
 import SideBar from "@/Components/SideBar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import LoadingOverlay from "@/Components/LoadingOverlay.vue";
+import SessionTimeoutWarning from "@/Components/SessionTimeoutWarning.vue";
 
 defineProps({
     title: { type: String, default: "" },
@@ -19,6 +20,7 @@ const toggleSidebar = () => {
 </script>
 
 <template>
+    <SessionTimeoutWarning />
     <LoadingOverlay
         :show="isLoading"
         :title="loadingTitle"

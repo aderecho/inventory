@@ -7,7 +7,7 @@
 
     <style>
         @page {
-            size: A4;
+            size: A4 portrait;
             margin: 0;
         }
 
@@ -18,460 +18,789 @@
         }
 
         body {
-            font-family: "Times New Roman", serif;
-            font-size: 11pt;
-            background: #fff;
+            font-family: "Times New Roman", Times, serif;
+            font-size: 9pt;
             color: #000;
+            background: #fff;
         }
 
         .a4-page {
             width: 210mm;
-            height: 297mm;
+            min-height: 297mm;
             margin: 0 auto;
+            padding: 14mm 18mm 15mm 18mm;
             position: relative;
-            outline: 1px solid #000;
+            background: #fff;
             overflow: hidden;
         }
 
-        .content-area {
-            padding: 15mm 20mm 32mm 20mm;
-        }
+        /* =========================================================
+           HEADER
+        ========================================================= */
 
         .header {
-            display: table;
             width: 100%;
-            margin-bottom: 6mm;
-            table-layout: fixed;
+            margin-bottom: 5mm;
+            position: relative;
         }
 
-        .header-left,
-        .header-center,
-        .header-right {
-            display: table-cell;
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .header-table td {
+            border: none;
             vertical-align: middle;
-            text-align: center;
+            padding: 0;
         }
 
-        .header-left,
-        .header-right {
+        .logo-cell {
             width: 25%;
+            text-align: left;
+        }
+
+        .logo-cell img {
+            width: 30mm;
+            height: auto;
+            object-fit: contain;
         }
 
         .header-center {
             width: 50%;
-        }
-
-        .header img {
-            max-width: 140px;
-        }
-
-        .header-center h1 {
-            font-size: 14pt;
-            font-weight: bold;
-        }
-
-        .header-center p {
-            font-size: 10pt;
-        }
-
-        .title-header {
-            text-align: center;
-            margin: 6mm 0 10mm;
-        }
-
-        .title-header h1 {
-            font-size: 12pt;
-            font-weight: bold;
-            letter-spacing: 0.5px;
-        }
-
-        .meta-section {
-            margin-bottom: 3mm;
-        }
-
-        .meta-table {
-            width: 100%;
-            font-size: 12pt;
-            border-collapse: collapse;
-        }
-
-        .meta-table td {
-            padding: 4px 0;
-            vertical-align: top;
-            line-height: 1.6;
-        }
-
-        .meta-table td span {
-            color: #363636;
-        }
-
-        .meta-table td:first-child {
-            padding-right: 10mm;
-        }
-
-        .description-bar {
-            border: 1px solid #000;
-            border-bottom: none;
-            padding: 6px 8px;
-            font-size: 10.5pt;
-        }
-
-        .description-bar .label {
-            font-weight: bold;
-            margin-right: 4px;
-        }
-
-        .ics-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 10.5pt;
-        }
-
-        .ics-table th,
-        .ics-table td {
-            border: 1px solid #000;
-            padding: 4px;
             text-align: center;
         }
 
-        .ics-table tfoot td {
+        .header-center .republic {
+            font-size: 8.5pt;
+            margin-bottom: 1mm;
+        }
+
+        .header-center .university {
+            font-size: 11pt;
             font-weight: bold;
+            text-transform: uppercase;
         }
 
-        .purchase-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 10.5pt;
+        .header-center .campus {
+            font-size: 8.5pt;
+            margin-top: 1mm;
         }
 
-        .purchase-table td {
-            border: 1px solid #000;
-            border-top: none;
-            height: auto;
-            padding: 8px 10px;
-            line-height: 1.8;
-            vertical-align: top;
-        }
-
-        .purchase-info div {
-            margin-bottom: 4px;
-            padding-left: 5px;
-        }
-
-        .label {
-            font-weight: bold;
-        }
-
-        .second-content-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 10.5pt;
-        }
-
-        .second-content-table td {
-            border: 1px solid #000;
-            border-top: none;
-            height: 5mm;
-            padding: 6px;
-            vertical-align: top;
-        }
-
-        .signature-section {
-            position: static;
-            margin-top: 10mm;
-        }
-
-        .signature-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 10.5pt;
-        }
-
-        .signature-table td {
-            border: 1px solid #000;
-            border-top: none;
-            height: 26mm;
-            padding-top: 15px;
-            padding-left: 6px;
-            vertical-align: top;
-            position: relative;
-        }
-
-        .signature-table td span {
-            display: block;
-            text-align: center;
-            margin-top: 4px;
-            position: relative;
-            top: -4px;
-        }
-
-        .name-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 40px;
-            margin: 12px 0 8px 0;
-        }
-
-        .underline {
-            border-bottom: 1px solid #000;
-            width: 250px;
-            padding-bottom: 4px;
-            text-align: center;
-            margin: 0 auto;
-        }
-
-        .footer-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 10.5pt;
-            margin-top: 8px;
-        }
-
-        .footer-table td {
-            border: 1px solid #000;
-            padding: 10px;
-            vertical-align: top;
-        }
-
-        .footer-table .description-cell {
-            width: 65%;
-        }
-
-        .footer-table .subtotal-cell {
-            width: 35%;
+        .right-logo {
+            width: 25%;
             text-align: right;
         }
 
-        .footer-table .small-label {
-            display: block;
-            font-size: 8pt;
-            text-transform: uppercase;
+        .right-logo img {
+            width: 25mm;
+            height: auto;
+            object-fit: contain;
+        }
+
+        /* =========================================================
+           SMALL TOP RIGHT LABEL
+        ========================================================= */
+
+        /* =========================================================
+           TITLE
+        ========================================================= */
+
+        .title {
+            text-align: center;
+            margin-top: 3mm;
+            margin-bottom: 5mm;
+        }
+
+        .title h1 {
+            font-size: 12pt;
             font-weight: bold;
-            letter-spacing: 0.5px;
-            margin-bottom: 4px;
+            letter-spacing: 0.2px;
         }
 
-        .footer-table .description-value {
-            font-size: 11pt;
-        }
+        /* =========================================================
+           META INFORMATION
+        ========================================================= */
 
-        .footer-table .subtotal-value {
-            font-size: 11pt;
-        }
-
-        .signature-section {
-            margin-top: 14mm;
+        .meta-table {
             width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 2mm;
+            font-size: 8.5pt;
         }
+
+        .meta-table td {
+            border: none;
+            padding: 1.5px 2px;
+            vertical-align: bottom;
+        }
+
+        .meta-left {
+            width: 62%;
+        }
+
+        .meta-right {
+            width: 38%;
+        }
+
+        .meta-line {
+            display: table;
+            width: 100%;
+            min-height: 5mm;
+        }
+
+        .meta-label {
+            display: table-cell;
+            width: 15mm;
+            white-space: nowrap;
+            font-weight: bold;
+            vertical-align: bottom;
+        }
+
+        .meta-value {
+            display: table-cell;
+            padding-left: 2px;
+            vertical-align: bottom;
+            height: 5mm;
+        }
+
+        /* =========================================================
+           MAIN ITEMS TABLE
+        ========================================================= */
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            font-size: 8pt;
+        }
+
+        .items-table th,
+        .items-table td {
+            border: 1px solid #000;
+        }
+
+        .items-table th {
+            height: 9mm;
+            padding: 2px;
+            text-align: center;
+            vertical-align: middle;
+            font-weight: bold;
+        }
+
+        .items-table td {
+            padding: 3px 3px;
+            vertical-align: middle;
+            text-align: center;
+        }
+
+        .items-table .qty {
+            width: 8%;
+        }
+
+        .items-table .unit {
+            width: 7%;
+        }
+
+        .items-table .description {
+            width: 35%;
+            text-align: left;
+        }
+
+        .items-table .property {
+            width: 17%;
+        }
+
+        .items-table .date-acquired {
+            width: 11%;
+        }
+
+        .items-table .unit-cost {
+            width: 11%;
+        }
+
+        .items-table .total-cost {
+            width: 11%;
+        }
+
+        .description-content {
+            line-height: 1.25;
+            min-height: 17mm;
+        }
+
+        .description-title {
+            font-weight: bold;
+            margin-bottom: 1mm;
+        }
+
+        .description-text {
+            line-height: 1.25;
+        }
+
+        .serial-number {
+            margin-top: 1mm;
+            font-weight: bold;
+        }
+
+        .property-number {
+            line-height: 1.3;
+        }
+
+        /* =========================================================
+           INFORMATION SECTION
+        ========================================================= */
+
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8pt;
+        }
+
+        .info-table td {
+            border: 1px solid #000;
+            padding: 3px 5px;
+            vertical-align: top;
+        }
+
+        .info-left {
+            width: 60%;
+        }
+
+        .info-right {
+            width: 40%;
+        }
+
+        .info-row {
+            line-height: 1.5;
+            min-height: 4mm;
+        }
+
+        .info-label {
+            font-weight: bold;
+        }
+
+        /* =========================================================
+           NOTE / REMARKS / LOCATION
+        ========================================================= */
+
+        .note-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8pt;
+        }
+
+        .note-table td {
+            border: 1px solid #000;
+            padding: 3px 5px;
+            vertical-align: top;
+            height: 9mm;
+        }
+
+        .remarks-cell {
+            width: 60%;
+        }
+
+        .location-cell {
+            width: 40%;
+        }
+
+        /* =========================================================
+           SIGNATURE SECTION
+        ========================================================= */
 
         .signature-table {
             width: 100%;
             border-collapse: collapse;
-            border: none;
-            font-size: 10.5pt;
+            font-size: 8pt;
+            margin-top: 0;
         }
 
         .signature-table td {
             width: 50%;
-            padding: 0;
+            border: 1px solid #000;
+            height: 35mm;
+            padding: 4px 6px;
             vertical-align: top;
-            border: none;
         }
 
-        .signature-box {
-            padding: 0 16px 8px;
-        }
-
-        .signature-label {
-            margin-bottom: 8px;
-            display: block;
-            text-align: center;
+        .signature-heading {
+            font-weight: bold;
+            margin-bottom: 5mm;
         }
 
         .signature-name {
-            display: block;
             text-align: center;
             font-weight: bold;
-            line-height: 1.3;
-            margin: 0 auto 10px;
-            max-width: 100%;
+            min-height: 5mm;
+            margin-top: 5mm;
+            line-height: 1.2;
         }
 
         .signature-line {
-            border-top: 1px solid #000;
-            margin: 0 auto 20px;
-            width: 100%;
+            width: 75%;
+            border-bottom: 1px solid #000;
+            margin: 1mm auto 1mm auto;
         }
 
-        .signature-subtext {
-            display: block;
+        .signature-description {
             text-align: center;
-            font-size: 9pt;
-            color: #333;
+            font-size: 7pt;
+            line-height: 1.2;
         }
+
+        .signature-position {
+            text-align: center;
+            margin-top: 2mm;
+            font-size: 9pt;
+            font-weight: bold;
+            text-decoration: underline;
+        }
+
+        .signature-position-label {
+            text-align: center;
+            font-size: 7pt;
+            margin-top: 1mm;
+        }
+
+        .signature-date {
+            width: 55%;
+            border-bottom: 1px solid #000;
+            margin: 4mm auto 0 auto;
+            height: 4mm;
+        }
+
+        .date-label {
+            text-align: center;
+            font-size: 7pt;
+            margin-top: 1mm;
+        }
+
+        /* =========================================================
+           PRINT
+        ========================================================= */
 
         @media print {
+
+            html,
             body {
+                width: 210mm;
+                height: 297mm;
                 margin: 0;
+                padding: 0;
+            }
+
+            .a4-page {
+                margin: 0;
+                page-break-after: always;
+            }
+
+            .a4-page:last-child {
+                page-break-after: auto;
             }
         }
     </style>
 </head>
 
 <body>
+
     @foreach ($groupedParItems as $propertyGroup => $receiptItems)
+
         @php
             $firstAckItem = $receiptItems->first();
+
             $receipt = $firstAckItem->acknowledgementReceipts;
             $firstItem = $firstAckItem->inventoryItems;
+
+            $accountablePerson = $firstAckItem->accountablePerson;
+            $issuedBy = $firstAckItem->issuedBy;
+
+            $roomName = $roomNames[$firstItem->id] ?? 'N/A';
+
+            $issuedByName = trim(
+                ($issuedBy->first_name ?? '') . ' ' .
+                ($issuedBy->middle_name ?? '') . ' ' .
+                ($issuedBy->last_name ?? '')
+            );
+
+            $accountableName = $accountablePerson->full_name ?? '';
+
+            $totalAmount = $groupedParTotals[$propertyGroup] ?? 0;
         @endphp
 
         <div class="a4-page">
-            <div class="content-area">
 
-                <!-- HEADER -->
-                <div class="header">
-                    <div class="header-left">
-                        <img src="{{ public_path('images/uplogo-2.png') }}">
-                    </div>
-                    <div class="header-center">
-                        <h1>University of the Philippines</h1>
-                        <p>Region VII - Central Visayas</p>
-                    </div>
-                    <div class="header-right">
-                        <img src="{{ public_path('images/uplogo-1.png') }}">
-                    </div>
-                </div>
+            <!-- =====================================================
+                         HEADER
+                    ====================================================== -->
+            <div class="header">
 
-                <!-- TITLE -->
-                <div class="title-header">
-                    <h1>PROPERTY ACKNOWLEDGEMENT RECEIPT</h1>
-                </div>
-
-                <!-- META -->
-                <div class="meta-section">
-                    <table class="meta-table">
-                        <tr>
-                            <td width="60%">
-                                <strong>Entity Name:</strong> <span>{{ $firstItem->item_name ?? 'N/A' }}</span>
-                                <br>
-                                <strong>Fund Cluster:</strong> <span>{{ $firstItem->fund_source ?? 'N/A' }}</span>
-                            </td>
-                            <td width="40%">
-                                <strong>PAR No.:</strong> <span>{{ $receipt->category ?? 'N/A' }}</span>
-                                <br>
-                                <strong>Date:</strong> <span>{{ optional($receipt->created_at)->format('m/d/Y') }}</span>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-
-                <!-- ITEMS -->
-                <table class="ics-table">
-                    <thead>
-                        <tr>
-                            <th>Qty</th>
-                            <th>Unit</th>
-                            <th>Serial No.</th>
-                            <th>Property No.</th>
-                            <th>Unit Cost</th>
-                            <th>Total Cost</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($receiptItems as $item)
-                            <tr>
-                                <td>{{ $item->inventoryItems->quantity ?? 1 }}</td>
-                                <td>{{ $item->inventoryItems->unit ?? 'unit' }}</td>
-                                <td>{{ $item->inventoryItems->serial_number ?? 'N/A' }}</td>
-                                <td>{{ $item->inventoryItems->property_number }}</td>
-                                <td style="text-align: center;">{{ number_format($item->inventoryItems->unit_cost, 2) }}</td>
-                                <td style="text-align: center;">
-                                    {{ number_format($item->inventoryItems->unit_cost * ($item->inventoryItems->quantity ?? 1), 2) }}
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-
-                <table class="footer-table">
+                <table class="header-table">
                     <tr>
-                        <td class="description-cell">
-                            <span class="small-label">Description</span>
-                            <span class="description-value">{{ $firstItem->description ?? 'N/A' }}</span>
-                        </td>
-                        <td class="subtotal-cell">
-                            <span class="small-label">Subtotal</span>
-                            <span class="subtotal-value">{{ number_format($groupedParTotals[$propertyGroup] ?? 0, 2) }}</span>
-                        </td>
-                    </tr>
-                </table>
 
-                <!-- PURCHASE INFO -->
-                <table class="purchase-table">
-                    <tr>
-                        <td width="60%">
-                            <div class="purchase-info">
-                                <div>
-                                    <span class="label">Supplier:</span>
-                                    {{ $firstItem->supplier->supplier_name ?? 'N/A' }}
-                                </div>
-                                <div><span class="label">Invoice No.:</span> {{ $firstItem->invoice ?? 'N/A' }}</div>
-                                <div><span class="label">PO No.:</span> {{ $firstItem->po_number ?? 'N/A' }}</div>
-                                <div><span class="label">PR No.:</span> {{ $firstItem->pr_number ?? 'N/A' }}</div>
-                                <div><span class="label">Date of Issuance:</span> {{ $receipt->par_date ?? 'N/A' }}</div>
+                        <!-- LEFT LOGO -->
+                        <td class="logo-cell">
+                            <img src="{{ public_path('images/uplogo-2.png') }}" alt="UP Logo">
+                        </td>
+
+                        <!-- CENTER -->
+                        <td class="header-center">
+                            <div class="republic">
+                                Republic of the Philippines
+                            </div>
+
+                            <div class="university">
+                                University of the Philippines
+                            </div>
+
+                            <div class="campus">
+                                Cebu
                             </div>
                         </td>
+
+                        <!-- RIGHT LOGO -->
+                        <td class="right-logo">
+                            <img src="{{ public_path('images/uplogo-1.png') }}" alt="UP Cebu Logo">
+                        </td>
+
                     </tr>
                 </table>
 
-                <!-- REMARKS/LOCATION -->
-                <div class="second-area">
-                    <table class="second-content-table">
-                        <tr>
-                            <td width="50%">
-                                <strong>Remarks:</strong>
-                                {{ $receipt->remarks ?? 'N/A' }}
-                            </td>
-                            <td width="50%">
-                                <strong>Location:</strong>
-                                {{ $roomNames[$item->inventoryItems->id] ?? 'N/A' }}
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-
-                <div class="signature-section">
-                    <table class="signature-table">
-                        <tr>
-                            <td>
-                                <div class="signature-box">
-                                    <span class="signature-label">Received From:</span>
-                                    <span class="signature-name">
-                                        {{ trim(($firstAckItem->issuedBy->first_name ?? '') . ' ' . ($firstAckItem->issuedBy->middle_name ?? '') . ' ' . ($firstAckItem->issuedBy->last_name ?? '')) ?: '__________________________' }}
-                                    </span>
-                                    <div class="signature-line"></div>
-                                    <span class="signature-subtext">Signature over Printed Name</span>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="signature-box">
-                                    <span class="signature-label">Received By:</span>
-                                    <span class="signature-name">
-                                        {{ $firstAckItem->accountablePerson->full_name ?? '__________________________' }}
-                                    </span>
-                                    <div class="signature-line"></div>
-                                    <span class="signature-subtext">Signature over Printed Name</span>
-                                </div>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-
             </div>
+
+            <!-- =====================================================
+                         TITLE
+                    ====================================================== -->
+            <div class="title">
+                <h1>PROPERTY ACKNOWLEDGEMENT RECEIPT</h1>
+            </div>
+
+            <!-- =====================================================
+                         META
+                    ====================================================== -->
+            <table class="meta-table">
+                <tr>
+
+                    <td class="meta-left">
+
+                        <div class="meta-line">
+                            <span class="meta-label">
+                                Entity Name:
+                            </span>
+
+                            <span class="meta-value">
+                                University of the Philippines Cebu
+                            </span>
+                        </div>
+
+                        <div class="meta-line">
+                            <span class="meta-label">
+                                Fund Cluster:
+                            </span>
+
+                            <span class="meta-value">
+                                {{ $firstItem->fund_source ?? 'N/A' }}
+                            </span>
+                        </div>
+
+                    </td>
+
+                    <td class="meta-right">
+
+                        <div class="meta-line">
+                            <span class="meta-label">
+                                PAR No.:
+                            </span>
+
+                            <span class="meta-value">
+                                {{ $receipt->category ?? 'N/A' }}
+                            </span>
+                        </div>
+
+                    </td>
+
+                </tr>
+            </table>
+
+            <!-- =====================================================
+                         ITEMS
+                    ====================================================== -->
+            <table class="items-table">
+
+                <thead>
+                    <tr>
+
+                        <th class="qty">
+                            Quantity
+                        </th>
+
+                        <th class="unit">
+                            Unit
+                        </th>
+
+                        <th class="description">
+                            Description
+                        </th>
+
+                        <th class="property">
+                            Property<br>
+                            Number
+                        </th>
+
+                        <th class="date-acquired">
+                            Date<br>
+                            Acquired
+                        </th>
+
+                        <th class="unit-cost">
+                            <div>AMOUNT</div>
+                            <div>Unit Cost</div>
+                        </th>
+
+                        <th class="total-cost">
+                            <div>AMOUNT</div>
+                            <div>TOTAL</div>
+                        </th>
+
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    @foreach ($receiptItems as $ackItem)
+
+                            @php
+                                $inventoryItem = $ackItem->inventoryItems;
+
+                                $quantity = $inventoryItem->quantity ?? 1;
+
+                                $unitCost = $inventoryItem->unit_cost ?? 0;
+
+                                $itemTotal = $unitCost * $quantity;
+                            @endphp
+
+                            <tr>
+
+                                <!-- QUANTITY -->
+                                <td>
+                                    {{ $quantity }}
+                                </td>
+
+                                <!-- UNIT -->
+                                <td>
+                                    {{ $inventoryItem->unit ?? 'unit' }}
+                                </td>
+
+                                <!-- DESCRIPTION -->
+                                <td class="description">
+
+                                    <div class="description-content">
+
+                                        <div class="description-title">
+                                            {{ $inventoryItem->item_name ?? 'N/A' }}
+                                        </div>
+
+                                        <div class="description-text">
+                                            {{ $inventoryItem->description ?? 'N/A' }}
+                                        </div>
+
+                                        @if (!empty($inventoryItem->serial_number))
+                                            <div class="serial-number">
+                                                SN: {{ $inventoryItem->serial_number }}
+                                            </div>
+                                        @endif
+
+                                    </div>
+
+                                </td>
+
+                                <!-- PROPERTY NUMBER -->
+                                <td>
+                                    <div class="property-number">
+                                        {{ $inventoryItem->property_number ?? 'N/A' }}
+                                    </div>
+                                </td>
+
+                                <!-- DATE ACQUIRED -->
+                                <td>
+                                    {{ $inventoryItem->date_acquired
+                        ? \Carbon\Carbon::parse($inventoryItem->date_acquired)->format('m/d/Y')
+                        : 'N/A' }}
+                                </td>
+
+                                <!-- UNIT COST -->
+                                <td>
+                                    {{ number_format($unitCost, 2) }}
+                                </td>
+
+                                <!-- TOTAL -->
+                                <td>
+                                    {{ number_format($itemTotal, 2) }}
+                                </td>
+
+                            </tr>
+
+                    @endforeach
+
+                </tbody>
+
+            </table>
+
+            <!-- =====================================================
+                         SUPPLIER / PURCHASE INFORMATION
+                    ====================================================== -->
+            <table class="info-table">
+
+                <tr>
+
+                    <td class="info-left">
+
+                        <div class="info-row">
+                            <span class="info-label">SUPPLIER:</span>
+                            {{ $firstItem->supplier->supplier_name ?? 'N/A' }}
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">SALES INVOICE NO. & DATE:</span>
+                            {{ $firstItem->invoice ?? 'N/A' }}
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">FUND CODE:</span>
+                            {{ $firstItem->fund_source ?? 'N/A' }}
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">PO NO. & DATE:</span>
+                            {{ $firstItem->po_number ?? 'N/A' }}
+                        </div>
+
+                    </td>
+
+                    <td class="info-right">
+
+                        <div class="info-row">
+                            <span class="info-label">TOTAL:</span>
+                            {{ number_format($totalAmount, 2) }}
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">PR NO.:</span>
+                            {{ $firstItem->pr_number ?? 'N/A' }}
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">DATE OF ISSUANCE:</span>
+                            {{ $receipt->par_date ?? 'N/A' }}
+                        </div>
+
+                    </td>
+
+                </tr>
+
+            </table>
+
+            <!-- =====================================================
+                         REMARKS / LOCATION
+                    ====================================================== -->
+            <table class="note-table">
+
+                <tr>
+
+                    <td class="remarks-cell">
+                        <strong>REMARKS:</strong>
+                        {{ $receipt->remarks ?? '' }}
+                    </td>
+
+                    <td class="location-cell">
+                        <strong>LOCATION:</strong>
+                        {{ $roomName }}
+                    </td>
+
+                </tr>
+
+            </table>
+
+            <!-- =====================================================
+                         SIGNATURES
+                    ====================================================== -->
+            <table class="signature-table">
+
+                <tr>
+
+                    <!-- RECEIVED BY -->
+                    <td>
+
+                        <div class="signature-heading">
+                            Received by:
+                        </div>
+
+                        <div class="signature-name">
+                            {{ $accountableName ?: '____________________________' }}
+                        </div>
+
+                        <div class="signature-line"></div>
+
+                        <div class="signature-description">
+                            Signature over Printed Name of End User
+                        </div>
+
+                        <div class="signature-position">
+                            {{ $firstAckItem->accountablePerson->primaryOrganization->name ?? 'N/A' }}
+                        </div>
+
+                        <div class="signature-position-label">
+                            Position/Office
+                        </div>
+
+                        <div class="signature-date"></div>
+
+                        <div class="date-label">
+                            Date
+                        </div>
+
+                    </td>
+
+                    <!-- ISSUED BY -->
+                    <td>
+
+                        <div class="signature-heading">
+                            Issued by:
+                        </div>
+
+                        <div class="signature-name">
+                            {{ $issuedByName ?: '____________________________' }}
+                        </div>
+
+                        <div class="signature-line"></div>
+
+                        <div class="signature-description">
+                            Signature over Printed Name of Supply and/or Property Custodian
+                        </div>
+
+                        <div class="signature-position">
+                            {{ $firstAckItem->issuedBy->primaryOrganization->name ?? 'N/A' }}
+                        </div>
+
+                        <div class="signature-position-label">
+                            Position/Office
+                        </div>
+
+                        <div class="signature-date"></div>
+
+                        <div class="date-label">
+                            Date
+                        </div>
+
+                    </td>
+
+                </tr>
+
+            </table>
+
+        </div>
+
     @endforeach
+
 </body>
 
 </html>

@@ -7,6 +7,7 @@ import ItemTable from "@/Components/UserComponents/ItemTable.vue";
 import ItemCard from "@/Components/UserComponents/ItemCard.vue";
 import Banner from "@/Components/UserComponents/Banner.vue";
 import StatusStrip from "@/Components/UserComponents/StatusStrip.vue";
+import SessionTimeoutWarning from "@/Components/SessionTimeoutWarning.vue";
 
 const props = defineProps({
     user: { type: Object, required: true },
@@ -78,7 +79,7 @@ onBeforeUnmount(() => {
             <div class="max-w-7xl mx-auto px-6 py-8">
                 <Banner :user="user" class="mb-4" />
                 <StatusStrip class="mb-8" />
-
+                 <SessionTimeoutWarning />
                 <!-- Stats -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                     <ItemCard
