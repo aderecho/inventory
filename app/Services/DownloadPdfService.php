@@ -70,8 +70,10 @@ class DownloadPdfService
 
         $shot = Browsershot::html($html)
             ->showBackground()
-            ->addChromiumArgument('--no-sandbox')
-            ->addChromiumArgument('--disable-setuid-sandbox')
+            ->addChromiumArgument([
+                'no-sandbox',
+                'disable-setuid-sandbox',
+            ])
             ->format('A4')
             ->printBackground();
 
