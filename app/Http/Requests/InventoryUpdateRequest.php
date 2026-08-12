@@ -29,6 +29,8 @@ class InventoryUpdateRequest extends FormRequest
             'invoice' => 'required|string|max:50',
             'fund_source' => 'required|string|max:50',
             'item_name' => 'required|string|max:255',
+            'brand' => 'nullable|string|max:255',
+            'model' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'quantity' => 'required|integer',
             'unit' => 'required|string|max:50',

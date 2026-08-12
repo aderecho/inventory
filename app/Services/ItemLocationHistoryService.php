@@ -9,6 +9,7 @@ class ItemLocationHistoryService
     public function filterAndPaginateHistory(
         ?string $search = null,
         int|string|null $status = null,
+        int|string|null $room = null,
         int $perPage = 10
     ) {
         return InventoryItem::with([
@@ -20,11 +21,15 @@ class ItemLocationHistoryService
         ])
             ->when(
                 $search,
-                fn($query, $search) => $query->search($search)
+                fn($query, $search) => $query->searchItemHistory($search)
             )
             ->when(
                 !is_null($status),
                 fn($query) => $query->where('status', $status)
+            )
+            ->when(
+                $room,
+                fn($query, $room) => $query->filterByRoom($room)
             )
             ->whereHas('historyLocations') // only items that have location history
             ->orderByDesc('created_at')

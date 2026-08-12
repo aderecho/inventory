@@ -39,6 +39,8 @@ const form = useForm({
     invoice: "",
     fund_source: "",
     item_name: "",
+    brand: "",
+    model: "",
     description: "",
     quantity: "1",
     unit: "",
@@ -105,6 +107,8 @@ watch(
         form.invoice = item.invoice ?? "";
         form.fund_source = item.fund_source ?? "";
         form.item_name = item.item_name ?? "";
+        form.brand = item.brand ?? "";
+        form.model = item.model ?? "";
         form.description = item.description ?? "";
         form.quantity = item.quantity ?? 1;
         form.unit = item.unit ?? "";
@@ -127,12 +131,15 @@ watch(
 watch(
     () => form.quantity,
     (newVal) => {
+        if (props.mode !== "create") return;
+
         const qty = parseInt(newVal);
 
         if (!qty || qty <= 0) {
             form.serial_numbers = [];
             return;
         }
+
         form.serial_numbers = Array.from(
             { length: qty },
             (_, i) => form.serial_numbers[i] || "",
@@ -254,7 +261,6 @@ function getFilteredOptions(fdp) {
         ),
     );
 }
-
 </script>
 
 <template>
@@ -546,9 +552,16 @@ function getFilteredOptions(fdp) {
                                                 :key="qcf.model"
                                                 :type="qcf.type"
                                                 :placeholder="qcf.placeholder"
-                                                step="any"
+                                                :readonly="
+                                                    props.mode === 'edit' &&
+                                                    qcf.model === 'quantity'
+                                                "
                                                 :class="[
                                                     'w-full sm:w-[15.7rem] rounded-md border px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:outline-none',
+                                                    props.mode === 'edit' &&
+                                                    qcf.model === 'quantity'
+                                                        ? 'cursor-not-allowed bg-gray-100'
+                                                        : '',
                                                     form.errors[qcf.model]
                                                         ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
                                                         : 'border-gray-300 focus:ring-[#005740] focus:border-[#005740]',
@@ -607,39 +620,95 @@ function getFilteredOptions(fdp) {
                                         </div>
                                     </div>
 
-                                    <!-- ITEM NAME -->
+                                    <!-- ITEM NAME / BRAND / MODEL -->
+                                    <!-- CREATE MODE -->
                                     <div
-                                        v-for="ip in mode === 'edit'
-                                            ? inputFieldsEdit
-                                            : inputFields"
-                                        :key="ip.model"
-                                        class="flex flex-col"
+                                        v-if="mode !== 'edit'"
+                                        class="w-full flex md:flex-row gap-4 mb-4"
                                     >
-                                        <label
-                                            class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
-                                            >{{ ip.label }}
-                                            <span class="text-red-500"
-                                                >*</span
-                                            ></label
-                                        >
-                                        <input
-                                            v-model="form[ip.model]"
-                                            :key="ip.model"
-                                            :readonly="ip.readonly"
-                                            type="text"
-                                            :placeholder="ip.placeholder"
-                                            :class="[
-                                                'w-full sm:w-[32rem] rounded-md border px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:outline-none',
-                                                form.errors[ip.model]
-                                                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
-                                                    : 'border-gray-300 focus:ring-[#005740] focus:border-[#005740]',
-                                            ]"
-                                        />
                                         <div
-                                            v-if="form.errors[ip.model]"
-                                            class="text-red-500 text-xs mt-1"
+                                            v-for="ip in inputFields"
+                                            :key="ip.model"
                                         >
-                                            {{ form.errors[ip.model] }}
+                                            <label
+                                                class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                            >
+                                                {{ ip.label }}
+                                                <span
+                                                    v-if="ip.required"
+                                                    class="text-red-500"
+                                                >
+                                                    *
+                                                </span>
+                                            </label>
+
+                                            <input
+                                                v-model="form[ip.model]"
+                                                :readonly="ip.readonly"
+                                                :required="ip.required"
+                                                :type="ip.type || 'text'"
+                                                :placeholder="ip.placeholder"
+                                                :class="[
+                                                    'w-full sm:w-[10rem] rounded-md border px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:outline-none',
+                                                    form.errors[ip.model]
+                                                        ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                                                        : 'border-gray-300 focus:ring-[#005740] focus:border-[#005740]',
+                                                ]"
+                                            />
+
+                                            <div
+                                                v-if="form.errors[ip.model]"
+                                                class="text-red-500 text-xs mt-1"
+                                            >
+                                                {{ form.errors[ip.model] }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- EDIT MODE -->
+                                    <div
+                                        v-else
+                                        class="grid grid-cols-2 gap-4 mb-4 w-[32rem] max-w-2xl"
+                                    >
+                                        <div
+                                            v-for="ip in inputFieldsEdit"
+                                            :key="ip.model"
+                                        >
+                                            <label
+                                                class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                            >
+                                                {{ ip.label }}
+                                                <span
+                                                    v-if="ip.required"
+                                                    class="text-red-500"
+                                                >
+                                                    *
+                                                </span>
+                                            </label>
+
+                                            <input
+                                                v-model="form[ip.model]"
+                                                :disabled="ip.readonly"
+                                                :required="ip.required"
+                                                :type="ip.type || 'text'"
+                                                :placeholder="ip.placeholder"
+                                                :class="[
+                                                    'w-full rounded-md border px-3 py-3 text-sm focus:ring-1 focus:outline-none',
+                                                    ip.readonly
+                                                        ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                                                        : 'bg-[#F8F8F8] text-[#3B3B3B]',
+                                                    form.errors[ip.model]
+                                                        ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                                                        : 'border-gray-300 focus:ring-[#005740] focus:border-[#005740]',
+                                                ]"
+                                            />
+
+                                            <div
+                                                v-if="form.errors[ip.model]"
+                                                class="text-red-500 text-xs mt-1"
+                                            >
+                                                {{ form.errors[ip.model] }}
+                                            </div>
                                         </div>
                                     </div>
 

@@ -33,6 +33,12 @@ class AuthService
                 throw new \Exception('Authenticated but user instance is null.');
             }
 
+            // Log successful login
+            activity()
+                ->causedBy($user)
+                ->event('login')
+                ->log('User logged in');
+
             // Clear any stale "intended" URL from before login so it can't
             // override the permission-based redirect below.
             $request->session()->forget('url.intended');
@@ -48,7 +54,9 @@ class AuthService
 
             if (Auth::check()) {
                 return redirect()->route('user.dashboard')
-                    ->withErrors(['email' => 'Something went wrong loading your dashboard. Please try again.']);
+                    ->withErrors([
+                        'email' => 'Something went wrong loading your dashboard. Please try again.'
+                    ]);
             }
 
             return back()->withErrors([
@@ -56,6 +64,7 @@ class AuthService
             ]);
         }
     }
+
     public function register(Request $request)
     {
         $validated = $request->validate([
@@ -89,6 +98,15 @@ class AuthService
 
     public function logout(Request $request)
     {
+        if (Auth::check()) {
+            $user = Auth::user();
+
+            activity()
+                ->causedBy($user)
+                ->event('logout')
+                ->log('user logged out');
+        }
+
         Auth::logout();
 
         $request->session()->invalidate();

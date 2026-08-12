@@ -58,6 +58,11 @@ const menuItems = [
                 icon: "fa-solid fa-recycle",
                 route: "suppliers.archive.index",
             },
+            {
+                name: "Categories Archive",
+                icon: "fa-solid fa-recycle",
+                route: "categories.archive.index",
+            },
         ],
     },
     {
@@ -78,6 +83,11 @@ const menuItems = [
                 name: "SAML Configuration",
                 icon: "fa-solid fa-shield-halved",
                 route: "saml_configurations.index",
+            },
+              {
+                name: "Audit Logs",
+                icon: "fa-solid fa-shield-halved",
+                route: "audit_logs.index",
             },
         ],
     },

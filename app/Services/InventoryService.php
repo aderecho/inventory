@@ -86,20 +86,23 @@ class InventoryService
     {
         $itemIds = $data['inventory_item_id'];
 
-        $inventoryItems = InventoryItem::whereIn('id', $itemIds)->get()->keyBy('id');
+        $inventoryItems = InventoryItem::with('latestHistoryLocation')
+            ->whereIn('id', $itemIds)
+            ->get()
+            ->keyBy('id');
 
-        // Group item IDs by po_number
+        // Group item IDs by PO Number
         $groupedByPo = collect($itemIds)->groupBy(function ($itemId) use ($inventoryItems) {
             return $inventoryItems[$itemId]->po_number ?? 'unknown';
         });
 
-        // e.g. "223-2026-06-123" → base = "223-2026-06-", startingSeries = 123
-        $baseCategory = rtrim($data['category'], '-'); // "223-2026-06-123" or "223-2026-06-123"
-        $parts = explode('-', $baseCategory);          // ["223", "2026", "06", "123"]
-        $seriesNumber = (int) array_pop($parts);       // 123
-        $prefix = implode('-', $parts) . '-';          // "223-2026-06-"
+        // e.g. "223-2026-06-123"
+        $baseCategory = rtrim($data['category'], '-');
+        $parts = explode('-', $baseCategory);
+        $seriesNumber = (int) array_pop($parts);
+        $prefix = implode('-', $parts) . '-';
 
-        // Check DB for last used series under this prefix to avoid duplicates
+        // Prevent duplicate category numbers
         $lastReceipt = AcknowledgementReceipt::where('category', 'like', $prefix . '%')
             ->orderByRaw('CAST(SUBSTRING_INDEX(category, "-", -1) AS UNSIGNED) DESC')
             ->first();
@@ -109,7 +112,8 @@ class InventoryService
             : $seriesNumber;
 
         foreach ($groupedByPo as $poNumber => $groupedItemIds) {
-            $category = $prefix . $increment; // e.g. "223-2026-06-123", "223-2026-06-124"
+
+            $category = $prefix . $increment;
 
             $ack = AcknowledgementReceipt::create([
                 'issued_by_id' => $data['issued_by_id'],
@@ -120,6 +124,7 @@ class InventoryService
             ]);
 
             foreach ($groupedItemIds as $itemId) {
+
                 AcknowledgementItem::create([
                     'acknowledgement_id'    => $ack->id,
                     'inventory_item_id'     => $itemId,
@@ -127,6 +132,16 @@ class InventoryService
                     'issued_by_id'          => $data['issued_by_id'],
                     'status'                => 1,
                 ]);
+
+                // Only log a new location if it actually changed
+                $currentLocation = $inventoryItems[$itemId]->latestHistoryLocation;
+
+                if (!$currentLocation || $currentLocation->room_id != $data['room_id']) {
+                    ItemHistoryLocation::create([
+                        'inventory_item_id' => $itemId,
+                        'room_id'           => $data['room_id'],
+                    ]);
+                }
             }
 
             $increment++;
@@ -146,6 +161,8 @@ class InventoryService
                 'invoice' => $data['invoice'],
                 'fund_source' => $data['fund_source'],
                 'item_name' => $data['item_name'],
+                'brand' => $data['brand'],
+                'model' => $data['model'],
                 'description' => $data['description'],
                 'quantity' => 1,
                 'unit' => $data['unit'],
@@ -180,6 +197,8 @@ class InventoryService
             'invoice' => $data['invoice'],
             'fund_source' => $data['fund_source'],
             'item_name' => $data['item_name'],
+            'brand' => $data['brand'] ?? null,
+            'model' => $data['model'] ?? null,
             'description' => $data['description'] ?? null,
             'quantity' => $data['quantity'],
             'unit' => $data['unit'],

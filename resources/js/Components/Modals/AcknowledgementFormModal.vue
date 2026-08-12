@@ -17,6 +17,7 @@ const props = defineProps({
     accPerson: { type: Object, default: () => ({ data: [] }) },
     users: { type: Array, default: () => [] },
     userProfiles: { type: Array, default: () => [] },
+    rooms: { type: Array, default: () => [] }, // <-- Add this
     viewItem: { type: Array, default: () => [] },
     item: { type: Object, default: () => ({}) },
 });
@@ -30,6 +31,7 @@ const form = useForm({
     inventory_item_id: [],
     accountable_persons_id: "",
     issued_by_id: "",
+    room_id: "",
     category: "",
     created_by: "",
     par_date: "",
@@ -170,27 +172,27 @@ function generateCategoryFromFirstSelected() {
 watch(
     () => props.selectedIDs,
     (newVal) => {
-        console.log("selectedIDs changed", newVal); // debug
+        console.log("selectedIDs changed", newVal);
+
         if (newVal && newVal.length > 0) {
-            selectedCategory.value = itemMap.value[newVal[0]]?.category || "";
-            form.category = generateCategoryFromFirstSelected();
+            const firstItem = itemMap.value[newVal[0]];
+
+            if (firstItem) {
+                selectedCategory.value = firstItem.category || "";
+                form.category = generateCategoryFromFirstSelected();
+
+                // Initialize room from the selected item
+                form.room_id = Number(firstItem.room_id);
+
+                console.log("Room initialized:", form.room_id);
+            }
         } else {
             selectedCategory.value = "";
             form.category = "";
+            form.room_id = null;
         }
     },
     { immediate: true },
-);
-
-// Also watch items in case they load/refresh after selectedIDs
-watch(
-    () => props.items,
-    () => {
-        if (props.selectedIDs.length > 0) {
-            selectedCategory.value =
-                itemMap.value[props.selectedIDs[0]]?.category || "";
-        }
-    },
 );
 
 const isClosing = ref(false);
@@ -218,10 +220,10 @@ function getViewValue(view) {
     }
     return rawValue ?? "N/A";
 }
+console.log(props.rooms);
 </script>
 
 <template>
-    <!-- <pre>{{ form }}</pre> -->
     <div
         class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
         @click="closeWithAnimation"
@@ -236,7 +238,9 @@ function getViewValue(view) {
             <Toast />
 
             <!-- Header -->
-            <div class="bg-gradient-to-r from-[#003d2c] via-[#005740] to-[#00795a] px-6 py-5 flex items-center justify-between flex-shrink-0">
+            <div
+                class="bg-gradient-to-r from-[#003d2c] via-[#005740] to-[#00795a] px-6 py-5 flex items-center justify-between flex-shrink-0"
+            >
                 <div>
                     <h3 class="text-lg font-bold text-white">
                         {{
@@ -358,6 +362,76 @@ function getViewValue(view) {
                                     </div>
                                 </div>
                             </div>
+                            <!-- ROOM -->
+                            <div>
+                                <label
+                                    class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                >
+                                    Room <span class="text-red-500">*</span>
+                                </label>
+
+                                <Multiselect
+                                    v-model="form.room_id"
+                                    :options="props.rooms"
+                                    mode="single"
+                                    valueProp="id"
+                                    trackBy="id"
+                                    label="room_name"
+                                    :object="false"
+                                    :searchable="true"
+                                    :canClear="false"
+                                    placeholder="Select a room"
+                                >
+                                    <template #option="{ option }">
+                                        <div class="py-1">
+                                            <div
+                                                class="font-medium text-gray-900"
+                                            >
+                                                {{ option.room_name }}
+                                            </div>
+                                            <div class="text-xs text-gray-500">
+                                                {{ option.description }}
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <template #singlelabel="{ value }">
+                                        <div
+                                            v-if="
+                                                props.rooms.find(
+                                                    (r) => r.id === value,
+                                                )
+                                            "
+                                            class="py-1"
+                                        >
+                                            <div
+                                                class="font-medium text-gray-900"
+                                            >
+                                                {{
+                                                    props.rooms.find(
+                                                        (r) => r.id === value,
+                                                    ).room_name
+                                                }}
+                                            </div>
+
+                                            <div class="text-xs text-gray-500">
+                                                {{
+                                                    props.rooms.find(
+                                                        (r) => r.id === value,
+                                                    ).description
+                                                }}
+                                            </div>
+                                        </div>
+                                    </template>
+                                </Multiselect>
+
+                                <div
+                                    v-if="form.errors.room_id"
+                                    class="text-red-500 text-xs mt-1"
+                                >
+                                    {{ form.errors.room_id }}
+                                </div>
+                            </div>
 
                             <!-- REMARKS -->
                             <div>
@@ -392,9 +466,10 @@ function getViewValue(view) {
                                 :key="select.model"
                             >
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{{
-                                        select.label
-                                    }}</label>
+                                    <label
+                                        class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                        >{{ select.label }}</label
+                                    >
                                     <div
                                         class="bg-[#F8F8F8] border border-gray-300 rounded-md h-[calc(100vh-360px)] md:h-[calc(100vh-420px)] p-3 overflow-y-auto"
                                     >
@@ -477,7 +552,9 @@ function getViewValue(view) {
                 </div>
 
                 <!-- Footer -->
-                <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+                <div
+                    class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0"
+                >
                     <button
                         type="button"
                         @click="closeWithAnimation"
@@ -504,14 +581,18 @@ function getViewValue(view) {
             <!-- VIEW MODAL -->
             <div v-else class="flex flex-col flex-1 overflow-hidden">
                 <div class="p-6 overflow-y-auto flex-1">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+                    <div
+                        class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3"
+                    >
                         <div
                             v-for="view in viewItem"
                             :key="view.key"
                             class="flex items-start justify-between gap-4 border-b pb-2"
                         >
                             <!-- LABEL -->
-                            <div class="text-sm font-semibold text-[#1f2d27] w-1/2">
+                            <div
+                                class="text-sm font-semibold text-[#1f2d27] w-1/2"
+                            >
                                 {{ view.label }}:
                             </div>
 
@@ -525,7 +606,9 @@ function getViewValue(view) {
                 </div>
 
                 <!-- BUTTON -->
-                <div class="flex justify-end px-6 py-4 border-t border-gray-100 flex-shrink-0">
+                <div
+                    class="flex justify-end px-6 py-4 border-t border-gray-100 flex-shrink-0"
+                >
                     <button
                         @click="closeWithAnimation"
                         class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
@@ -538,45 +621,29 @@ function getViewValue(view) {
     </div>
 </template>
 <style>
-.accountable-person-select.multiselect {
-    width: 17.5rem !important;
-    min-height: 46px;
-    margin: 0 !important;
-}
-
-.issued-by-select.multiselect {
-    width: 15.7rem !important;
-    min-height: 46px;
-    margin: 0 !important;
-}
-:deep(.p-datepicker-input) {
-    width: 100%;
-    border-radius: 6px;
-    padding: 0.75rem !important;
-    background-color: #F8F8F8 !important;
-    font-size: 0.875rem !important;
-    color: #3B3B3B !important;
+:deep(.multiselect) {
+    color: #374151 !important;
+    background: #f8f8f8 !important;
     border: 1px solid #d1d5db !important;
 }
 
-:deep(.p-datepicker-input:focus) {
-    outline: none !important;
-    border-color: #005740 !important;
-    box-shadow: 0 0 0 1px #005740 !important;
-}
-.p-datepicker-input {
-    width: 100%;
-    border-radius: 6px;
-    padding: 0.65rem !important;
-    background-color: #F8F8F8 !important;
-    font-size: 0.875rem !important;
-    color: #3B3B3B !important;
-    border: 1px solid #d1d5db !important;
+:deep(.multiselect-single-label) {
+    color: #111827 !important;
 }
 
-.p-datepicker-input:focus {
-    outline: none !important;
-    border-color: #005740 !important;
-    box-shadow: 0 0 0 1px #005740 !important;
+:deep(.multiselect-single-label-text) {
+    color: #111827 !important;
+}
+
+:deep(.multiselect-placeholder) {
+    color: #9ca3af !important;
+}
+
+:deep(.multiselect-option) {
+    color: #111827 !important;
+}
+
+:deep(.multiselect-option.is-selected) {
+    color: #111827 !important;
 }
 </style>

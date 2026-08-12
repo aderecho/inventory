@@ -5,18 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Services\SupplierService;
 use App\Models\Supplier;
-use Illuminate\Routing\Controllers\Middleware;
 
 class SupplierArchiveController extends Controller
 {
-    public static function middleware(): array
-    {
-        return [
-            new Middleware('can:view supplier archive', only: ['index']),
-            new Middleware('can:restore supplier archive', only: ['restore']),
-            new Middleware('can:force delete supplier archive', only: ['forceDelete']),
-        ];
-    }
     public function __construct(
         protected SupplierService $supplierService
     ) {}

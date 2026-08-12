@@ -31,10 +31,12 @@ class ItemLocationHistoryController extends Controller
 
         $search = $request->input('search');
         $status = $request->input('status');
+        $room = $request->input('room');
 
         $items = $this->historyService->filterAndPaginateHistory(
             search: $search,
             status: $status,
+            room: $room,
         );
 
         $items->getCollection()->transform(function ($item) use ($roomsLookup) {

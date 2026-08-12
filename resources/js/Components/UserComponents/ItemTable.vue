@@ -59,7 +59,13 @@ const toggleSort = (key) => {
                             Item
                             <i
                                 class="fa-solid text-[9px]"
-                                :class="sortKey === 'item_name' ? (sortDirection === 'asc' ? 'fa-arrow-up text-[#005740]' : 'fa-arrow-down text-[#005740]') : 'fa-sort text-gray-300'"
+                                :class="
+                                    sortKey === 'item_name'
+                                        ? sortDirection === 'asc'
+                                            ? 'fa-arrow-up text-[#005740]'
+                                            : 'fa-arrow-down text-[#005740]'
+                                        : 'fa-sort text-gray-300'
+                                "
                             ></i>
                         </span>
                     </th>
@@ -77,6 +83,12 @@ const toggleSort = (key) => {
                     </th>
 
                     <th
+                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 font-['Poppins']"
+                    >
+                        Facility
+                    </th>
+
+                    <th
                         @click="toggleSort('date_assigned')"
                         class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 font-['Poppins'] cursor-pointer select-none hover:text-[#005740] transition-colors"
                     >
@@ -84,7 +96,13 @@ const toggleSort = (key) => {
                             Date Assigned
                             <i
                                 class="fa-solid text-[9px]"
-                                :class="sortKey === 'date_assigned' ? (sortDirection === 'asc' ? 'fa-arrow-up text-[#005740]' : 'fa-arrow-down text-[#005740]') : 'fa-sort text-gray-300'"
+                                :class="
+                                    sortKey === 'date_assigned'
+                                        ? sortDirection === 'asc'
+                                            ? 'fa-arrow-up text-[#005740]'
+                                            : 'fa-arrow-down text-[#005740]'
+                                        : 'fa-sort text-gray-300'
+                                "
                             ></i>
                         </span>
                     </th>
@@ -97,7 +115,13 @@ const toggleSort = (key) => {
                             Date Acquired
                             <i
                                 class="fa-solid text-[9px]"
-                                :class="sortKey === 'date_acquired' ? (sortDirection === 'asc' ? 'fa-arrow-up text-[#005740]' : 'fa-arrow-down text-[#005740]') : 'fa-sort text-gray-300'"
+                                :class="
+                                    sortKey === 'date_acquired'
+                                        ? sortDirection === 'asc'
+                                            ? 'fa-arrow-up text-[#005740]'
+                                            : 'fa-arrow-down text-[#005740]'
+                                        : 'fa-sort text-gray-300'
+                                "
                             ></i>
                         </span>
                     </th>
@@ -148,6 +172,24 @@ const toggleSort = (key) => {
                         </span>
                     </td>
 
+                    <!-- Facility -->
+                    <td class="px-6 py-5 font-['Poppins']">
+                        <div>
+                            <p class="font-semibold text-gray-900 text-[13px]">
+                                {{ item.room_name ?? "N/A" }}
+                            </p>
+
+                            <p
+                                class="text-[12px] text-gray-400 mt-0.5 line-clamp-2"
+                            >
+                                {{
+                                    item.room_description ??
+                                    "No description available."
+                                }}
+                            </p>
+                        </div>
+                    </td>
+
                     <!-- Date Assigned -->
                     <td class="px-6 py-5 font-['Poppins']">
                         <span class="text-[13px] text-gray-600">
@@ -160,12 +202,16 @@ const toggleSort = (key) => {
                         </span>
                     </td>
 
-                     <!-- Date Acquired -->
+                    <!-- Date Acquired -->
                     <td class="px-6 py-5 font-['Poppins']">
                         <span class="text-[13px] text-gray-600">
-                            {{ item.date_acquired
-                                ? new Date(item.date_acquired).toLocaleDateString()
-                                : "N/A" }}
+                            {{
+                                item.date_acquired
+                                    ? new Date(
+                                          item.date_acquired,
+                                      ).toLocaleDateString()
+                                    : "N/A"
+                            }}
                         </span>
                     </td>
 
@@ -174,7 +220,8 @@ const toggleSort = (key) => {
                         <span class="text-[13px] text-gray-600">
                             {{
                                 item.latest_acknowledgement_item
-                                    ?.acknowledgement_receipts?.category ?? "N/A"
+                                    ?.acknowledgement_receipts?.category ??
+                                "N/A"
                             }}
                         </span>
                     </td>
@@ -320,38 +367,62 @@ const toggleSort = (key) => {
                             <!-- Left: Item Name, Property Number, Serial Number, Date Acquired -->
                             <div class="grid grid-cols-1 gap-4">
                                 <div>
-                                    <p class="text-[11px] uppercase tracking-wider text-gray-400 font-semibold">
+                                    <p
+                                        class="text-[11px] uppercase tracking-wider text-gray-400 font-semibold"
+                                    >
                                         Item Name
                                     </p>
-                                    <p class="text-[13px] font-semibold text-gray-900 mt-1">
+                                    <p
+                                        class="text-[13px] font-semibold text-gray-900 mt-1"
+                                    >
                                         {{ selectedItem.item_name ?? "N/A" }}
                                     </p>
                                 </div>
 
                                 <div>
-                                    <p class="text-[11px] uppercase tracking-wider text-gray-400 font-semibold">
+                                    <p
+                                        class="text-[11px] uppercase tracking-wider text-gray-400 font-semibold"
+                                    >
                                         Property Number
                                     </p>
-                                    <p class="text-[13px] font-medium text-gray-700 mt-1">
-                                        {{ selectedItem.property_number ?? "N/A" }}
+                                    <p
+                                        class="text-[13px] font-medium text-gray-700 mt-1"
+                                    >
+                                        {{
+                                            selectedItem.property_number ??
+                                            "N/A"
+                                        }}
                                     </p>
                                 </div>
 
                                 <div>
-                                    <p class="text-[11px] uppercase tracking-wider text-gray-400 font-semibold">
+                                    <p
+                                        class="text-[11px] uppercase tracking-wider text-gray-400 font-semibold"
+                                    >
                                         Serial Number
                                     </p>
-                                    <p class="text-[13px] font-medium text-gray-700 mt-1">
-                                        {{ selectedItem.serial_number ?? "No Serial Number" }}
+                                    <p
+                                        class="text-[13px] font-medium text-gray-700 mt-1"
+                                    >
+                                        {{
+                                            selectedItem.serial_number ??
+                                            "No Serial Number"
+                                        }}
                                     </p>
                                 </div>
 
                                 <div>
-                                    <p class="text-[11px] uppercase tracking-wider text-gray-400 font-semibold">
+                                    <p
+                                        class="text-[11px] uppercase tracking-wider text-gray-400 font-semibold"
+                                    >
                                         Date Acquired
                                     </p>
                                     <p class="text-[13px] text-gray-600 mt-1">
-                                        {{ formatDate(selectedItem.date_acquired) }}
+                                        {{
+                                            formatDate(
+                                                selectedItem.date_acquired,
+                                            )
+                                        }}
                                     </p>
                                 </div>
                             </div>
@@ -359,28 +430,40 @@ const toggleSort = (key) => {
                             <!-- Middle: PO Number, PR Number, Invoice -->
                             <div class="grid grid-cols-1 gap-4">
                                 <div>
-                                    <p class="text-[11px] uppercase tracking-wider text-gray-400 font-semibold">
+                                    <p
+                                        class="text-[11px] uppercase tracking-wider text-gray-400 font-semibold"
+                                    >
                                         PO Number
                                     </p>
-                                    <p class="text-[13px] font-medium text-gray-700 mt-1">
+                                    <p
+                                        class="text-[13px] font-medium text-gray-700 mt-1"
+                                    >
                                         {{ selectedItem.po_number ?? "N/A" }}
                                     </p>
                                 </div>
 
                                 <div>
-                                    <p class="text-[11px] uppercase tracking-wider text-gray-400 font-semibold">
+                                    <p
+                                        class="text-[11px] uppercase tracking-wider text-gray-400 font-semibold"
+                                    >
                                         PR Number
                                     </p>
-                                    <p class="text-[13px] font-medium text-gray-700 mt-1">
+                                    <p
+                                        class="text-[13px] font-medium text-gray-700 mt-1"
+                                    >
                                         {{ selectedItem.pr_number ?? "N/A" }}
                                     </p>
                                 </div>
 
                                 <div>
-                                    <p class="text-[11px] uppercase tracking-wider text-gray-400 font-semibold">
+                                    <p
+                                        class="text-[11px] uppercase tracking-wider text-gray-400 font-semibold"
+                                    >
                                         Invoice
                                     </p>
-                                    <p class="text-[13px] font-medium text-gray-700 mt-1">
+                                    <p
+                                        class="text-[13px] font-medium text-gray-700 mt-1"
+                                    >
                                         {{ selectedItem.invoice ?? "N/A" }}
                                     </p>
                                 </div>
@@ -388,26 +471,38 @@ const toggleSort = (key) => {
 
                             <!-- Right: Files -->
                             <div>
-                                <p class="text-[11px] uppercase tracking-wider text-gray-400 font-semibold mb-2">
+                                <p
+                                    class="text-[11px] uppercase tracking-wider text-gray-400 font-semibold mb-2"
+                                >
                                     Files
                                 </p>
 
                                 <div
-                                    v-if="selectedItem.latest_acknowledgement_item?.files?.length"
+                                    v-if="
+                                        selectedItem.latest_acknowledgement_item
+                                            ?.files?.length
+                                    "
                                     class="flex flex-col gap-2"
                                 >
                                     <a
-                                        v-for="(file, index) in selectedItem.latest_acknowledgement_item.files"
+                                        v-for="(file, index) in selectedItem
+                                            .latest_acknowledgement_item.files"
                                         :key="file.id"
                                         :href="`/storage/${file.file_path}`"
                                         target="_blank"
                                         class="flex items-center justify-between px-4 py-2.5 rounded-lg border border-gray-200 hover:border-[#006B4F] hover:bg-[#006B4F]/5 transition-colors group"
                                     >
-                                        <span class="flex items-center gap-2 text-[13px] font-medium text-gray-700 group-hover:text-[#006B4F]">
-                                            <i class="fa-solid fa-file text-xs"></i>
+                                        <span
+                                            class="flex items-center gap-2 text-[13px] font-medium text-gray-700 group-hover:text-[#006B4F]"
+                                        >
+                                            <i
+                                                class="fa-solid fa-file text-xs"
+                                            ></i>
                                             File {{ index + 1 }}
                                         </span>
-                                        <i class="fa-solid fa-arrow-up-right-from-square text-[11px] text-gray-400 group-hover:text-[#006B4F]"></i>
+                                        <i
+                                            class="fa-solid fa-arrow-up-right-from-square text-[11px] text-gray-400 group-hover:text-[#006B4F]"
+                                        ></i>
                                     </a>
                                 </div>
 
@@ -419,7 +514,9 @@ const toggleSort = (key) => {
                     </div>
 
                     <!-- Modal Footer -->
-                    <div class="px-6 py-4 border-t border-gray-100 flex justify-end">
+                    <div
+                        class="px-6 py-4 border-t border-gray-100 flex justify-end"
+                    >
                         <button
                             @click="closeModal"
                             class="px-4 py-2 text-[12px] font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
