@@ -221,6 +221,8 @@ class PrintService
             ->format('A4')
             ->showBackground()
             ->emulateMedia('print')
+            ->addChromiumArgument('--no-sandbox')
+            ->addChromiumArgument('--disable-setuid-sandbox')
             ->pdf();
 
         return [
