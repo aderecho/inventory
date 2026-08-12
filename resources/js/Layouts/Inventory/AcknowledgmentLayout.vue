@@ -4,12 +4,13 @@ import { usePage } from "@inertiajs/vue3";
 import InventoryAcknowledgement from "@/Components/InventoryAcknowledgement.vue";
 import SideBar from "@/Components/SideBar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
-import ItemFilterControls from "@/Components/Filters/ItemFilterControls.vue";
+import SearchFilterBar from "@/Components/Filters/SearchFilterBar.vue";
 import NavHeader from "@/Components/NavHeader.vue";
 import Show from "@/Pages/Acknowledgement/Show.vue";
 import LoadingOverlay from "@/Components/LoadingOverlay.vue";
 import { useLoading } from "@/Composables/useLoading";
 import { useSidebar } from "@/Composables/useSidebar";
+import SessionTimeoutWarning from "@/Components/SessionTimeoutWarning.vue";
 const { isSidebarOpen, toggleSidebar } = useSidebar();
 
 const { isLoading, loadingTitle, loadingMessage, startLoading, stopLoading } =
@@ -65,6 +66,7 @@ function closeModal() {
 </script>
 
 <template>
+    <SessionTimeoutWarning />
     <LoadingOverlay
         :show="isLoading"
         :title="loadingTitle"
@@ -99,7 +101,7 @@ function closeModal() {
                                 class="flex-1 w-full lg:w-[22rem] xl:w-[25rem]"
                             >
                                 <div class="flex justify-end mb-3">
-                                    <ItemFilterControls
+                                    <SearchFilterBar
                                         :search="search"
                                         @update:search="search = $event"
                                         :mode="'acknowledgements'"

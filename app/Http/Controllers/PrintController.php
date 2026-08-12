@@ -10,6 +10,7 @@ class PrintController extends Controller
     public function __construct(
         protected PrintService $printService,
     ) {}
+
     public function printReceipt(Request $request)
     {
         try {
@@ -17,9 +18,18 @@ class PrintController extends Controller
 
             $result = $this->printService->generateReceiptPdf($ids);
 
-            $fileName = $result['type'] . '_' . now()->format('Y_m_d_His') . '.pdf';
+            $fileName = $result['type']
+                . '_'
+                . now()->format('Y_m_d_His')
+                . '.pdf';
 
-            return $result['pdf']->download($fileName);
+            return response($result['pdf'])
+                ->header('Content-Type', 'application/pdf')
+                ->header(
+                    'Content-Disposition',
+                    'attachment; filename="' . $fileName . '"'
+                );
+
         } catch (\Exception $e) {
             return response()->json([
                 'message' => $e->getMessage()

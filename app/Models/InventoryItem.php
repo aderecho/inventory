@@ -83,6 +83,12 @@ class InventoryItem extends Model
             ->latestOfMany();
     }
 
+    public function latestAcknowledgement()
+    {
+        return $this->hasOne(AcknowledgementReceipt::class)
+            ->latestOfMany();
+    }
+
     public function acknowledgementHistory()
     {
         return $this->hasMany(
@@ -113,23 +119,84 @@ class InventoryItem extends Model
         return $this->hasOne(ItemHistoryLocation::class)->latestOfMany();
     }
 
-    public function scopeSearch($query, $term)
+    public function assetInspections()
     {
-        if (!$term) {
-            return $query;
-        }
+        return $this->hasMany(AssetInspection::class);
+    }
 
-        return $query->where(function ($q) use ($term) {
-            $q->where('item_name', 'like', "%{$term}%")
-                ->orWhere('unit', 'like', "%{$term}%")
-                ->orWhere('property_number', 'like', "%{$term}%")
-                ->orWhere('serial_number', 'like', "%{$term}%")
-                ->orWhere('invoice', 'like', "%{$term}%")
-                ->orWhereHas('supplier', function ($supplier) use ($term) {
-                    $supplier->where('supplier_name', 'like', "%{$term}%");
-                });
+    public function inspections()
+    {
+        return $this->hasMany(AssetInspection::class);
+    }
+
+    public function latestInspection()
+    {
+        return $this->hasOne(AssetInspection::class)
+            ->orderByDesc('inspection_date')
+            ->orderByDesc('created_at');
+    }
+
+    public function scopeWithInspectionCondition($query, int $conditionId)
+    {
+        return $query->whereHas('inspections', function ($q) use ($conditionId) {
+            $q->where('asset_condition_id', $conditionId);
         });
     }
+
+    public function scopeInspectedWithinDateRange($query, string $startDate, string $endDate)
+    {
+        return $query->whereHas('inspections', function ($q) use ($startDate, $endDate) {
+            $q->whereBetween('inspection_date', [$startDate, $endDate]);
+        });
+    }
+
+    public function scopeSearch($query, $term)
+{
+    if (!$term) {
+        return $query;
+    }
+
+    return $query->where(function ($q) use ($term) {
+        $q->where('item_name', 'like', "%{$term}%")
+            ->orWhere('unit', 'like', "%{$term}%")
+            ->orWhere('property_number', 'like', "%{$term}%")
+            ->orWhere('serial_number', 'like', "%{$term}%")
+            ->orWhere('invoice', 'like', "%{$term}%")
+
+            // Supplier
+            ->orWhereHas('supplier', function ($supplier) use ($term) {
+                $supplier->where(
+                    'supplier_name',
+                    'like',
+                    "%{$term}%"
+                );
+            })
+
+            // Accountable Person
+            ->orWhereHas(
+                'latestAcknowledgementItem.accountablePerson',
+                function ($person) use ($term) {
+                    $terms = preg_split('/\s+/', trim($term));
+
+                    foreach ($terms as $name) {
+                        $person->where(function ($q) use ($name) {
+                            $q->where('first_name', 'like', "%{$name}%")
+                                ->orWhere(
+                                    'middle_name',
+                                    'like',
+                                    "%{$name}%"
+                                )
+                                ->orWhere(
+                                    'last_name',
+                                    'like',
+                                    "%{$name}%"
+                                );
+                        });
+                    }
+                }
+            );
+    });
+}
 
     public function scopeSearchItemHistory($query, $term)
     {

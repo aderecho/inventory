@@ -14,6 +14,20 @@ export function usePermissions() {
     return result
   })
 
+  // Disposal
+  const disposalActions = computed(() => {
+    const result = []
+    if (can('view inventory'))   result.push('view')
+    return result
+  })
+
+  // Inspection
+  const inspectionActions = computed(() => {
+    const result = []
+    if (can('view inventory'))   result.push('view')
+    return result
+  })
+
   const canViewInventory   = computed(() => can('view inventory'))
   const canCreateInventory = computed(() => can('create inventory'))
   const canImportInventory = computed(() => can('import inventory'))
@@ -91,6 +105,12 @@ export function usePermissions() {
     canCreateInventory,
     canImportInventory,
     canExportInventory,
+
+    //Disposal
+    disposalActions,
+
+    //Inspection
+    inspectionActions,
 
     // Suppliers
     supplierActions,

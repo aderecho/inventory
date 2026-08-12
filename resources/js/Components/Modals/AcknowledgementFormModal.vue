@@ -6,6 +6,7 @@ import { useToast } from "primevue/usetoast";
 import "/node_modules/@vueform/multiselect/themes/default.css";
 import Multiselect from "@vueform/multiselect";
 import DatePicker from "primevue/datepicker";
+import SessionTimeoutWarning from "@/Components/SessionTimeoutWarning.vue";
 
 const props = defineProps({
     mode: { type: String, default: "create" },
@@ -106,7 +107,6 @@ function submit() {
                     emit("submit", form);
                 },
                 onError: (errors) => {
-                    console.log("Validation errors:", errors);
                     toast.add({
                         severity: "warn",
                         summary: "Validation Failed",
@@ -172,7 +172,6 @@ function generateCategoryFromFirstSelected() {
 watch(
     () => props.selectedIDs,
     (newVal) => {
-        console.log("selectedIDs changed", newVal);
 
         if (newVal && newVal.length > 0) {
             const firstItem = itemMap.value[newVal[0]];
@@ -184,7 +183,6 @@ watch(
                 // Initialize room from the selected item
                 form.room_id = Number(firstItem.room_id);
 
-                console.log("Room initialized:", form.room_id);
             }
         } else {
             selectedCategory.value = "";
@@ -220,10 +218,35 @@ function getViewValue(view) {
     }
     return rawValue ?? "N/A";
 }
-console.log(props.rooms);
+
+function roomSearchFilter(option, query) {
+    if (!query) return true;
+
+    const search = query.toLowerCase().trim();
+
+    const searchFields = [
+        "room_name",
+        "room_code",
+        "description",
+        "building",
+        "building_name",
+        "capacity",
+    ];
+
+    return searchFields.some((field) => {
+        const value = option?.[field];
+
+        if (value === null || value === undefined) {
+            return false;
+        }
+
+        return String(value).toLowerCase().includes(search);
+    });
+}
 </script>
 
 <template>
+    <SessionTimeoutWarning />
     <div
         class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
         @click="closeWithAnimation"
@@ -380,6 +403,7 @@ console.log(props.rooms);
                                     :object="false"
                                     :searchable="true"
                                     :canClear="false"
+                                    :search-filter="roomSearchFilter"
                                     placeholder="Select a room"
                                 >
                                     <template #option="{ option }">

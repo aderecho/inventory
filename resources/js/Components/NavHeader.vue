@@ -29,6 +29,7 @@ const handleClickOutside = (e) => {
 };
 
 onMounted(() => document.addEventListener("mousedown", handleClickOutside));
+
 onUnmounted(() =>
     document.removeEventListener("mousedown", handleClickOutside),
 );
@@ -44,8 +45,7 @@ function closeProfileModal() {
     showProfileModal.value = false;
 }
 
-// Quick Links (Switch System) — same set of external systems as the
-// top NavBar's app grid.
+// Quick Links
 const showQuickLinks = ref(false);
 
 const toggleQuickLinks = () => {
@@ -89,16 +89,30 @@ const apps = ref([
 <template>
     <div>
         <nav
-            class="bg-gradient-to-r from-[#005740] via-[#006B4F] to-[#0E6021] shadow-md border-l border-white/20"
+            class="relative bg-gradient-to-r from-[#005740] via-[#006B4F] to-[#0E6021] shadow-md"
         >
-           <div class="flex h-16 items-center">
-                <h3 class="text-white font-bold text-sm tracking-wide pl-6">
-                    Inventory Management System (IMS)
+            <div class="relative flex h-[80px] items-center">
+
+                <!-- Sidebar Toggle / X -->
+                <div
+                    class="absolute left-4 top-1/2 -translate-y-1/2 z-10"
+                >
+                    <slot />
+                </div>
+
+                <!-- IMS Title - Centered -->
+                <h3
+                    class="absolute left-1/2 -translate-x-1/2 text-white font-bold text-lg tracking-wide whitespace-nowrap"
+                >
+                   (IMS) Inventory Management System
                 </h3>
 
+                <!-- User Section -->
                 <div class="ml-auto mr-6 flex items-center gap-3">
                     <div class="relative" ref="dropdownRef">
                         <div class="flex items-center gap-2">
+
+                            <!-- User Initials -->
                             <div
                                 class="h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0 bg-white"
                             >
@@ -109,10 +123,12 @@ const apps = ref([
                                 </span>
                             </div>
 
+                            <!-- Email -->
                             <span class="text-xs font-medium text-white">
                                 {{ page.props.auth.user?.email }}
                             </span>
 
+                            <!-- Settings -->
                             <button
                                 @click="toggleDropdown"
                                 class="focus:outline-none"
@@ -136,7 +152,7 @@ const apps = ref([
                                 v-if="dropdownOpen"
                                 class="absolute right-0 mt-2 w-56 rounded-xl shadow-lg overflow-hidden z-50 border border-gray-100"
                             >
-                                <!-- Dropdown header -->
+                                <!-- Dropdown Header -->
                                 <div
                                     class="px-4 py-3 text-white bg-gradient-to-r from-[#005740] via-[#006B4F] to-[#0E6021]"
                                 >
@@ -150,6 +166,7 @@ const apps = ref([
                                                 {{ profile?.first_name }}
                                                 {{ profile?.last_name }}
                                             </span>
+
                                             <span
                                                 class="text-xs text-white/70 truncate"
                                             >
@@ -161,17 +178,23 @@ const apps = ref([
                                     </div>
                                 </div>
 
-                                <!-- Dropdown items -->
+                                <!-- Dropdown Items -->
                                 <div class="bg-white py-1">
+
+                                    <!-- My Profile -->
                                     <button
                                         type="button"
                                         class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-[#005740]/10 hover:text-[#005740] transition-colors duration-200"
                                         @click="openProfileModal"
                                     >
-                                        <User class="w-4 h-4 text-[#005740]" />
+                                        <User
+                                            class="w-4 h-4 text-[#005740]"
+                                        />
+
                                         My Profile
                                     </button>
 
+                                    <!-- Switch System -->
                                     <button
                                         type="button"
                                         class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-[#005740]/10 hover:text-[#005740] transition-colors duration-200"
@@ -180,14 +203,20 @@ const apps = ref([
                                         <LayoutGrid
                                             class="w-4 h-4 text-[#005740]"
                                         />
-                                        <span class="flex-1 text-left">Switch System</span>
+
+                                        <span class="flex-1 text-left">
+                                            Switch System
+                                        </span>
+
                                         <ChevronRight
                                             class="w-3.5 h-3.5 text-gray-400 transition-transform duration-200"
-                                            :class="{ 'rotate-90': showQuickLinks }"
+                                            :class="{
+                                                'rotate-90': showQuickLinks,
+                                            }"
                                         />
                                     </button>
 
-                                    <!-- Quick Links panel -->
+                                    <!-- Quick Links Panel -->
                                     <transition
                                         enter-active-class="transition ease-out duration-150"
                                         enter-from-class="opacity-0 -translate-y-1"
@@ -200,15 +229,21 @@ const apps = ref([
                                             v-if="showQuickLinks"
                                             class="mx-2 mb-2 rounded-lg border border-gray-100 overflow-hidden"
                                         >
+                                            <!-- Quick Links Header -->
                                             <div
                                                 class="px-3 py-2 bg-gradient-to-r from-[#005740] via-[#006B4F] to-[#0E6021]"
                                             >
-                                                <p class="text-[11px] font-semibold text-white">
+                                                <p
+                                                    class="text-[11px] font-semibold text-white"
+                                                >
                                                     Quick Links
                                                 </p>
                                             </div>
 
-                                            <div class="grid grid-cols-3 gap-1 p-2 bg-white">
+                                            <!-- Apps -->
+                                            <div
+                                                class="grid grid-cols-3 gap-1 p-2 bg-white"
+                                            >
                                                 <a
                                                     v-for="app in apps"
                                                     :key="app.label"
@@ -225,6 +260,7 @@ const apps = ref([
                                                             class="w-5 h-5 object-contain"
                                                         />
                                                     </span>
+
                                                     <span
                                                         class="text-[10px] font-medium text-gray-600 group-hover:text-[#005740] text-center leading-tight transition-colors"
                                                     >
@@ -235,10 +271,12 @@ const apps = ref([
                                         </div>
                                     </transition>
 
+                                    <!-- Divider -->
                                     <div
                                         class="border-t border-gray-100 my-1"
                                     ></div>
 
+                                    <!-- Logout -->
                                     <Link
                                         :href="route('logout')"
                                         method="post"
@@ -249,18 +287,18 @@ const apps = ref([
                                         <i
                                             class="fa-solid fa-share-from-square text-red"
                                         ></i>
+
                                         Logout
                                     </Link>
                                 </div>
                             </div>
                         </transition>
                     </div>
-
-                    <slot />
                 </div>
             </div>
         </nav>
 
+        <!-- Edit Profile Modal -->
         <EditProfileModal
             :show="showProfileModal"
             :user="page.props.auth.user"

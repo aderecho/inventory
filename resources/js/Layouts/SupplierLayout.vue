@@ -4,7 +4,7 @@ import { usePage, router } from "@inertiajs/vue3";
 import SideBar from "@/Components/SideBar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import InventoryTable from "@/Components/InventoryTable.vue";
-import ItemFilterControls from "@/Components/Filters/ItemFilterControls.vue";
+import SearchFilterBar from "@/Components/Filters/SearchFilterBar.vue";
 import PrimaryButton from "@/Components/Buttons/PrimaryButton.vue";
 import SupplierFormModal from "@/Components/Modals/SupplierFormModal.vue";
 import ArchiveModal from "@/Components/Modals/ArchiveModal.vue";
@@ -15,6 +15,7 @@ import NavHeader from "@/Components/NavHeader.vue";
 import { useLoading } from "@/Composables/useLoading";
 import { usePermissions } from "@/Composables/usePermissions";
 import { useSidebar } from "@/Composables/useSidebar";
+import SessionTimeoutWarning from "@/Components/SessionTimeoutWarning.vue";
 const { isSidebarOpen, toggleSidebar } = useSidebar();
 
 const { supplierActions, canCreateSupplier } = usePermissions();
@@ -148,6 +149,7 @@ function confirmArchive() {
 </script>
 
 <template>
+    <SessionTimeoutWarning />
     <LoadingOverlay
         :show="isLoading"
         :title="loadingTitle"
@@ -186,7 +188,7 @@ function confirmArchive() {
                                 <span>Add Supplier</span>
                             </PrimaryButton>
 
-                            <ItemFilterControls
+                            <SearchFilterBar
                                 :search="search"
                                 @update:search="search = $event"
                                 :mode="'suppliers'"

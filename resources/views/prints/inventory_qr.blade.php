@@ -42,7 +42,8 @@
 
 <body>
 
-    <table class="layout">
+    @foreach($items as $loopItem)
+    <table class="layout" style="page-break-after: always;">
         <tr>
 
             <!-- LEFT SIDE (70%) -->
@@ -83,7 +84,7 @@
                         <td class="label">Property Code:</td>
                         <td class="value">
                             <span class="underline-value">
-                                {{ $item->property_number }}
+                                {{ $loopItem->property_number }}
                             </span>
                         </td>
                     </tr>
@@ -92,7 +93,7 @@
                         <td class="label">Date Acquired:</td>
                         <td class="value">
                             <span class="underline-value">
-                                {{ $item->date_acquired }}
+                                {{ $loopItem->date_acquired }}
                             </span>
                         </td>
                     </tr>
@@ -101,7 +102,7 @@
                         <td class="label">Cost:</td>
                         <td class="value">
                             <span class="underline-value">
-                                {{ number_format($item->unit_cost, 2) }}
+                                {{ number_format($loopItem->unit_cost, 2) }}
                             </span>
                         </td>
                     </tr>
@@ -110,7 +111,7 @@
                         <td class="label">Product:</td>
                         <td class="value">
                             <span class="underline-value">
-                                {{ $item->item_name }}
+                                {{ $loopItem->item_name }}
                             </span>
                         </td>
                     </tr>
@@ -119,7 +120,7 @@
                         <td class="label">Serial Model#:</td>
                         <td class="value">
                             <span class="underline-value">
-                                {{ $item->serial_number ?? 'N/A' }}
+                                {{ $loopItem->serial_number ?? 'N/A' }}
                             </span>
                         </td>
                     </tr>
@@ -128,7 +129,7 @@
                         <td class="label">Accountable Person:</td>
                         <td class="value">
                             <span class="underline-value">
-                                {{ $item->latestAcknowledgementItem->accountablePerson->full_name }}
+                                {{ $loopItem->latestAcknowledgementItem->accountablePerson->full_name ?? 'N/A' }}
                             </span>
                         </td>
                     </tr>
@@ -137,7 +138,7 @@
                         <td class="label">Supplier:</td>
                         <td class="value">
                             <span class="underline-value">
-                                {{ $item->supplier->supplier_name }}
+                                {{ $loopItem->supplier->supplier_name ?? 'N/A' }}
                             </span>
                         </td>
                     </tr>
@@ -146,7 +147,7 @@
                         <td class="label">Location:</td>
                         <td class="value">
                             <span class="underline-value">
-                                {{ $roomNames[$item->inventoryItems->id] ?? 'N/A' }}
+                                {{ $roomNames[$loopItem->id] ?? 'N/A' }}
                             </span>
                         </td>
                     </tr>
@@ -163,7 +164,7 @@
                         QrCode::format('png')
                             ->size(260)
                             ->margin(2)
-                            ->generate($item->property_number)
+                            ->generate($loopItem->property_number)
                     ) }}"
                     width="250"
                     height="250"
@@ -174,6 +175,7 @@
 
         </tr>
     </table>
+    @endforeach
 
 </body>
 

@@ -13,6 +13,7 @@ use App\Models\Supplier;
 use App\Models\UserProfile;
 use App\Services\Api\InventoryApiService;
 use App\Services\DownloadPngService;
+use App\Services\DownloadPdfService;
 use App\Services\InventoryService;
 use App\Services\RoomApiService;
 use Illuminate\Http\Request;
@@ -50,6 +51,7 @@ class InventoryController extends Controller
         $costRange = $request->input('cost_range');
         $status = $request->input('status');
         $acknowledgementStatus = $request->input('acknowledgement_status');
+        $roomId = $request->input('room_id');
 
         $itemClassifications = ItemClassification::all();
         $suppliers = Supplier::all();
@@ -60,7 +62,8 @@ class InventoryController extends Controller
             $search,
             $costRange,
             $status,
-            $acknowledgementStatus
+            $acknowledgementStatus,
+            $roomId,
         );
 
         $items->getCollection()->transform(function ($item) use ($roomsLookup) {
@@ -150,6 +153,17 @@ class InventoryController extends Controller
 
         return response()
             ->download($zipPath)
+            ->deleteFileAfterSend(true);
+    }
+
+    public function downloadQrPdfs(Request $request, DownloadPdfService $downloadPdfService)
+    {
+        $ids = $request->input('ids', []);
+
+        $pdfPath = $downloadPdfService->generateQrPdf($ids);
+
+        return response()
+            ->download($pdfPath)
             ->deleteFileAfterSend(true);
     }
 

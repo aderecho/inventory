@@ -5,7 +5,7 @@ import SideBar from "@/Components/SideBar.vue";
 import InventoryTable from "@/Components/InventoryTable.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import InventoryFormModal from "@/Components/Modals/InventoryFormModal.vue";
-import ItemFilterControls from "@/Components/Filters/ItemFilterControls.vue";
+import SearchFilterBar from "@/Components/Filters/SearchFilterBar.vue";
 import ArchiveModal from "@/Components/Modals/ArchiveModal.vue";
 import SuccessModal from "@/Components/Modals/SuccessModal.vue";
 import SuccessDeleteModal from "@/Components/Modals/SuccessDeleteModal.vue";
@@ -17,6 +17,7 @@ import { usePermissions } from "@/Composables/usePermissions";
 import { useLoading } from "@/Composables/useLoading";
 import { Button } from "@/Components/ui/button";
 import NavHeader from "@/Components/NavHeader.vue";
+import SessionTimeoutWarning from "@/Components/SessionTimeoutWarning.vue";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -78,9 +79,13 @@ const columns = [
                 return `<span class="text-[#D32F2F] font-bold">Unassigned</span>`;
             }
 
-            const fullName = `${person.first_name ?? ""} ${person.last_name ?? ""}`.trim();
+            const fullName =
+                `${person.first_name ?? ""} ${person.last_name ?? ""}`.trim();
 
-            return fullName || `<span class="text-[#D32F2F] font-bold">Unassigned</span>`;
+            return (
+                fullName ||
+                `<span class="text-[#D32F2F] font-bold">Unassigned</span>`
+            );
         },
     },
     {
@@ -394,6 +399,7 @@ let search = ref("");
 let status = ref(null);
 let cost_range = ref(null);
 let acknowledgement_status = ref("");
+let room_id = ref("");
 
 // MODAL STATE
 let formMode = ref("create");
@@ -455,7 +461,9 @@ function handleDelete(item) {
 // ------------------------------------------------------------------
 const selectedItemsMap = ref(new Map());
 
-const tempSelectedIds = computed(() => Array.from(selectedItemsMap.value.keys()));
+const tempSelectedIds = computed(() =>
+    Array.from(selectedItemsMap.value.keys()),
+);
 
 const selectedItemsDetails = computed(() =>
     Array.from(selectedItemsMap.value.values()),
@@ -752,6 +760,104 @@ const printQrCodes = async () => {
     }
 };
 
+// New modal controls for choosing PNG or PDF
+const showPrintModal = ref(false);
+const selectedPrintFormat = ref("png");
+
+function openPrintModal() {
+    if (!tempSelectedIds.value.length) {
+        toast.add({
+            severity: "error",
+            summary: "No Items Selected",
+            detail: "Please select at least one item.",
+            life: 3000,
+        });
+        return;
+    }
+    selectedPrintFormat.value = "png";
+    showPrintModal.value = true;
+}
+
+async function proceedPrint() {
+    showPrintModal.value = false;
+    if (selectedPrintFormat.value === "png") {
+        await printQrCodesAsPng();
+    } else {
+        await printQrCodesAsPdf();
+    }
+}
+
+async function printQrCodesAsPng() {
+    startLoading(
+        "Generating QR Codes...",
+        "Please wait while we prepare your files.",
+    );
+    try {
+        const response = await axios.post(
+            route("inventory.qr.pngs"),
+            { ids: tempSelectedIds.value },
+            { responseType: "blob" },
+        );
+
+        const isSingle = tempSelectedIds.value.length === 1;
+        const filename = isSingle ? "qr-code.png" : "qr-codes.zip";
+
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", filename);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    } catch (error) {
+        toast.add({
+            severity: "error",
+            summary: "Error",
+            detail: "Something went wrong while generating PNGs.",
+            life: 5000,
+        });
+    } finally {
+        stopLoading();
+    }
+}
+
+async function printQrCodesAsPdf() {
+    startLoading(
+        "Generating QR PDF...",
+        "Please wait while we prepare your document.",
+    );
+    try {
+        // Backend route should return a PDF blob (single file or zipped PDFs)
+        const response = await axios.post(
+            route("inventory.qr.pdfs"),
+            { ids: tempSelectedIds.value },
+            { responseType: "blob" },
+        );
+
+        const isSingle = tempSelectedIds.value.length === 1;
+        const filename = isSingle ? "qr-code.pdf" : "qr-codes.pdf";
+
+        const url = window.URL.createObjectURL(
+            new Blob([response.data], { type: "application/pdf" }),
+        );
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", filename);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    } catch (error) {
+        toast.add({
+            severity: "error",
+            summary: "Error",
+            detail: "Something went wrong while generating PDF.",
+            life: 5000,
+        });
+    } finally {
+        stopLoading();
+    }
+}
+
 const userProfiles = computed(() => {
     return (page.props.userProfiles ?? []).map((u) => ({
         ...u,
@@ -856,13 +962,10 @@ async function handleConvertFile(event) {
         });
     }
 }
-// window.Echo.channel("chat").listen("MessageSent", (e) => {
-//     console.log("Message received:", e.message);
-// });
-// console.log(page.props.auth.permissions);
 </script>
 
 <template>
+    <SessionTimeoutWarning />
     <Toast />
     <LoadingOverlay
         :show="isLoading"
@@ -951,7 +1054,7 @@ async function handleConvertFile(event) {
                                             <DropdownMenuSeparator />
 
                                             <DropdownMenuItem
-                                                @click="printQrCodes"
+                                                @click="openPrintModal"
                                                 class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
                                             >
                                                 <QrCode
@@ -1022,13 +1125,15 @@ async function handleConvertFile(event) {
                             <div
                                 class="flex flex-col md:flex-row md:items-center justify-between gap-3 mt-5"
                             >
-                                <ItemFilterControls
+                                <SearchFilterBar
                                     :search="search"
                                     :cost_range="cost_range"
                                     :status="status"
                                     :acknowledgement_status="
                                         acknowledgement_status
                                     "
+                                    :room_id="room_id"
+                                    :rooms="rooms"
                                     :unitCostOptions="unitCostOptions"
                                     :filterStatus="filterStatus"
                                     :acknowledgementFilter="
@@ -1044,7 +1149,9 @@ async function handleConvertFile(event) {
                                 />
 
                                 <!-- SELECTED ITEMS BADGE -->
-                                <div class="relative flex-shrink-0 self-start md:self-auto">
+                                <div
+                                    class="relative flex-shrink-0 self-start md:self-auto"
+                                >
                                     <button
                                         type="button"
                                         @click="toggleSelectedPanel"
@@ -1063,8 +1170,7 @@ async function handleConvertFile(event) {
                                         <ChevronDown
                                             class="w-4 h-4 text-gray-500 transition-transform duration-200"
                                             :class="{
-                                                'rotate-180':
-                                                    showSelectedPanel,
+                                                'rotate-180': showSelectedPanel,
                                             }"
                                         />
                                     </button>
@@ -1121,7 +1227,8 @@ async function handleConvertFile(event) {
                                                         v-if="
                                                             item.property_number
                                                         "
-                                                        >- {{
+                                                        >-
+                                                        {{
                                                             item.property_number
                                                         }}</template
                                                     ></span
@@ -1226,6 +1333,96 @@ async function handleConvertFile(event) {
                         </div>
                     </div>
                 </main>
+                <!-- Print Format Modal -->
+                <div
+                    v-if="showPrintModal"
+                    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+                >
+                    <div
+                        class="bg-white rounded-lg w-full max-w-md overflow-hidden"
+                    >
+                        <div
+                            class="px-6 py-3 bg-gradient-to-r from-[#005740] to-[#00795a]"
+                        >
+                            <h3 class="text-white text-lg font-bold">
+                                Download QR Codes
+                            </h3>
+                        </div>
+                        <div class="p-6">
+                            <p class="text-md font-bold text-gray-600 mb-4">
+                                Choose output format:
+                            </p>
+
+                            <div class="space-y-3 mb-4">
+                                <label class="flex items-start gap-3">
+                                    <input
+                                        type="radio"
+                                        value="png"
+                                        v-model="selectedPrintFormat"
+                                        class="form-radio mt-1"
+                                    />
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <i
+                                                class="pi pi-image text-[#005740]"
+                                            ></i>
+                                            <span class="text-sm font-semibold"
+                                                >PNG (images)</span
+                                            >
+                                        </div>
+                                        <p class="text-xs text-gray-500 mt-1">
+                                            PNG files are flexible in size and
+                                            will not be constrained to a fixed
+                                            sticker dimension. Use this when you
+                                            need images or variable sizing.
+                                        </p>
+                                    </div>
+                                </label>
+
+                                <label class="flex items-start gap-3">
+                                    <input
+                                        type="radio"
+                                        value="pdf"
+                                        v-model="selectedPrintFormat"
+                                        class="form-radio mt-1"
+                                    />
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <i
+                                                class="pi pi-file-pdf text-[#005740]"
+                                            ></i>
+                                            <span class="text-sm font-semibold"
+                                                >PDF (document)</span
+                                            >
+                                        </div>
+                                        <p class="text-xs text-gray-500 mt-1">
+                                            PDF produces fixed-size pages
+                                            suitable for printing standardized
+                                            stickers. Choose this for consistent
+                                            print layout.
+                                        </p>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div class="flex justify-end gap-3">
+                                <button
+                                    @click="showPrintModal = false"
+                                    class="px-4 py-2 rounded bg-gray-100"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    @click="proceedPrint"
+                                    class="px-4 py-2 rounded bg-[#005740] text-white flex items-center gap-2"
+                                >
+                                    <i class="pi pi-download"></i>
+                                    <span>Download</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

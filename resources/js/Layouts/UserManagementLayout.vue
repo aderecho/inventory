@@ -4,7 +4,7 @@ import { usePage, router } from "@inertiajs/vue3";
 import SideBar from "@/Components/SideBar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import InventoryTable from "@/Components/InventoryTable.vue";
-import ItemFilterControls from "@/Components/Filters/ItemFilterControls.vue";
+import SearchFilterBar from "@/Components/Filters/SearchFilterBar.vue";
 import PrimaryButton from "@/Components/Buttons/PrimaryButton.vue";
 import UserFormModal from "@/Components/Modals/UserFormModal.vue";
 import DeleteModal from "@/Components/Modals/DeleteModal.vue";
@@ -186,7 +186,7 @@ const filterStatus = [
                             <div
                                 class="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3"
                             >
-                                <ItemFilterControls
+                                <SearchFilterBar
                                     :search="search"
                                     :status="status"
                                     :filterStatus="filterStatus"

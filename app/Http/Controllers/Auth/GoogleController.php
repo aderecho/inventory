@@ -14,7 +14,11 @@ class GoogleController extends Controller
 {
     public function redirect()
     {
-        return Socialite::driver('google')->redirect();
+        return Socialite::driver('google')
+            ->with([
+                'prompt' => 'select_account',
+            ])
+            ->redirect();
     }
 
     public function callback()
@@ -54,7 +58,7 @@ class GoogleController extends Controller
             ]);
         }
 
-        Auth::login($user, true);
+        Auth::login($user, false);
 
         // Audit Log
         activity()

@@ -13,6 +13,8 @@ import LoadingOverlay from "@/Components/LoadingOverlay.vue";
 import { useLoading } from "@/Composables/useLoading";
 import { usePermissions } from "@/Composables/usePermissions";
 import { useSidebar } from "@/Composables/useSidebar";
+import SessionTimeoutWarning from "@/Components/SessionTimeoutWarning.vue";
+
 const { isSidebarOpen, toggleSidebar } = useSidebar();
 
 const { isLoading, loadingTitle, loadingMessage, startLoading, stopLoading } =
@@ -111,6 +113,7 @@ function confirmForceDelete() {
 </script>
 
 <template>
+    <SessionTimeoutWarning />
     <Toast />
     <LoadingOverlay
         :show="isLoading"

@@ -233,14 +233,14 @@ function handleSaml() {
                 />
                 Continue with Google
             </button>
-
+<!-- 
             <button
                 type="button"
                 class="mt-3 w-full flex items-center justify-center gap-2.5 py-3 rounded-full border border-[#005740] bg-[#005740] text-sm font-medium text-white cursor-pointer transition-colors duration-150 ease-in-out hover:bg-[#003f30]"
                 @click="handleSaml"
             >
                 Continue with OnePortal
-            </button>
+            </button> -->
         </div>
     </AuthLayout>
 </template>

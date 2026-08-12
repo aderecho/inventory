@@ -30,13 +30,13 @@ class ItemLocationHistoryController extends Controller
             ->values();
 
         $search = $request->input('search');
-        $status = $request->input('status');
-        $room = $request->input('room');
+        $roomId = $request->input('room_id');
+        $acknowledgementStatus = $request->input('acknowledgement_status');
 
         $items = $this->historyService->filterAndPaginateHistory(
-            search: $search,
-            status: $status,
-            room: $room,
+            $search,
+            $acknowledgementStatus,
+            $roomId,
         );
 
         $items->getCollection()->transform(function ($item) use ($roomsLookup) {
@@ -48,20 +48,13 @@ class ItemLocationHistoryController extends Controller
 
             $item->room_id = $roomId;
 
-            // Enrich each history entry with room details
-            $item->historyLocations->each(function ($history) use ($roomsLookup) {
-                $room = $roomsLookup[$history->room_id] ?? null;
-                $history->room_name     = $room['room_name']     ?? 'N/A';
-                $history->building_name = $room['building_name'] ?? 'N/A';
-                $history->description   = $room['description']   ?? 'N/A';
-            });
-
             return $item;
         });
 
         return inertia('ItemHistory/Index', [
             'rooms' => $rooms,
             'items' => $items,
+            'room_id' => $roomId,
         ]);
     }
 
