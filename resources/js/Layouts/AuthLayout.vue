@@ -94,6 +94,6 @@ defineProps({
     title: { type: String, default: "" },
     description: { type: String, default: "" },
     tags: { type: Array, default: () => [] },
-    backgroundImage: { type: String, default: "/images/image (7).png" },
+    backgroundImage: { type: String, default: "/images/background-up.jpg" },
 });
 </script>

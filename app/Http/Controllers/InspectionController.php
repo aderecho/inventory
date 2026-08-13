@@ -74,6 +74,27 @@ class InspectionController extends Controller
         ]);
     }
 
+    public function show(Request $request, int $id, RoomApiService $roomsApi)
+    {
+        $roomResult = $roomsApi->fetchRooms();
+
+        $roomsLookup = collect($roomResult['data'])->keyBy('id');
+
+        $item = $this->inspectionService->getItemWithInspections($id);
+
+        $roomId = $item->latestHistoryLocation?->room_id;
+
+        $item->room_name = isset($roomsLookup[$roomId])
+            ? $roomsLookup[$roomId]['room_name']
+            : 'N/A';
+
+        $item->room_id = $roomId;
+
+        return inertia('Inspection/Show', [
+            'item' => $item,
+        ]);
+    }
+
     public function getItemLatestInspection(int $itemId)
     {
         try {
