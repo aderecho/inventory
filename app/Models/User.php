@@ -15,7 +15,7 @@ class User extends Authenticatable
     use HasApiTokens, LogsActivity, HasFactory, HasRoles, SoftDeletes {
         HasRoles::hasPermissionTo as protected spatieHasPermissionTo;
     }
-    protected $fillable = ['email', 'password', 'status', 'last_activity'];
+    protected $fillable = ['email', 'status', 'last_activity'];
 
     protected $hidden = ['password'];
 
@@ -30,7 +30,9 @@ class User extends Authenticatable
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(
-                fn(string $eventName) => "{$eventName} user"
+                function (string $eventName) {
+                    return "{$eventName} user - {$this->email}";
+                }
             );
     }
 

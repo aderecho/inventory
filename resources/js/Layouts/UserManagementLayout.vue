@@ -16,6 +16,7 @@ import PermissionFormModal from "@/Components/Modals/PermissionFormModal.vue";
 import LoadingOverlay from "@/Components/LoadingOverlay.vue";
 import { useLoading } from "@/Composables/useLoading";
 import { useSidebar } from "@/Composables/useSidebar";
+import { usePermissions } from "@/Composables/usePermissions";
 const { isSidebarOpen, toggleSidebar } = useSidebar();
 
 const { isLoading, loadingTitle, loadingMessage, startLoading, stopLoading } =
@@ -29,6 +30,14 @@ const permissions = computed(() => page.props.permissions || []);
 const organizations = computed(() => page.props.organizations || []);
 const showRoleModal = ref(false);
 const showPermissionModal = ref(false);
+
+const { roleActions, permissionActions, userActions } = usePermissions();
+
+const canViewUsers = computed(() => userActions.value.includes("view"));
+const canViewRoles = computed(() => roleActions.value.includes("view"));
+const canViewPermissions = computed(() =>
+    permissionActions.value.includes("view"),
+);
 
 const status = ref(null);
 const search = ref("");
@@ -166,21 +175,29 @@ const filterStatus = [
                             <div
                                 class="flex flex-col sm:flex-row items-stretch gap-3"
                             >
-                                <PrimaryButton @click="openAdd">
+                                <PrimaryButton 
+                                v-if="canViewUsers"
+                                @click="openAdd">
                                     <i class="fa-solid fa-user-group"></i>
                                     <span>Add User</span>
                                 </PrimaryButton>
 
-                                <PrimaryButton @click="showRoleModal = true">
+                                <PrimaryButton
+                                    v-if="canViewRoles"
+                                    @click="showRoleModal = true"
+                                >
                                     <i class="fa-solid fa-shield-halved"></i>
                                     <span>Manage Roles</span>
                                 </PrimaryButton>
 
-                                <!-- <button @click="showPermissionModal = true"
-                class="flex gap-2 bg-[#0E6021] rounded-md text-white px-3 py-2 text-xs sm:text-sm hover:bg-[#19703a] w-full sm:w-auto items-center mt-2 justify-center">
-                <i class="fa-solid fa-key"></i>
-                <span>Manage Permissions</span>
-              </button> -->
+                                <button
+                                    v-if="canViewPermissions"
+                                    @click="showPermissionModal = true"
+                                    class="flex gap-2 bg-[#0E6021] rounded-md text-white px-3 py-2 text-xs sm:text-sm hover:bg-[#19703a] w-full sm:w-auto items-center mt-2 justify-center"
+                                >
+                                    <i class="fa-solid fa-key"></i>
+                                    <span>Manage Permissions</span>
+                                </button>
                             </div>
 
                             <div
@@ -205,8 +222,11 @@ const filterStatus = [
                             @close="showRoleModal = false"
                         />
 
-                        <!-- <PermissionFormModal v-if="showPermissionModal" :permissions="permissions"
-            @close="showPermissionModal = false" /> -->
+                        <PermissionFormModal
+                            v-if="showPermissionModal"
+                            :permissions="permissions"
+                            @close="showPermissionModal = false"
+                        />
 
                         <UserFormModal
                             v-if="showFormModal"

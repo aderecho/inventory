@@ -26,7 +26,6 @@ class InventoryStoreRequest extends FormRequest
             'supplier_id' => 'required|integer|exists:suppliers,id',
             'room_id' => 'nullable|integer',
             'unit' => 'required|string|max:50',
-            'status' => 'required|string|max:50',
             'date_acquired' => 'required|date',
             'quantity' => 'required|integer|min:1',
             'unit_cost' => 'required|numeric',
@@ -44,6 +43,7 @@ class InventoryStoreRequest extends FormRequest
             'serial_numbers' => 'nullable|array|min:1',
             'serial_numbers.*' => 'nullable|max:50',
             'is_private' => 'required|boolean',
+            'asset_condition_id' => 'required|integer|exists:asset_conditions,id',
             'property_number' => [
                 'required',
                 'string',
@@ -53,7 +53,7 @@ class InventoryStoreRequest extends FormRequest
                     $base = rtrim($value, '-'); // strip any trailing dash the user typed
 
                     $generated = collect(range(1, $quantity))
-                        ->map(fn ($i) => $base . '-' . str_pad($i, 3, '0', STR_PAD_LEFT));
+                        ->map(fn($i) => $base . '-' . str_pad($i, 3, '0', STR_PAD_LEFT));
 
                     $conflict = \App\Models\InventoryItem::query()
                         ->whereIn('property_number', $generated)

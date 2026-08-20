@@ -7,11 +7,11 @@ import RoomFilterSelect from "./RoomFilterSelect.vue";
 
 const props = defineProps({
     unitCostOptions: { type: Array, default: () => [] },
-    filterStatus: { type: Array, default: () => [] },
+    filterCondition: { type: Array, default: () => [] },
     acknowledgementFilter: { type: Array, default: () => [] },
     rooms: { type: Array, default: () => [] },
     search: { type: String, default: "" },
-    status: { type: String, default: "" },
+    asset_condition_id: { type: [String, Number], default: "" },
     cost_range: { type: String, default: "" },
     acknowledgement_status: { type: String, default: "" },
     room_id: { type: [String, Number], default: "" },
@@ -20,22 +20,30 @@ const props = defineProps({
 
 const emit = defineEmits([
     "update:search",
-    "update:status",
+    "update:asset_condition_id",
     "update:cost_range",
     "update:acknowledgement_status",
     "update:room_id",
 ]);
 
 const search = ref(props.search || "");
-const status = ref(props.status || "");
+const asset_condition_id = ref(props.asset_condition_id || "");
 const cost_range = ref(props.cost_range || "");
 const acknowledgement_status = ref(props.acknowledgement_status || "");
 const room_id = ref(props.room_id || "");
 
-const refs = { search, status, cost_range, acknowledgement_status, room_id };
+const refs = {
+    search,
+    asset_condition_id,
+    cost_range,
+    acknowledgement_status,
+    room_id,
+};
 
-const { fetchNow, debouncedFetch, placeholder, activeFields } =
-    useModeFetcher(props.mode, refs);
+const { fetchNow, debouncedFetch, placeholder, activeFields } = useModeFetcher(
+    props.mode,
+    refs,
+);
 
 const { isRestoring } = useFilterPersistence(props.mode, refs, () => {
     fetchNow();
@@ -51,7 +59,11 @@ function watchField(fieldRef, fieldName, emitName) {
 }
 
 watchField(search, "search", "update:search");
-watchField(status, "status", "update:status");
+watchField(
+    asset_condition_id,
+    "asset_condition_id",
+    "update:asset_condition_id",
+);
 watchField(cost_range, "cost_range", "update:cost_range");
 watchField(
     acknowledgement_status,
@@ -92,9 +104,9 @@ const showRoomFilter = computed(() => activeFields.includes("room_id"));
         />
 
         <FilterSelect
-            v-for="(stats, gIndex) in filterStatus"
+            v-for="(stats, gIndex) in filterCondition"
             :key="'status-' + gIndex"
-            v-model="status"
+            v-model="asset_condition_id"
             :label="stats.label"
             :options="stats.options"
             include-select-all

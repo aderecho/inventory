@@ -21,7 +21,6 @@ const emit = defineEmits(["submit", "close"]);
 const form = useForm({
     id: null,
     email: "",
-    password: "",
     status: 0,
     user_profiles: {
         first_name: "",
@@ -170,7 +169,6 @@ watch(
 
         form.id = val.id;
         form.email = val.email;
-        form.password = "";
         form.status = val.status ?? 0;
         form.user_profiles.first_name = val.user_profiles?.first_name ?? "";
         form.user_profiles.last_name = val.user_profiles?.last_name ?? "";
@@ -384,36 +382,6 @@ watch(
                                 class="text-red-500 text-xs mt-1"
                             >
                                 {{ form.errors.email }}
-                            </p>
-                        </div>
-
-                        <div>
-                            <label
-                                class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
-                            >
-                                Password
-                                <span
-                                    v-if="mode !== 'edit'"
-                                    class="text-red-500"
-                                    >*</span
-                                >
-                                <span
-                                    v-if="mode === 'edit'"
-                                    class="text-gray-400 font-normal normal-case"
-                                    >(leave blank to keep current)</span
-                                >
-                            </label>
-                            <input
-                                v-model="form.password"
-                                type="password"
-                                placeholder="Password"
-                                :class="inputClass(form.errors.password)"
-                            />
-                            <p
-                                v-if="form.errors.password"
-                                class="text-red-500 text-xs mt-1"
-                            >
-                                {{ form.errors.password }}
                             </p>
                         </div>
 
@@ -979,16 +947,6 @@ watch(
                                             ]
                                         }}
                                     </p>
-                                </div>
-
-                                <div
-                                    class="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-700"
-                                >
-                                    <i
-                                        class="fa-solid fa-circle-info mr-1.5"
-                                    ></i>
-                                    Per-user permission overrides are available
-                                    after the user is created.
                                 </div>
                             </div>
                         </template>

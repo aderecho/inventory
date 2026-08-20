@@ -10,7 +10,8 @@ use App\Http\Resources\InventoryApiResource;
 use App\Models\InventoryItem;
 use App\Models\ItemClassification;
 use App\Models\Supplier;
-use App\Models\UserProfile;
+use App\Models\AssetCondition;
+use App\Models\User;
 use App\Services\Api\InventoryApiService;
 use App\Services\DownloadPngService;
 use App\Services\DownloadPdfService;
@@ -49,19 +50,20 @@ class InventoryController extends Controller
 
         $search = $request->input('search');
         $costRange = $request->input('cost_range');
-        $status = $request->input('status');
+        $assetConditionId = $request->input('asset_condition_id');
         $acknowledgementStatus = $request->input('acknowledgement_status');
         $roomId = $request->input('room_id');
 
         $itemClassifications = ItemClassification::all();
         $suppliers = Supplier::all();
-        $userProfiles = UserProfile::all();
-        $adminProfiles = $this->inventoryService->getAdminProfiles();
+        $assetConditions = AssetCondition::all();
+        $users = User::with('userProfiles')->get();
+        $adminProfiles = $this->inventoryService->getAccountableUserProfiles();
 
         $items = $this->inventoryService->filterAndPaginateInventory(
             $search,
             $costRange,
-            $status,
+            $assetConditionId,
             $acknowledgementStatus,
             $roomId,
         );
@@ -84,8 +86,9 @@ class InventoryController extends Controller
             'items' => $items,
             'itemClassifications' => $itemClassifications,
             'suppliers' => $suppliers,
-            'userProfiles' => $userProfiles,
+            'users' => $users,
             'adminProfiles' => $adminProfiles,
+            'assetConditions' => $assetConditions,
         ]);
     }
 

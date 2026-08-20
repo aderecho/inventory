@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AssetInspection;
 use App\Models\InventoryItem;
 use App\Models\AssetCondition;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Collection;
 
 class InspectionService
@@ -12,7 +13,7 @@ class InspectionService
     public function filterAndPaginateInspection(
         ?string $search = null,
         ?string $costRange = null,
-        int|string|null $status = null,
+        ?int $assetConditionId = null,
         ?string $acknowledgementStatus = null,
         ?int $roomId = null,
         int $perPage = 10
@@ -44,8 +45,10 @@ class InspectionService
                 }
             })
             ->when(
-                !is_null($status),
-                fn($query) => $query->where('status', $status)
+                !is_null($assetConditionId),
+                fn($query) => $query->whereHas('latestInspection', function ($q) use ($assetConditionId) {
+                    $q->where('asset_condition_id', $assetConditionId);
+                })
             )
             ->when($acknowledgementStatus, function ($query, $acknowledgementStatus) {
                 if ($acknowledgementStatus === 'with_acknowledgement') {
@@ -66,6 +69,145 @@ class InspectionService
             ->withQueryString();
     }
 
+    public function paginateItemsForMobile(
+        ?string $search = null,
+        ?string $costRange = null,
+        int|string|null $status = null,
+        ?string $acknowledgementStatus = null,
+        ?int $roomId = null,
+        ?int $conditionId = null,
+        ?string $inspectionStatus = null,
+        int $perPage = 10
+    ) {
+        return InventoryItem::with([
+            'latestInspection.assetCondition',
+        ])
+            ->when(
+                $search,
+                fn($query, $search) => $query->search($search)
+            )
+            ->when($costRange, function ($query, $costRange) {
+                [$min, $max] = array_pad(
+                    explode('-', $costRange),
+                    2,
+                    null
+                );
+
+                $min = $min !== '' ? $min : null;
+                $max = $max !== '' ? $max : null;
+
+                if ($min !== null && $max !== null) {
+                    $query->whereBetween(
+                        'unit_cost',
+                        [(float) $min, (float) $max]
+                    );
+                } elseif ($min !== null) {
+                    $query->where(
+                        'unit_cost',
+                        '>=',
+                        (float) $min
+                    );
+                } elseif ($max !== null) {
+                    $query->where(
+                        'unit_cost',
+                        '<=',
+                        (float) $max
+                    );
+                }
+            })
+            ->when(
+                !is_null($status),
+                fn($query) =>
+                $query->where('status', $status)
+            )
+            ->when(
+                $acknowledgementStatus,
+                function ($query, $acknowledgementStatus) {
+                    if (
+                        $acknowledgementStatus ===
+                        'with_acknowledgement'
+                    ) {
+                        $query->whereHas(
+                            'latestAcknowledgementItem'
+                        );
+                    }
+
+                    if (
+                        $acknowledgementStatus ===
+                        'without_acknowledgement'
+                    ) {
+                        $query->whereDoesntHave(
+                            'latestAcknowledgementItem'
+                        );
+                    }
+                }
+            )
+            ->when($roomId, function ($query, $roomId) {
+                $query->whereHas(
+                    'latestHistoryLocation',
+                    function ($q) use ($roomId) {
+                        $q->where(
+                            'room_id',
+                            $roomId
+                        );
+                    }
+                );
+            })
+            ->when(
+                $conditionId,
+                function ($query, $conditionId) {
+                    $query->whereHas(
+                        'latestInspection',
+                        function ($q) use ($conditionId) {
+                            $q->where(
+                                'asset_condition_id',
+                                $conditionId
+                            );
+                        }
+                    );
+                }
+            )
+            ->when(
+                $inspectionStatus === 'not_inspected',
+                function ($query) {
+                    $query->whereDoesntHave(
+                        'latestInspection'
+                    );
+                }
+            )
+            ->orderByDesc('created_at')
+            ->paginate($perPage)
+            ->withQueryString();
+    }
+
+    public function createBatchInspections(
+        array $inspections,
+        int $inspectedBy
+    ): array {
+        return DB::transaction(function () use (
+            $inspections,
+            $inspectedBy
+        ) {
+            $created = [];
+
+            foreach ($inspections as $inspection) {
+                $created[] = AssetInspection::create([
+                    'inventory_item_id' => $inspection['inventory_item_id'],
+                    'asset_condition_id' => $inspection['asset_condition_id'],
+                    'inspection_date' => $inspection['inspection_date'],
+                    'remarks' => $inspection['remarks'] ?? null,
+                    'inspected_by' => $inspectedBy,
+                ]);
+            }
+
+            return [
+                'success' => true,
+                'created_count' => count($created),
+                'inspections' => $created,
+            ];
+        });
+    }
+
     public function getItemWithInspections(int $id): InventoryItem
     {
         return InventoryItem::with([
@@ -73,7 +215,12 @@ class InspectionService
             'supplier',
             'latestHistoryLocation',
             'latestAcknowledgementItem.accountablePerson',
-            'inspections' => fn($query) => $query->recent()->with(['assetCondition', 'inspectedByUser']),
+            'inspections' => fn($query) => $query
+                ->recent()
+                ->with([
+                    'assetCondition',
+                    'inspectedByUser.userProfiles',
+                ]),
         ])->findOrFail($id);
     }
 

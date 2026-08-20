@@ -62,8 +62,8 @@ function handleSaml() {
 <template>
     <AuthLayout
         badge="University of the Philippines Cebu"
-        title="Inventory Management System."
-        description="Manage UP Cebu's Inventory Management System Efficiently."
+        title="Inventory Management System"
+        description="UP Cebu's Inventory Management System."
         :tags="['Smart', 'Secure', 'System']"
     >
         <div class="flex flex-col items-center w-full max-w-[340px] font-sans">

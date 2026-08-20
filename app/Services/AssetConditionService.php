@@ -50,7 +50,7 @@ class AssetConditionService
 
     public function getConditionWithStats(): Collection
     {
-        return AssetCondition::withCount('assetInspections')
+        return AssetCondition::withCount('inspections')
             ->orderBy('condition_name')
             ->get();
     }

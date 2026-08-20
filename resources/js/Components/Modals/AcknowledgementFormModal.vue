@@ -47,6 +47,37 @@ const itemMap = computed(() => {
     return map;
 });
 
+const availableAccountableUsers = computed(() => {
+    const assignedPersonIds = new Set();
+
+    props.selectedIDs.forEach((id) => {
+        const item = itemMap.value[id];
+
+        const personId =
+            item?.latest_acknowledgement_item?.accountable_person?.id ??
+            item?.latest_acknowledgement_item?.accountable_persons_id ??
+            item?.accountable_person?.id ??
+            item?.accountable_persons_id;
+
+        if (personId !== null && personId !== undefined) {
+            assignedPersonIds.add(Number(personId));
+        }
+    });
+
+    console.log("userProfiles:", props.userProfiles);
+    console.log("selectedIDs:", props.selectedIDs);
+    console.log("availableAccountableUsers:", availableAccountableUsers.value);
+    console.log("accountableField:", props.accountableField);
+
+    return (props.userProfiles ?? []).filter(
+        (user) => !assignedPersonIds.has(Number(user.id)),
+    );
+});
+
+const availableIssuedByUsers = computed(() => {
+    return props.adminProfiles ?? [];
+});
+
 function submit() {
     if (props.selectedIDs.length > 0) {
         const firstNumbers = props.selectedIDs.map((id) => {
@@ -172,7 +203,6 @@ function generateCategoryFromFirstSelected() {
 watch(
     () => props.selectedIDs,
     (newVal) => {
-
         if (newVal && newVal.length > 0) {
             const firstItem = itemMap.value[newVal[0]];
 
@@ -182,12 +212,21 @@ watch(
 
                 // Initialize room from the selected item
                 form.room_id = Number(firstItem.room_id);
-
             }
         } else {
             selectedCategory.value = "";
             form.category = "";
             form.room_id = null;
+        }
+    },
+    { immediate: true },
+);
+
+watch(
+    () => props.mode,
+    (mode) => {
+        if (mode === "create" && !form.par_date) {
+            form.par_date = getTodayLocalDate();
         }
     },
     { immediate: true },
@@ -217,6 +256,22 @@ function getViewValue(view) {
         return view.format(rawValue);
     }
     return rawValue ?? "N/A";
+}
+
+function formatLocalDate(dateValue) {
+    if (!dateValue) return null;
+
+    const date = new Date(dateValue);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+}
+
+function getTodayLocalDate() {
+    const today = new Date();
+    return formatLocalDate(today);
 }
 
 function roomSearchFilter(option, query) {
@@ -340,9 +395,7 @@ function roomSearchFilter(option, query) {
                                         @update:modelValue="
                                             (val) =>
                                                 (form.par_date = val
-                                                    ? new Date(val)
-                                                          .toISOString()
-                                                          .split('T')[0]
+                                                    ? formatLocalDate(val)
                                                     : null)
                                         "
                                     />
@@ -369,7 +422,14 @@ function roomSearchFilter(option, query) {
                                     </label>
                                     <Multiselect
                                         v-model="form[accf.model]"
-                                        :options="props[accf.name]"
+                                        :options="
+                                            accf.model ===
+                                            'accountable_persons_id'
+                                                ? availableAccountableUsers
+                                                : accf.model === 'issued_by_id'
+                                                  ? availableIssuedByUsers
+                                                  : props[accf.name]
+                                        "
                                         :searchable="true"
                                         :value-prop="accf.value"
                                         :label="accf.option"

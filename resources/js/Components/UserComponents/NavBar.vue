@@ -233,6 +233,7 @@ onUnmounted(() => {
                                             v-for="app in apps"
                                             :key="app.label"
                                             :href="app.href"
+                                            target="_blank"
                                             class="group flex flex-col items-center gap-2 px-2 py-3 rounded-lg hover:bg-gray-50 transition-colors"
                                         >
                                             <span
