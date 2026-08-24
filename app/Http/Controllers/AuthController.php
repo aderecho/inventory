@@ -22,19 +22,9 @@ class AuthController extends Controller
         return Inertia::render('Auth/Login');
     }
 
-    public function register()
-    {
-        return Inertia::render('Auth/Register');
-    }
-
     public function authenticate(Request $request)
     {
         return $this->authService->authenticate($request);
-    }
-
-    public function store(Request $request)
-    {
-        return $this->authService->register($request);
     }
 
     public function logout(Request $request)

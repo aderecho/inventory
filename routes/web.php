@@ -43,16 +43,16 @@ Route::get('/saml2/user-not-found', function (Request $request) {
 
 
 Route::prefix('v1')->middleware('throttle:10,1')->group(function () {
-    Route::get('/auth/google', [GoogleController::class, 'redirect'])->name('auth.google');
-    Route::get('/auth/google/callback', [GoogleController::class, 'callback']);
+    Route::get('/auth/google', [GoogleController::class, 'redirect'])
+        ->name('auth.google');
+    Route::get('/auth/google/callback', [GoogleController::class, 'callback'])
+        ->name('auth.google.callback');
 });
 
 Route::middleware('guest')->group(function () {
     Route::get('/', fn() => redirect()->route('login'));
     Route::get('/login', [AuthController::class, 'login'])->name('login');
     Route::post('/login', [AuthController::class, 'authenticate']);
-    Route::get('/register', [AuthController::class, 'register'])->name('register.store');
-    Route::post('/register', [AuthController::class, 'store'])->name('store');
 });
 
 Route::get('/embed/dashboard/{token}', [EmbedDashboardController::class, 'show'])
@@ -175,6 +175,7 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
         Route::post('/', [InspectionController::class, 'store'])->name('inspection.store');
         Route::get('/item/{itemId}/history', [InspectionController::class, 'getItemInspectionHistory'])->name('inspection.history');
         Route::get('/stats', [InspectionController::class, 'getStats'])->name('inspection.stats');
+        Route::get('/{id}', [InspectionController::class, 'show'])->name('inspection.show'); // must stay last
     });
 
     Route::prefix('asset-conditions')->group(function () {

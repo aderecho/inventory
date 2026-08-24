@@ -66,6 +66,17 @@ class InspectionService
             ->withQueryString();
     }
 
+    public function getItemWithInspections(int $id): InventoryItem
+    {
+        return InventoryItem::with([
+            'itemClassification',
+            'supplier',
+            'latestHistoryLocation',
+            'latestAcknowledgementItem.accountablePerson',
+            'inspections' => fn($query) => $query->recent()->with(['assetCondition', 'inspectedByUser']),
+        ])->findOrFail($id);
+    }
+
     public function createInspections(
         int $assetConditionId,
         string $inspectionDate,

@@ -74,11 +74,9 @@ class GoogleController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            // Fail safe: if we can't determine permission, treat as no access.
             $hasDashboardAccess = false;
         }
 
-        // Users without dashboard access go straight to their own index page.
         return $hasDashboardAccess
             ? redirect()->route('dashboard.index')
             : redirect()->route('user.dashboard');
