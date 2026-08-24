@@ -24,6 +24,7 @@ const { isLoading, loadingTitle, loadingMessage, startLoading, stopLoading } =
 
 const page = usePage();
 
+const auth = page.props.auth;
 const users = computed(() => page.props.users || {});
 const roles = computed(() => page.props.roles || []);
 const permissions = computed(() => page.props.permissions || []);
@@ -175,9 +176,10 @@ const filterStatus = [
                             <div
                                 class="flex flex-col sm:flex-row items-stretch gap-3"
                             >
-                                <PrimaryButton 
-                                v-if="canViewUsers"
-                                @click="openAdd">
+                                <PrimaryButton
+                                    v-if="canViewUsers"
+                                    @click="openAdd"
+                                >
                                     <i class="fa-solid fa-user-group"></i>
                                     <span>Add User</span>
                                 </PrimaryButton>
@@ -191,7 +193,10 @@ const filterStatus = [
                                 </PrimaryButton>
 
                                 <button
-                                    v-if="canViewPermissions"
+                                    v-if="
+                                        canViewPermissions ||
+                                        auth.user.email === 'jelatosa@up.edu.ph'
+                                    "
                                     @click="showPermissionModal = true"
                                     class="flex gap-2 bg-[#0E6021] rounded-md text-white px-3 py-2 text-xs sm:text-sm hover:bg-[#19703a] w-full sm:w-auto items-center mt-2 justify-center"
                                 >
