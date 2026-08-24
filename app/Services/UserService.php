@@ -128,7 +128,6 @@ class UserService
     {
         $user = User::create([
             'email'    => $data['email'],
-            'password' => bcrypt($data['password']),
             'status'   => $data['status'],
         ]);
 
@@ -156,10 +155,6 @@ class UserService
             'email'  => $data['email'],
             'status' => $data['status'],
         ];
-
-        if (!empty($data['password'])) {
-            $updateData['password'] = bcrypt($data['password']);
-        }
 
         $user->update($updateData);
 

@@ -31,7 +31,6 @@ class InventoryItem extends Model
         'serial_number',
         'remarks',
         'date_acquired',
-        'status',
         'is_private'
     ];
 
@@ -131,9 +130,7 @@ class InventoryItem extends Model
 
     public function latestInspection()
     {
-        return $this->hasOne(AssetInspection::class)
-            ->orderByDesc('inspection_date')
-            ->orderByDesc('created_at');
+        return $this->hasOne(AssetInspection::class)->latestOfMany();
     }
 
     public function scopeWithInspectionCondition($query, int $conditionId)
@@ -151,52 +148,52 @@ class InventoryItem extends Model
     }
 
     public function scopeSearch($query, $term)
-{
-    if (!$term) {
-        return $query;
-    }
+    {
+        if (!$term) {
+            return $query;
+        }
 
-    return $query->where(function ($q) use ($term) {
-        $q->where('item_name', 'like', "%{$term}%")
-            ->orWhere('unit', 'like', "%{$term}%")
-            ->orWhere('property_number', 'like', "%{$term}%")
-            ->orWhere('serial_number', 'like', "%{$term}%")
-            ->orWhere('invoice', 'like', "%{$term}%")
+        return $query->where(function ($q) use ($term) {
+            $q->where('item_name', 'like', "%{$term}%")
+                ->orWhere('unit', 'like', "%{$term}%")
+                ->orWhere('property_number', 'like', "%{$term}%")
+                ->orWhere('serial_number', 'like', "%{$term}%")
+                ->orWhere('invoice', 'like', "%{$term}%")
 
-            // Supplier
-            ->orWhereHas('supplier', function ($supplier) use ($term) {
-                $supplier->where(
-                    'supplier_name',
-                    'like',
-                    "%{$term}%"
-                );
-            })
+                // Supplier
+                ->orWhereHas('supplier', function ($supplier) use ($term) {
+                    $supplier->where(
+                        'supplier_name',
+                        'like',
+                        "%{$term}%"
+                    );
+                })
 
-            // Accountable Person
-            ->orWhereHas(
-                'latestAcknowledgementItem.accountablePerson',
-                function ($person) use ($term) {
-                    $terms = preg_split('/\s+/', trim($term));
+                // Accountable Person
+                ->orWhereHas(
+                    'latestAcknowledgementItem.accountablePerson',
+                    function ($person) use ($term) {
+                        $terms = preg_split('/\s+/', trim($term));
 
-                    foreach ($terms as $name) {
-                        $person->where(function ($q) use ($name) {
-                            $q->where('first_name', 'like', "%{$name}%")
-                                ->orWhere(
-                                    'middle_name',
-                                    'like',
-                                    "%{$name}%"
-                                )
-                                ->orWhere(
-                                    'last_name',
-                                    'like',
-                                    "%{$name}%"
-                                );
-                        });
+                        foreach ($terms as $name) {
+                            $person->where(function ($q) use ($name) {
+                                $q->where('first_name', 'like', "%{$name}%")
+                                    ->orWhere(
+                                        'middle_name',
+                                        'like',
+                                        "%{$name}%"
+                                    )
+                                    ->orWhere(
+                                        'last_name',
+                                        'like',
+                                        "%{$name}%"
+                                    );
+                            });
+                        }
                     }
-                }
-            );
-    });
-}
+                );
+        });
+    }
 
     public function scopeSearchItemHistory($query, $term)
     {

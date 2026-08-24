@@ -27,6 +27,7 @@ const props = defineProps({
     item: { type: Object, default: () => ({}) },
     roomDropdown: { type: Array, default: () => [] },
     rooms: { type: Array, default: () => [] },
+    assetConditions: { type: Array, default: () => [] },
 });
 
 const toast = useToast();
@@ -56,7 +57,7 @@ const form = useForm({
     po_number: "",
     remarks: "",
     date_acquired: "",
-    status: "",
+    asset_condition_id: "",
     is_private: 0,
 });
 
@@ -132,7 +133,8 @@ watch(
         form.date_acquired = item.date_acquired
             ? item.date_acquired.split("T")[0]
             : "";
-        form.status = item.status ?? "";
+        form.asset_condition_id =
+            item.latest_inspection?.asset_condition_id ?? "";
         form.is_private = item.is_private ?? 0;
     },
     { immediate: true },
@@ -786,11 +788,24 @@ function onSerialPaste(e) {
                                                         Select
                                                     </option>
                                                     <option
-                                                        v-for="op in sdf.options"
-                                                        :key="op.value"
-                                                        :value="op.value"
+                                                        v-for="op in sdf.options ??
+                                                        (props[sdf.name] || [])"
+                                                        :key="
+                                                            sdf.options
+                                                                ? op.value
+                                                                : op[sdf.value]
+                                                        "
+                                                        :value="
+                                                            sdf.options
+                                                                ? op.value
+                                                                : op[sdf.value]
+                                                        "
                                                     >
-                                                        {{ op.label }}
+                                                        {{
+                                                            sdf.options
+                                                                ? op.label
+                                                                : op[sdf.option]
+                                                        }}
                                                     </option>
                                                 </select>
                                                 <div

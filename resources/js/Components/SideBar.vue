@@ -1,12 +1,15 @@
 <script setup>
 import { Link } from "@inertiajs/vue3";
-import { ref, watchEffect } from "vue";
+import { ref, computed, watchEffect } from "vue";
 import {
     PanelLeftClose,
     Headset,
-    CircleX,
+    Menu,
     CircleChevronRight,
 } from "lucide-vue-next";
+import { useAuth } from "@/Composables/useAuth";
+
+const { can } = useAuth();
 
 const menuItems = [
     {
@@ -23,14 +26,17 @@ const menuItems = [
             {
                 name: "Item List",
                 route: "inventory.items",
+                permission: "view inventory",
             },
             {
                 name: "Item Evidence",
                 route: "acknowledgements.index",
+                permission: "view acknowledgements",
             },
             {
                 name: "Location History",
                 route: "item-histories.index",
+                permission: "view inventory",
             },
         ],
     },
@@ -42,6 +48,7 @@ const menuItems = [
             {
                 name: "Inspection Records",
                 route: "inspection.index",
+                permission: "view inspections",
             },
         ],
     },
@@ -54,8 +61,13 @@ const menuItems = [
                 name: "Suppliers",
                 icon: "fa-solid fa-handshake",
                 route: "suppliers.index",
+                permission: "view suppliers",
             },
-            { name: "Categories", route: "categories.index" },
+            {
+                name: "Categories",
+                route: "categories.index",
+                permission: "view categories",
+            },
         ],
     },
     {
@@ -67,6 +79,7 @@ const menuItems = [
                 name: "Disposal Table",
                 icon: "fa-solid fa-recycle",
                 route: "disposal.index",
+                permission: "view disposal",
             },
         ],
     },
@@ -79,16 +92,19 @@ const menuItems = [
                 name: "Item Archive",
                 icon: "fa-solid fa-recycle",
                 route: "items.archive.index",
+                permission: "view archive_item",
             },
             {
                 name: "Supplier Archive",
                 icon: "fa-solid fa-recycle",
                 route: "suppliers.archive.index",
+                permission: "view archive_supplier",
             },
             {
                 name: "Categories Archive",
                 icon: "fa-solid fa-recycle",
                 route: "categories.archive.index",
+                permission: "view archive_supplier",
             },
         ],
     },
@@ -101,21 +117,25 @@ const menuItems = [
                 name: "User Management",
                 icon: "fa-solid fa-users-gear",
                 route: "user_management.index",
+                permission: "view users",
             },
             {
                 name: "API Clients",
                 icon: "fa-solid fa-key",
                 route: "api_clients.index",
+                permission: "view api_clients",
             },
             {
                 name: "SAML Configuration",
                 icon: "fa-solid fa-shield-halved",
                 route: "saml_configurations.index",
+                permission: "view saml_configurations",
             },
             {
                 name: "Audit Logs",
                 icon: "fa-solid fa-shield-halved",
                 route: "audit_logs.index",
+                permission: "view audit_logs",
             },
         ],
     },
@@ -126,6 +146,22 @@ const openDropdown = ref(null);
 const toggleDropdown = (name) => {
     openDropdown.value = openDropdown.value === name ? null : name;
 };
+
+const visibleMenuItems = computed(() =>
+    menuItems
+        .map((item) => {
+            if (item.children) {
+                const visibleChildren = item.children.filter(
+                    (child) => !child.permission || can(child.permission),
+                );
+                return visibleChildren.length
+                    ? { ...item, children: visibleChildren }
+                    : null;
+            }
+            return !item.permission || can(item.permission) ? item : null;
+        })
+        .filter(Boolean),
+);
 
 watchEffect(() => {
     menuItems.forEach((item) => {
@@ -169,10 +205,14 @@ defineProps({ isOpen: { type: Boolean, default: true } });
             <button
                 @click="$emit('toggleSidebar')"
                 class="text-white hover:text-white/70 focus:outline-none flex items-center justify-center"
-                :class="isOpen ? 'absolute right-3 top-1/2 -translate-y-1/2' : 'mx-auto'"
+                :class="
+                    isOpen
+                        ? 'absolute right-3 top-1/2 -translate-y-1/2'
+                        : 'mx-auto'
+                "
             >
                 <component
-                    :is="isOpen ? CircleX : CircleChevronRight"
+                    :is="isOpen ? Menu : CircleChevronRight"
                     class="h-6 w-6"
                 />
             </button>
@@ -180,7 +220,7 @@ defineProps({ isOpen: { type: Boolean, default: true } });
 
         <!-- Menu -->
         <ul class="flex-1 py-3 overflow-y-auto space-y-1">
-            <li v-for="item in menuItems" :key="item.name">
+            <li v-for="item in visibleMenuItems" :key="item.name">
                 <!-- If item has children -->
                 <div
                     v-if="item.children"
@@ -203,9 +243,17 @@ defineProps({ isOpen: { type: Boolean, default: true } });
                 >
                     <div class="flex items-center gap-3 min-w-0 justify-center">
                         <i :class="item.icon" class="shrink-0 text-lg"></i>
-                        <div v-if="isOpen" class="flex flex-col leading-tight overflow-hidden">
-                            <span class="truncate text-base">{{ item.name }}</span>
-                            <span v-if="item.description" class="text-[11px] font-normal text-white/70 truncate">
+                        <div
+                            v-if="isOpen"
+                            class="flex flex-col leading-tight overflow-hidden"
+                        >
+                            <span class="truncate text-base">{{
+                                item.name
+                            }}</span>
+                            <span
+                                v-if="item.description"
+                                class="text-[11px] font-normal text-white/70 truncate"
+                            >
                                 {{ item.description }}
                             </span>
                         </div>
@@ -232,16 +280,26 @@ defineProps({ isOpen: { type: Boolean, default: true } });
                     <div
                         class="flex items-center py-3 rounded-md transition-all duration-300 cursor-pointer text-white hover:bg-white/20"
                         :class="[
-                            isOpen ? 'px-4 mx-2 sm:mx-3 gap-3' : 'justify-center px-0 mx-1 w-full',
+                            isOpen
+                                ? 'px-4 mx-2 sm:mx-3 gap-3'
+                                : 'justify-center px-0 mx-1 w-full',
                             route().current(item.route)
                                 ? 'bg-white/20 font-semibold'
                                 : '',
                         ]"
                     >
                         <i :class="item.icon" class="shrink-0 text-lg"></i>
-                        <div v-if="isOpen" class="flex flex-col leading-tight overflow-hidden text-left">
-                            <span class="truncate text-base">{{ item.name }}</span>
-                            <span v-if="item.description" class="text-[11px] font-normal text-white/70 truncate">
+                        <div
+                            v-if="isOpen"
+                            class="flex flex-col leading-tight overflow-hidden text-left"
+                        >
+                            <span class="truncate text-base">{{
+                                item.name
+                            }}</span>
+                            <span
+                                v-if="item.description"
+                                class="text-[11px] font-normal text-white/70 truncate"
+                            >
                                 {{ item.description }}
                             </span>
                         </div>
@@ -286,7 +344,9 @@ defineProps({ isOpen: { type: Boolean, default: true } });
                 class="flex items-center justify-center gap-2 text-center text-xs text-white"
             >
                 <Headset :size="18" />
-                <p class="underline underline-offset-4" v-if="isOpen">ITC Support</p>
+                <p class="underline underline-offset-4" v-if="isOpen">
+                    ITC Support
+                </p>
             </span>
         </a>
     </div>

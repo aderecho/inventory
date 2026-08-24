@@ -58,11 +58,7 @@ function conditionBadgeClass(conditionName) {
 function inspectorName(user) {
     if (!user) return "Unknown";
 
-    return (
-        user.name ??
-        ([user.first_name, user.last_name].filter(Boolean).join(" ") ||
-            "Unknown")
-    );
+    return user.user_profiles?.full_name || "Unknown";
 }
 </script>
 

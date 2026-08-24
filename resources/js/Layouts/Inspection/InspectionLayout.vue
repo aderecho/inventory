@@ -87,283 +87,8 @@ const columns = [
                   })
                 : "N/A",
     },
-    {
-        label: "Status",
-        key: "status",
-        format: (status) => {
-            let label = "Unknown",
-                cls = "text-gray-500",
-                icon = "";
-            if (status === 0) {
-                label = "Unserviceable";
-                cls =
-                    "text-[#D32F2F] font-bold bg-[#F8D4D4] py-1 px-2 rounded-md";
-            } else if (status === 1) {
-                label = "Serviceable";
-                cls =
-                    "text-[#2E7D32] font-bold bg-[#D4F8D4] py-2 px-2 rounded-md";
-            }
-            return `<span class="${cls}">${icon} ${label}</span>`;
-        },
-    },
     { label: "Action", key: "action" },
 ];
-
-const viewItem = [
-    { label: "Item Name", key: "item_name" },
-    { label: "Property Number", key: "property_number" },
-    { label: "Unit", key: "unit", format: (val) => val ?? "N/A" },
-    { label: "Serial Number", key: "serial_number" },
-    {
-        label: "Unit Cost",
-        key: "unit_cost",
-        format: (val) =>
-            val !== null && val !== undefined
-                ? `₱${Number(val).toLocaleString()}`
-                : "N/A",
-    },
-    { label: "PO Number", key: "po_number" },
-    { label: "Supplier", key: "supplier.supplier_name" },
-    { label: "PR Number", key: "pr_number" },
-    { label: "Description", key: "description" },
-    { label: "Invoice", key: "invoice" },
-    { label: "Remarks", key: "remarks" },
-    { label: "Fund Source", key: "fund_source" },
-    { label: "Date Acquired", key: "date_acquired" },
-    { label: "Room Name", key: "room_name" },
-    {
-        label: "Latest Condition",
-        key: "latest_inspection.asset_condition.condition_name",
-        format: (val) => val ?? "Not Inspected",
-    },
-    {
-        label: "Last Inspected",
-        key: "latest_inspection.inspection_date",
-        format: (val) =>
-            val
-                ? new Date(val).toLocaleDateString("en-PH", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                  })
-                : "Not Inspected",
-    },
-    {
-        label: "Status",
-        key: "status",
-        format: (status) => {
-            let label = "Unknown",
-                cls = "text-gray-500",
-                icon = "";
-            if (status === 0) {
-                label = "Unservicable";
-                cls =
-                    "text-[#D32F2F] font-bold bg-[#F8D4D4] py-1 px-2 rounded-md";
-            } else if (status === 1) {
-                label = "Serviceable";
-                cls =
-                    "text-[#2E7D32] font-bold bg-[#D4F8D4] py-1 px-2 rounded-md";
-            }
-            return `<span class="${cls}">${icon} ${label}</span>`;
-        },
-    },
-    {
-        label: "Visibility",
-        key: "is_private",
-        format: (val) =>
-            val === 1
-                ? `<span class="text-[#D32F2F] font-bold bg-[#F8D4D4] py-1 px-2 rounded-md">Private</span>`
-                : `<span class="text-[#2E7D32] font-bold bg-[#D4F8D4] py-1 px-2 rounded-md">Public</span>`,
-    },
-];
-
-const quantityCostFields = [
-    {
-        label: "Quantity",
-        model: "quantity",
-        placeholder: "0",
-        type: "number",
-    },
-    {
-        label: "Unit Cost",
-        model: "unit_cost",
-        placeholder: "0",
-        type: "text",
-        format: (val) => {
-            const num = Number(val);
-            return Number.isFinite(num) ? num.toLocaleString("en-PH") : "";
-        },
-    },
-];
-
-const inputFields = [
-    {
-        label: "Item Name",
-        model: "item_name",
-        placeholder: "Input Item name...",
-        type: "text",
-        required: true,
-    },
-    {
-        label: "Brand",
-        model: "brand",
-        placeholder: "Input brand...",
-        type: "text",
-        required: false,
-    },
-    {
-        label: "Model",
-        model: "model",
-        placeholder: "Input model...",
-        type: "text",
-        required: false,
-    },
-];
-
-const inputFieldsEdit = [
-    {
-        label: "Serial Number",
-        model: "serial_number",
-        placeholder: "SER-####.",
-        type: "text",
-        readonly: true,
-    },
-    {
-        label: "Item Name",
-        model: "item_name",
-        placeholder: "Laptops, Ceiling Fan...",
-        type: "text",
-        readonly: false,
-    },
-    {
-        label: "Brand",
-        model: "brand",
-        placeholder: "Input brand...",
-        type: "text",
-        readonly: false,
-    },
-    {
-        label: "Model",
-        model: "model",
-        placeholder: "Input model...",
-        type: "text",
-        readonly: false,
-    },
-];
-
-const supplierOptions = [
-    {
-        label: "Supplier",
-        model: "supplier_id",
-        name: "suppliers",
-        option: "supplier_name",
-        value: "id",
-    },
-];
-
-const requestFields = [
-    {
-        label: "Purchase Request",
-        model: "pr_number",
-        placeholder: "PR-###",
-        type: "text",
-        required: true,
-    },
-    {
-        label: "Purchase Order",
-        model: "po_number",
-        placeholder: "PO-###",
-        type: "text",
-        required: true,
-    },
-    {
-        label: "Remarks",
-        model: "remarks",
-        placeholder: "Input a remarks",
-        type: "text",
-        required: false,
-    },
-];
-
-const invoicesFundFields = [
-    {
-        label: "Invoice Number",
-        model: "invoice",
-        placeholder: "0000",
-        type: "text",
-        readonly: false,
-    },
-    {
-        label: "Fund Source",
-        model: "fund_source",
-        placeholder: "000",
-        type: "text",
-        readonly: false,
-    },
-];
-
-const roomDropdown = [
-    {
-        label: "Room",
-        model: "room_id",
-        name: "rooms",
-        option: "room_name",
-        value: "id",
-        searchKeys: [
-            "room_name",
-            "room_code",
-            "description",
-            "building",
-            "building_name",
-            "capacity",
-        ],
-    },
-];
-
-const firstDropdown = [
-    {
-        label: "Classifications",
-        model: "item_classification_id",
-        name: "itemClass",
-        option: "classification_name",
-        value: "id",
-        searchKeys: ["classification_name", "classification_code"],
-        labelFormat: (option) =>
-            `${option.classification_name} - ${option.classification_code}`,
-    },
-];
-
-const firstInputField = [
-    {
-        label: "Property Number",
-        model: "property_number",
-        placeholder: "PROP-####.",
-        type: "text",
-    },
-];
-
-const secondDropdown = [
-    {
-        label: "Unit",
-        model: "unit",
-        options: [
-            { label: "unit", value: "unit" },
-            { label: "pcs", value: "pcs" },
-            { label: "box", value: "box" },
-            { label: "lot", value: "lot" },
-        ],
-    },
-    {
-        label: "Status",
-        model: "status",
-        options: [
-            { label: "Serviceable", value: "1" },
-            { label: "Unserviceable", value: "0" },
-        ],
-    },
-];
-
-const totalCost = [{ label: "Total Cost" }];
 
 const unitCostOptions = [
     {
@@ -372,16 +97,6 @@ const unitCostOptions = [
             { label: "Select All", value: "" },
             { label: "₱50,000 Below", value: "0-50000" },
             { label: "₱50,000 Above", value: "50000-99999999" },
-        ],
-    },
-];
-
-const filterStatus = [
-    {
-        label: "Status",
-        options: [
-            { label: "Serviceable", value: 1 },
-            { label: "Unserviceable", value: 0 },
         ],
     },
 ];
@@ -414,23 +129,18 @@ const suppliers = computed(() => page.props.suppliers || []);
 
 // INVENTORY FILTER
 let search = ref("");
-let status = ref(null);
 let cost_range = ref(null);
 let acknowledgement_status = ref("");
 let room_id = ref("");
-
-// MODAL STATE
-let formMode = ref("create");
-let showFormModal = ref(false);
-let currentItem = ref({});
 
 // INSPECTION MODAL STATE
 let showInspectionModal = ref(false);
 
 function handleView(item) {
-    formMode.value = "view";
-    currentItem.value = item;
-    showFormModal.value = true;
+    startLoading("Loading inspection history", "Fetching item details...");
+    router.visit(route("inspection.show", item.id), {
+        onFinish: () => stopLoading(),
+    });
 }
 
 const selectedItemsMap = ref(new Map());
@@ -513,6 +223,16 @@ const showSelectedPanel = ref(false);
 function toggleSelectedPanel() {
     showSelectedPanel.value = !showSelectedPanel.value;
 }
+
+const filterCondition = computed(() => [
+    {
+        label: "Condition",
+        options: assetConditions.value.map((c) => ({
+            label: c.condition_name,
+            value: c.id,
+        })),
+    },
+]);
 
 // INSPECTION MODAL HANDLERS
 function openInspectionModal() {
@@ -707,21 +427,21 @@ function handleDeleteCondition(condition) {
                                             <SearchFilterBar
                                                 :search="search"
                                                 :cost_range="cost_range"
-                                                :status="status"
                                                 :acknowledgement_status="
                                                     acknowledgement_status
+                                                "
+                                                :filterCondition="
+                                                    filterCondition
                                                 "
                                                 :room_id="room_id"
                                                 :rooms="rooms"
                                                 :unitCostOptions="
                                                     unitCostOptions
                                                 "
-                                                :filterStatus="filterStatus"
                                                 :acknowledgementFilter="
                                                     acknowledgementFilter
                                                 "
                                                 :mode="'inspection'"
-                                                @update:status="status = $event"
                                                 @update:cost_range="
                                                     cost_range = $event
                                                 "
@@ -760,29 +480,6 @@ function handleDeleteCondition(condition) {
                                 @submit="handleInspectionSubmit"
                                 @add-condition="handleAddCondition"
                                 @delete-condition="handleDeleteCondition"
-                            />
-
-                            <InventoryFormModal
-                                v-if="showFormModal"
-                                :mode="formMode"
-                                :firstDropdown="firstDropdown"
-                                :firstInputField="firstInputField"
-                                :secondDropdown="secondDropdown"
-                                :quantityCostFields="quantityCostFields"
-                                :input-fields="inputFields"
-                                :invoicesFundFields="invoicesFundFields"
-                                :supplierOptions="supplierOptions"
-                                :requestFields="requestFields"
-                                :inputFieldsEdit="inputFieldsEdit"
-                                :totalCost="totalCost"
-                                :itemClass="itemClassifications"
-                                :rooms="rooms"
-                                :roomDropdown="roomDropdown"
-                                :initialValues="currentItem"
-                                :suppliers="suppliers"
-                                :item="currentItem"
-                                :viewItem="viewItem"
-                                @close="showFormModal = false"
                             />
                         </div>
                     </div>

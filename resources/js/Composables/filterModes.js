@@ -1,20 +1,32 @@
 export const filterModes = {
     inventory: {
         url: "/inventory/items",
-        fields: ["search", "cost_range", "status", "acknowledgement_status", "room_id"],
+        fields: [
+            "search",
+            "cost_range",
+            "acknowledgement_status",
+            "asset_condition_id",
+            "room_id",
+        ],
         requestOptions: { only: ["items"] },
         placeholder: "Search Item, Property Number, Serial Number...",
     },
 
     inspection: {
         url: "/inspection",
-        fields: ["search", "cost_range", "status", "acknowledgement_status", "room_id"],
+        fields: [
+            "search",
+            "cost_range",
+            "acknowledgement_status",
+            "asset_condition_id",
+            "room_id",
+        ],
         placeholder: "Search item...",
     },
 
     disposal: {
         url: "/disposal",
-        fields: ["search", "cost_range", "status", "acknowledgement_status"],
+        fields: ["search", "cost_range", "acknowledgement_status"],
         placeholder: "Search Item...",
     },
 
@@ -50,7 +62,7 @@ export const filterModes = {
 
     "item-history": {
         url: "/item-histories",
-        fields: ["search", "acknowledgement_status","room_id"],
+        fields: ["search", "acknowledgement_status", "room_id"],
         placeholder: "Search item history...",
     },
 

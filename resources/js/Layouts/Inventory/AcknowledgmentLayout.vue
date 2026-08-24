@@ -93,7 +93,7 @@ function closeModal() {
                 <!-- MAIN CONTENT -->
                 <main class="flex-1 p-4 sm:p-5 md:p-6 overflow-y-auto">
                     <div>
-                        <PageHeader title="Acknowledgments" class="ml-4" />
+                        <PageHeader title="Acknowledgements" class="ml-4" />
                         <div
                             class="flex flex-col mx-3 lg:flex-row gap-4 my-5 flex-wrap"
                         >

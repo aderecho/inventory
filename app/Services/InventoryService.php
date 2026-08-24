@@ -9,6 +9,7 @@ use App\Models\AcknowledgementItem;
 use App\Models\ItemHistoryLocation;
 use App\Models\AcknowledgementReceipt;
 use App\Models\User;
+use App\Models\AssetInspection;
 use Spatie\Permission\Models\Permission;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
@@ -21,7 +22,7 @@ class InventoryService
     public function filterAndPaginateInventory(
         ?string $search = null,
         ?string $costRange = null,
-        int|string|null $status = null,
+        ?int $assetConditionId = null,
         ?string $acknowledgementStatus = null,
         ?int $roomId = null,
         int $perPage = 10
@@ -29,6 +30,7 @@ class InventoryService
         return InventoryItem::with([
             'itemClassification',
             'supplier',
+            'latestInspection.assetCondition',
             'latestAcknowledgementItem.accountablePerson',
             'acknowledgementHistory.accountablePerson',
             'acknowledgementHistory.acknowledgementReceipts',
@@ -53,8 +55,10 @@ class InventoryService
                 }
             })
             ->when(
-                !is_null($status),
-                fn($query) => $query->where('status', $status)
+                !is_null($assetConditionId),
+                fn($query) => $query->whereHas('latestInspection', function ($q) use ($assetConditionId) {
+                    $q->where('asset_condition_id', $assetConditionId);
+                })
             )
             ->when($acknowledgementStatus, function ($query, $acknowledgementStatus) {
 
@@ -66,7 +70,7 @@ class InventoryService
                     $query->whereDoesntHave('latestAcknowledgementItem');
                 }
             })
-             ->when($roomId, function ($query, $roomId) {
+            ->when($roomId, function ($query, $roomId) {
                 $query->whereHas('latestHistoryLocation', function ($q) use ($roomId) {
                     $q->where('room_id', $roomId);
                 });
@@ -76,16 +80,16 @@ class InventoryService
             ->withQueryString();
     }
 
-    public function getAdminProfiles()
+    public function getAccountableUserProfiles()
     {
-        $totalPermissions = Permission::count();
-
-        $userIds = User::with('roles', 'permissions')
+        return User::whereHas('userProfiles.primaryOrganization', function ($query) {
+            $query->where('short_code', 'SPMO');
+        })
+            ->with('userProfiles.primaryOrganization')
             ->get()
-            ->filter(fn(User $user) => $user->getAllPermissions()->count() >= $totalPermissions)
-            ->pluck('id');
-
-        return UserProfile::whereIn('user_id', $userIds)->get();
+            ->pluck('userProfiles')
+            ->filter()
+            ->values();
     }
 
     public function createAcknowledgements(array $data)
@@ -181,8 +185,15 @@ class InventoryService
                 'po_number' => $data['po_number'],
                 'remarks' => $data['remarks'],
                 'date_acquired' => $data['date_acquired'],
-                'status' => $data['status'],
                 'is_private' => $data['is_private'] ?? 0,
+            ]);
+
+            AssetInspection::create([
+                'inventory_item_id' => $inventoryItem->id,
+                'asset_condition_id' => $data['asset_condition_id'],
+                'inspected_by' => auth()->id(),
+                'inspection_date' => now(),
+                'remarks' => 'Initial condition recorded on item creation.',
             ]);
 
             ItemHistoryLocation::create([
@@ -239,9 +250,18 @@ class InventoryService
             'po_number' => $data['po_number'],
             'remarks' => $data['remarks'] ?? null,
             'date_acquired' => $data['date_acquired'],
-            'status' => $data['status'] ?? 1,
             'is_private' => $data['is_private'] ?? 0,
         ]);
+
+        if (!empty($data['asset_condition_id'])) {
+            AssetInspection::create([
+                'inventory_item_id' => $item->id,
+                'asset_condition_id' => $data['asset_condition_id'],
+                'inspected_by' => auth()->id(),
+                'inspection_date' => now(),
+                'remarks' => 'Condition updated via item edit.',
+            ]);
+        }
 
         $currentRoomId = $item->latestHistoryLocation?->room_id;
 

@@ -39,14 +39,14 @@ class InspectionController extends Controller
 
         $search = $request->input('search');
         $costRange = $request->input('cost_range');
-        $status = $request->input('status');
+        $assetConditionId = $request->input('asset_condition_id');
         $acknowledgementStatus = $request->input('acknowledgement_status');
         $roomId = $request->input('room_id');
 
         $items = $this->inspectionService->filterAndPaginateInspection(
             $search,
             $costRange,
-            $status,
+            $assetConditionId,
             $acknowledgementStatus,
             $roomId,
         );
