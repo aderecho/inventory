@@ -64,11 +64,6 @@ const availableAccountableUsers = computed(() => {
         }
     });
 
-    console.log("userProfiles:", props.userProfiles);
-    console.log("selectedIDs:", props.selectedIDs);
-    console.log("availableAccountableUsers:", availableAccountableUsers.value);
-    console.log("accountableField:", props.accountableField);
-
     return (props.userProfiles ?? []).filter(
         (user) => !assignedPersonIds.has(Number(user.id)),
     );
@@ -158,10 +153,12 @@ function submit() {
                         life: 5000,
                     });
 
+                        const printedIds = [...props.selectedIDs];
+
                     emit("close");
-                    emit("created");
-                    emit("submit", form);
-                    props.selectedIDs.splice(0);
+                        emit("created");
+                        emit("submit", form);
+                        emit("assigned", printedIds);
                     selectedCategory.value = "";
                     form.reset();
                 },

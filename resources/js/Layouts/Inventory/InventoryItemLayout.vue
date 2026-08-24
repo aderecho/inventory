@@ -571,8 +571,10 @@ function toggleSelectedPanel() {
     showSelectedPanel.value = !showSelectedPanel.value;
 }
 
-const printSelected = async () => {
-    if (!tempSelectedIds.value.length) {
+const printSelected = async (idsOverride) => {
+    const ids = idsOverride?.length ? idsOverride : tempSelectedIds.value;
+
+    if (!ids.length) {
         toast.add({
             severity: "error",
             summary: "No Items Selected",
@@ -590,7 +592,7 @@ const printSelected = async () => {
     try {
         const response = await axios.post(
             route("print.receipt"),
-            { ids: tempSelectedIds.value },
+            { ids },
             { responseType: "blob" },
         );
 
@@ -941,6 +943,26 @@ async function handleConvertFile(event) {
         });
     }
 }
+
+function handleAssignSubmit(ids) {
+    showAssignModal.value = false;
+    clearSelection();
+
+    router.get(
+        "/inventory/items",
+        {
+            search: search.value,
+            cost_range: cost_range.value,
+            acknowledgement_status: acknowledgement_status.value,
+        },
+        {
+            preserveState: true,
+            preserveScroll: true,
+            only: ["items"],
+            onFinish: () => printSelected(ids), // print only after refresh completes
+        },
+    );
+}
 </script>
 
 <template>
@@ -1232,7 +1254,7 @@ async function handleConvertFile(event) {
                                 :rooms="rooms"
                                 :userProfiles="users"
                                 @close="() => (showAssignModal = false)"
-                                @submit="handleSubmit"
+                                @assigned="handleAssignSubmit"
                             />
 
                             <InventoryFormModal
