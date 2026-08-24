@@ -93,7 +93,7 @@
         }
 
         .right-logo img {
-            width: 25mm;
+            width: 30mm;
             height: auto;
             object-fit: contain;
         }
@@ -439,7 +439,7 @@
 
                         <!-- LEFT LOGO -->
                         <td class="logo-cell">
-                            <img src="{{ public_path('images/uplogo-2.png') }}" alt="UP Logo">
+                            <img src="{{ public_path('images/UP-LOGO-PDF(2).png') }}" alt="UP Logo">
                         </td>
 
                         <!-- CENTER -->
@@ -459,7 +459,7 @@
 
                         <!-- RIGHT LOGO -->
                         <td class="right-logo">
-                            <img src="{{ public_path('images/uplogo-1.png') }}" alt="UP Cebu Logo">
+                            <img src="{{ public_path('images/UPC-LOGO-PDF(1).png') }}" alt="UP Cebu Logo">
                         </td>
 
                     </tr>
