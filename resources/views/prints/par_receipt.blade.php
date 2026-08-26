@@ -659,19 +659,25 @@
                             {{ $firstItem->supplier->supplier_name ?? 'N/A' }}
                         </div>
 
-                        <div class="info-row">
-                            <span class="info-label">SALES INVOICE NO. & DATE:</span>
-                            {{ $firstItem->invoice ?? 'N/A' }}
-                        </div>
+                     <div class="info-row">
+                        <span class="info-label">SALES INVOICE NO. & DATE:</span>
+                        {{ $firstItem->invoice ?? 'N/A' }}
+                        @if (!empty($firstItem->sales_invoice_date))
+                            / {{ \Carbon\Carbon::parse($firstItem->sales_invoice_date)->format('m/d/Y') }}
+                        @endif
+                    </div>
 
                         <div class="info-row">
                             <span class="info-label">FUND CODE:</span>
                             {{ $firstItem->fund_source ?? 'N/A' }}
                         </div>
 
-                        <div class="info-row">
+                       <div class="info-row">
                             <span class="info-label">PO NO. & DATE:</span>
                             {{ $firstItem->po_number ?? 'N/A' }}
+                            @if (!empty($firstItem->po_number_date))
+                                / {{ \Carbon\Carbon::parse($firstItem->po_number_date)->format('m/d/Y') }}
+                            @endif
                         </div>
 
                     </td>

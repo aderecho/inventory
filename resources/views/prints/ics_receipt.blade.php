@@ -584,7 +584,7 @@
 
                     <tr class="pr-row">
                         <td colspan="8">
-                            PR {{ $firstItem->pr_number ?? 'N/A' }}
+                            PR {{ $firstItem->pr_number ?? 'N/A' }}-{{ $roomNames[$firstItem->id] ?? 'N/A' }}
                         </td>
                     </tr>
 
@@ -644,7 +644,7 @@
                             </td>
 
                             <td class="center">
-                                5 Years
+                                {{ $inventory->lifespan ?? 5 }} {{ ($inventory->lifespan ?? 5) == 1 ? 'Year' : 'Years' }}
                             </td>
 
                         </tr>
@@ -668,14 +668,20 @@
                             {{ $firstItem->supplier->supplier_name ?? 'N/A' }}
                         </div>
 
-                        <div class="purchase-line">
+                       <div class="purchase-line">
                             <span class="label">SI # / Date:</span>
                             {{ $firstItem->invoice ?? 'N/A' }}
+                            @if (!empty($firstItem->sales_invoice_date))
+                                / {{ \Carbon\Carbon::parse($firstItem->sales_invoice_date)->format('m/d/Y') }}
+                            @endif
                         </div>
 
                         <div class="purchase-line">
                             <span class="label">PO No. / Date:</span>
                             {{ $firstItem->po_number ?? 'N/A' }}
+                            @if (!empty($firstItem->po_number_date))
+                                / {{ \Carbon\Carbon::parse($firstItem->po_number_date)->format('m/d/Y') }}
+                            @endif
                         </div>
 
                         <div class="purchase-line">

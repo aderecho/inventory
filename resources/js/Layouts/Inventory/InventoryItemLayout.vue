@@ -107,7 +107,8 @@ const viewItem = [
     { label: "Item Name", key: "item_name" },
     { label: "Property Number", key: "property_number" },
     { label: "Unit", key: "unit", format: (val) => val ?? "N/A" },
-    { label: "Serial Number", key: "serial_number" },
+    { label: "PO Number Date", key: "po_number_date" },
+
     {
         label: "Unit Cost",
         key: "unit_cost",
@@ -117,13 +118,15 @@ const viewItem = [
                 : "N/A",
     },
     { label: "PO Number", key: "po_number" },
+    { label: "Serial Number", key: "serial_number" },
     { label: "Supplier", key: "supplier.supplier_name" },
     { label: "PR Number", key: "pr_number" },
-    { label: "Description", key: "description" },
     { label: "Invoice", key: "invoice" },
+    { label: "Description", key: "description" },
+    { label: "Invoice Date", key: "sales_invoice_date" },
     { label: "Remarks", key: "remarks" },
     { label: "Fund Source", key: "fund_source" },
-    { label: "Date Acquired", key: "date_acquired" },
+    { label: "Lifespan", key: "lifespan", format: (val) => val != null ? `${val} year${val == 1 ? "" : "s"}` : "N/A" },
     { label: "Room Name", key: "room_name" },
     {
         label: "Condition",
@@ -145,6 +148,16 @@ const viewItem = [
             val === 1
                 ? `<span class="text-[#D32F2F] font-bold bg-[#F8D4D4] py-1 px-2 rounded-md">Private</span>`
                 : `<span class="text-[#2E7D32] font-bold bg-[#D4F8D4] py-1 px-2 rounded-md">Public</span>`,
+    },
+];
+
+const lifespanField = [
+    {
+        label: "Lifespan (years)",
+        model: "lifespan",
+        placeholder: "e.g. 5",
+        type: "number",
+        required: false,
     },
 ];
 
@@ -248,6 +261,12 @@ const requestFields = [
         required: true,
     },
     {
+        label: "Purchase Order Date",
+        model: "po_number_date",
+        type: "date",
+        required: false,
+    },
+    {
         label: "Remarks",
         model: "remarks",
         placeholder: "Input a remarks",
@@ -262,6 +281,12 @@ const invoicesFundFields = [
         model: "invoice",
         placeholder: "0000",
         type: "text",
+        readonly: false,
+    },
+    {
+        label: "Invoice Number Date",
+        model: "sales_invoice_date",
+        type: "date",
         readonly: false,
     },
     {
@@ -317,11 +342,13 @@ const secondDropdown = [
     {
         label: "Unit",
         model: "unit",
+        allowCustom: true,
         options: [
             { label: "unit", value: "unit" },
             { label: "pcs", value: "pcs" },
             { label: "box", value: "box" },
             { label: "lot", value: "lot" },
+            { label: "set", value: "set" },
         ],
     },
     {
@@ -1278,6 +1305,7 @@ function handleAssignSubmit(ids) {
                                 :suppliers="suppliers"
                                 :item="currentItem"
                                 :viewItem="viewItem"
+                                :lifespanField="lifespanField"
                                 @submit="handleSubmit"
                                 @close="() => (showFormModal = false)"
                             />
