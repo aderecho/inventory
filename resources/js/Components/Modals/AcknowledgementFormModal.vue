@@ -301,14 +301,12 @@ function roomSearchFilter(option, query) {
     <SessionTimeoutWarning />
     <div
         class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
-        @click="closeWithAnimation"
     >
         <div
             :class="[
                 'bg-white rounded-2xl w-full max-w-6xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]',
                 isClosing ? 'animate-pop-out' : 'animate-pop-in',
             ]"
-            @click.stop
         >
             <Toast />
 

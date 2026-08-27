@@ -27,6 +27,7 @@ const props = defineProps({
     item: { type: Object, default: () => ({}) },
     roomDropdown: { type: Array, default: () => [] },
     rooms: { type: Array, default: () => [] },
+    lifespanField: { type: Array, default: () => [] },
     assetConditions: { type: Array, default: () => [] },
 });
 
@@ -50,6 +51,8 @@ const form = useForm({
     unit_cost: "",
     total_amount: 0,
     property_number: "",
+    sales_invoice_date: "",
+    po_number_date: "",
     serial_numbers: [], // FOR ADD ITEM
     serial_number: "", // FOR EDIT ITEM
     descriptions: [], // per-item descriptions (descriptions[0] mirrors `description`)
@@ -57,6 +60,7 @@ const form = useForm({
     po_number: "",
     remarks: "",
     date_acquired: "",
+    lifespan: 5,
     asset_condition_id: "",
     is_private: 0,
 });
@@ -119,6 +123,12 @@ watch(
         form.unit = item.unit ?? "";
         form.unit_cost = item.unit_cost ?? 0;
         form.total_amount = item.total_amount ?? 0;
+        form.sales_invoice_date = item.sales_invoice_date
+            ? item.sales_invoice_date.split("T")[0]
+            : "";
+        form.po_number_date = item.po_number_date
+            ? item.po_number_date.split("T")[0]
+            : "";
         // If the API provided a full property number (with -NNN), store only the prefix
         if (item.property_number) {
             const m = String(item.property_number).match(/^(.*)-(\d{3})$/);
@@ -133,6 +143,7 @@ watch(
         form.date_acquired = item.date_acquired
             ? item.date_acquired.split("T")[0]
             : "";
+        form.lifespan = item.lifespan ?? "";
         form.asset_condition_id =
             item.latest_inspection?.asset_condition_id ?? "";
         form.is_private = item.is_private ?? 0;
@@ -229,7 +240,7 @@ const displayPropertyValue = computed(() => {
 
 function startEditingProperty() {
     propertyEditing.value = true;
-    propertyInput.value = (form.property_number || "").replace(/-$/, "");
+    propertyInput.value = form.property_number || "";
 }
 
 function onPropertyInput(e) {
@@ -556,20 +567,22 @@ function onSerialPaste(e) {
         });
     }
 }
+
+function fieldByModel(fields, model) {
+    return fields.find((f) => f.model === model) ?? null;
+}
 </script>
 
 <template>
     <SessionTimeoutWarning />
     <div
         class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
-        @click="closeWithAnimation"
     >
         <div
             :class="[
                 'bg-white rounded-2xl w-full max-w-6xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]',
                 isClosing ? 'animate-pop-out' : 'animate-pop-in',
             ]"
-            @click.stop
         >
             <Toast />
 
@@ -775,7 +788,27 @@ function onSerialPaste(e) {
                                                         >*</span
                                                     ></label
                                                 >
+                                                <Multiselect
+                                                    v-if="sdf.allowCustom === true"
+                                                    v-model="form[sdf.model]"
+                                                    :options="sdf.options ?? (props[sdf.name] || [])"
+                                                    :value-prop="sdf.options ? 'value' : sdf.value"
+                                                    :label="sdf.options ? 'label' : sdf.option"
+                                                    :track-by="sdf.options ? 'value' : sdf.value"
+                                                    :searchable="true"
+                                                    :allow-absent="sdf.allowCustom === true"
+                                                    :create-option="sdf.allowCustom === true"
+                                                    :options-limit="100"
+                                                    :placeholder="sdf.placeholder || 'Select or type'"
+                                                    :class="[
+                                                        'second-dropdown-select',
+                                                        form.errors[sdf.model]
+                                                            ? 'border-red-500'
+                                                            : '',
+                                                    ]"
+                                                />
                                                 <select
+                                                    v-else
                                                     v-model="form[sdf.model]"
                                                     :class="[
                                                         'w-full sm:w-[10rem] rounded-md px-3 py-3 bg-[#F8F8F8] text-gray-500 text-sm focus:ring-1 focus:outline-none border',
@@ -784,28 +817,13 @@ function onSerialPaste(e) {
                                                             : 'border-gray-300 focus:ring-[#005740] focus:border-[#005740]',
                                                     ]"
                                                 >
-                                                    <option value="">
-                                                        Select
-                                                    </option>
+                                                    <option value="">Select</option>
                                                     <option
-                                                        v-for="op in sdf.options ??
-                                                        (props[sdf.name] || [])"
-                                                        :key="
-                                                            sdf.options
-                                                                ? op.value
-                                                                : op[sdf.value]
-                                                        "
-                                                        :value="
-                                                            sdf.options
-                                                                ? op.value
-                                                                : op[sdf.value]
-                                                        "
+                                                        v-for="op in sdf.options ?? (props[sdf.name] || [])"
+                                                        :key="sdf.options ? op.value : op[sdf.value]"
+                                                        :value="sdf.options ? op.value : op[sdf.value]"
                                                     >
-                                                        {{
-                                                            sdf.options
-                                                                ? op.label
-                                                                : op[sdf.option]
-                                                        }}
+                                                        {{ sdf.options ? op.label : op[sdf.option] }}
                                                     </option>
                                                 </select>
                                                 <div
@@ -1244,72 +1262,326 @@ function onSerialPaste(e) {
 
                             <!-- REQUEST FIELDS -->
                             <div class="space-y-4">
+                                <!-- PR Number + Lifespan, side by side -->
                                 <div
-                                    v-for="rf in requestFields"
-                                    :key="rf.model"
+                                    class="flex flex-col sm:flex-row gap-4"
+                                    v-if="
+                                        fieldByModel(requestFields, 'pr_number')
+                                    "
+                                >
+                                    <div class="flex flex-col flex-1">
+                                        <label
+                                            class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                        >
+                                            {{
+                                                fieldByModel(
+                                                    requestFields,
+                                                    "pr_number",
+                                                ).label
+                                            }}
+                                            <span
+                                                v-if="
+                                                    fieldByModel(
+                                                        requestFields,
+                                                        'pr_number',
+                                                    ).required
+                                                "
+                                                class="text-red-500"
+                                                >*</span
+                                            >
+                                        </label>
+                                        <input
+                                            v-model="form.pr_number"
+                                            type="text"
+                                            :placeholder="
+                                                fieldByModel(
+                                                    requestFields,
+                                                    'pr_number',
+                                                ).placeholder
+                                            "
+                                            :class="[
+                                                'w-full rounded-md px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:outline-none border',
+                                                form.errors.pr_number
+                                                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                                                    : 'border-gray-300 focus:ring-[#005740] focus:border-[#005740]',
+                                            ]"
+                                        />
+                                        <div
+                                            v-if="form.errors.pr_number"
+                                            class="text-red-500 text-xs mt-1"
+                                        >
+                                            {{ form.errors.pr_number }}
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-col flex-1">
+                                        <label
+                                            class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                        >
+                                            Lifespan (years)
+                                        </label>
+                                        <input
+                                            v-model="form.lifespan"
+                                            type="number"
+                                            min="0"
+                                            placeholder="e.g. 5"
+                                            :class="[
+                                                'w-full rounded-md px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:outline-none border',
+                                                form.errors.lifespan
+                                                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                                                    : 'border-gray-300 focus:ring-[#005740] focus:border-[#005740]',
+                                            ]"
+                                        />
+                                        <div
+                                            v-if="form.errors.lifespan"
+                                            class="text-red-500 text-xs mt-1"
+                                        >
+                                            {{ form.errors.lifespan }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- PO Number + PO Number Date, side by side -->
+                                <div class="flex flex-col sm:flex-row gap-4">
+                                    <div class="flex flex-col flex-1">
+                                        <label
+                                            class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                        >
+                                            {{
+                                                fieldByModel(
+                                                    requestFields,
+                                                    "po_number",
+                                                )?.label
+                                            }}
+                                            <span
+                                                v-if="
+                                                    fieldByModel(
+                                                        requestFields,
+                                                        'po_number',
+                                                    )?.required
+                                                "
+                                                class="text-red-500"
+                                                >*</span
+                                            >
+                                        </label>
+                                        <input
+                                            v-model="form.po_number"
+                                            type="text"
+                                            :placeholder="
+                                                fieldByModel(
+                                                    requestFields,
+                                                    'po_number',
+                                                )?.placeholder
+                                            "
+                                            :class="[
+                                                'w-full rounded-md px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:outline-none border',
+                                                form.errors.po_number
+                                                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                                                    : 'border-gray-300 focus:ring-[#005740] focus:border-[#005740]',
+                                            ]"
+                                        />
+                                        <div
+                                            v-if="form.errors.po_number"
+                                            class="text-red-500 text-xs mt-1"
+                                        >
+                                            {{ form.errors.po_number }}
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-col flex-1">
+                                        <label
+                                            class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                        >
+                                            {{
+                                                fieldByModel(
+                                                    requestFields,
+                                                    "po_number_date",
+                                                )?.label
+                                            }}
+                                            <span
+                                                v-if="
+                                                    fieldByModel(
+                                                        requestFields,
+                                                        'po_number_date',
+                                                    )?.required
+                                                "
+                                                class="text-red-500"
+                                                >*</span
+                                            >
+                                        </label>
+                                        <input
+                                            v-model="form.po_number_date"
+                                            type="date"
+                                            :class="[
+                                                'w-full rounded-md px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:outline-none border',
+                                                form.errors.po_number_date
+                                                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                                                    : 'border-gray-300 focus:ring-[#005740] focus:border-[#005740]',
+                                            ]"
+                                        />
+                                        <div
+                                            v-if="form.errors.po_number_date"
+                                            class="text-red-500 text-xs mt-1"
+                                        >
+                                            {{ form.errors.po_number_date }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Remarks -->
+                                <div
                                     class="flex flex-col"
+                                    v-if="
+                                        fieldByModel(requestFields, 'remarks')
+                                    "
                                 >
                                     <label
                                         class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
                                     >
-                                        {{ rf.label }}
+                                        {{
+                                            fieldByModel(
+                                                requestFields,
+                                                "remarks",
+                                            ).label
+                                        }}
                                         <span
-                                            v-if="rf.required"
+                                            v-if="
+                                                fieldByModel(
+                                                    requestFields,
+                                                    'remarks',
+                                                ).required
+                                            "
                                             class="text-red-500"
                                             >*</span
                                         >
                                     </label>
                                     <input
-                                        v-model="form[rf.model]"
-                                        :key="rf.model"
+                                        v-model="form.remarks"
                                         type="text"
-                                        :placeholder="rf.placeholder"
+                                        :placeholder="
+                                            fieldByModel(
+                                                requestFields,
+                                                'remarks',
+                                            ).placeholder
+                                        "
                                         :class="[
                                             'w-full sm:w-[34rem] rounded-md px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:outline-none border',
-                                            form.errors[rf.model]
+                                            form.errors.remarks
                                                 ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
                                                 : 'border-gray-300 focus:ring-[#005740] focus:border-[#005740]',
                                         ]"
                                     />
                                     <div
-                                        v-if="form.errors[rf.model]"
+                                        v-if="form.errors.remarks"
                                         class="text-red-500 text-xs mt-1"
                                     >
-                                        {{ form.errors[rf.model] }}
+                                        {{ form.errors.remarks }}
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Invoices + Fund Sources -->
-                            <div class="flex flex-col md:flex-row gap-4 mb-4">
-                                <div
-                                    v-for="inv in invoicesFundFields"
-                                    :key="inv.model"
-                                >
+                            <!-- Invoices + Fund Source -->
+                            <div class="space-y-4 mb-4">
+                                <div class="flex flex-col sm:flex-row gap-4">
+                                    <div class="flex flex-col flex-1">
+                                        <label
+                                            class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                        >
+                                            {{
+                                                fieldByModel(
+                                                    invoicesFundFields,
+                                                    "invoice",
+                                                )?.label
+                                            }}
+                                        </label>
+                                        <input
+                                            v-model="form.invoice"
+                                            type="text"
+                                            :placeholder="
+                                                fieldByModel(
+                                                    invoicesFundFields,
+                                                    'invoice',
+                                                )?.placeholder
+                                            "
+                                            :class="[
+                                                'w-full rounded-md px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:outline-none border',
+                                                form.errors.invoice
+                                                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                                                    : 'border-gray-300 focus:ring-[#005740] focus:border-[#005740]',
+                                            ]"
+                                        />
+                                        <div
+                                            v-if="form.errors.invoice"
+                                            class="text-red-500 text-xs mt-1"
+                                        >
+                                            {{ form.errors.invoice }}
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-col flex-1">
+                                        <label
+                                            class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                        >
+                                            {{
+                                                fieldByModel(
+                                                    invoicesFundFields,
+                                                    "sales_invoice_date",
+                                                )?.label
+                                            }}
+                                        </label>
+                                        <input
+                                            v-model="form.sales_invoice_date"
+                                            type="date"
+                                            :class="[
+                                                'w-full rounded-md px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:outline-none border',
+                                                form.errors.sales_invoice_date
+                                                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                                                    : 'border-gray-300 focus:ring-[#005740] focus:border-[#005740]',
+                                            ]"
+                                        />
+                                        <div
+                                            v-if="
+                                                form.errors.sales_invoice_date
+                                            "
+                                            class="text-red-500 text-xs mt-1"
+                                        >
+                                            {{ form.errors.sales_invoice_date }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-col">
                                     <label
                                         class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
-                                        >{{ inv.label }}
-                                        <span class="text-red-500"
-                                            >*</span
-                                        ></label
                                     >
+                                        {{
+                                            fieldByModel(
+                                                invoicesFundFields,
+                                                "fund_source",
+                                            )?.label
+                                        }}
+                                    </label>
                                     <input
-                                        v-model="form[inv.model]"
-                                        :key="inv.model"
+                                        v-model="form.fund_source"
                                         type="text"
-                                        :placeholder="inv.placeholder"
+                                        :placeholder="
+                                            fieldByModel(
+                                                invoicesFundFields,
+                                                'fund_source',
+                                            )?.placeholder
+                                        "
                                         :class="[
-                                            'w-full sm:w-[16.5rem] rounded-md px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:outline-none border',
-                                            form.errors[inv.model]
+                                            'w-full sm:w-[34rem] rounded-md px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:outline-none border',
+                                            form.errors.fund_source
                                                 ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
                                                 : 'border-gray-300 focus:ring-[#005740] focus:border-[#005740]',
                                         ]"
                                     />
                                     <div
-                                        v-if="form.errors[inv.model]"
+                                        v-if="form.errors.fund_source"
                                         class="text-red-500 text-xs mt-1"
                                     >
-                                        {{ form.errors[inv.model] }}
+                                        {{ form.errors.fund_source }}
                                     </div>
                                 </div>
                             </div>
@@ -1619,6 +1891,12 @@ function onSerialPaste(e) {
 
 .supplier-select.multiselect {
     width: 98% !important;
+    min-height: 46px;
+    margin: 0 !important;
+}
+
+.second-dropdown-select.multiselect {
+    width: 10rem !important;
     min-height: 46px;
     margin: 0 !important;
 }

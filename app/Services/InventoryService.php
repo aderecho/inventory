@@ -170,6 +170,7 @@ class InventoryService
                 'item_classification_id' => $data['item_classification_id'],
                 'supplier_id' => $data['supplier_id'],
                 'invoice' => $data['invoice'],
+                'sales_invoice_date' => $data['sales_invoice_date'] ?? null,
                 'fund_source' => $data['fund_source'],
                 'item_name' => $data['item_name'],
                 'brand' => $data['brand'],
@@ -183,8 +184,10 @@ class InventoryService
                 'serial_number' => $serialNumber,
                 'pr_number' => $data['pr_number'],
                 'po_number' => $data['po_number'],
+                'po_number_date' => $data['po_number_date'] ?? null, 
                 'remarks' => $data['remarks'],
                 'date_acquired' => $data['date_acquired'],
+                'lifespan' => $data['lifespan'] ?? null,
                 'is_private' => $data['is_private'] ?? 0,
             ]);
 
@@ -234,6 +237,7 @@ class InventoryService
             'item_classification_id' => $data['item_classification_id'],
             'supplier_id' => $data['supplier_id'],
             'invoice' => $data['invoice'],
+            'sales_invoice_date' => $data['sales_invoice_date'] ?? null,
             'fund_source' => $data['fund_source'],
             'item_name' => $data['item_name'],
             'brand' => $data['brand'] ?? null,
@@ -248,8 +252,10 @@ class InventoryService
             'serial_number' => $data['serial_number'],
             'pr_number' => $data['pr_number'],
             'po_number' => $data['po_number'],
+            'po_number_date' => $data['po_number_date'] ?? null, 
             'remarks' => $data['remarks'] ?? null,
             'date_acquired' => $data['date_acquired'],
+            'lifespan' => $data['lifespan'] ?? null, 
             'is_private' => $data['is_private'] ?? 0,
         ]);
 

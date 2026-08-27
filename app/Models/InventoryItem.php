@@ -16,6 +16,7 @@ class InventoryItem extends Model
         'item_classification_id',
         'fund_source',
         'invoice',
+        'sales_invoice_date',
         'supplier_id',
         'item_name',
         'brand',
@@ -27,11 +28,13 @@ class InventoryItem extends Model
         'total_amount',
         'pr_number',
         'po_number',
+        'po_number_date',
         'property_number',
         'serial_number',
         'remarks',
         'date_acquired',
-        'is_private'
+        'lifespan',
+        'is_private',
     ];
 
     public function getActivitylogOptions(): LogOptions

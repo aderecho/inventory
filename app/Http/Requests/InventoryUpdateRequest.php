@@ -27,6 +27,7 @@ class InventoryUpdateRequest extends FormRequest
             'supplier_id' => 'required|integer',
             'room_id' => 'nullable|integer',
             'invoice' => 'required|string|max:50',
+            'sales_invoice_date' => 'nullable|date',
             'fund_source' => 'required|string|max:50',
             'item_name' => 'required|string|max:255',
             'brand' => 'nullable|string|max:255',
@@ -41,8 +42,10 @@ class InventoryUpdateRequest extends FormRequest
             'serial_number' => 'nullable|max:50',
             'pr_number' => 'required|string|max:50',
             'po_number' => 'required|string|max:50',
+            'po_number_date' => 'nullable|date',   
             'remarks' => 'nullable|string|max:50',
             'date_acquired' => 'required|date',
+            'lifespan' => 'nullable|integer|min:0', 
             'is_private' => 'required|boolean',
             'asset_condition_id' => 'nullable|integer|exists:asset_conditions,id',
             'property_number' => [
