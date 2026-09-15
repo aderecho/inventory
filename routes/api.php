@@ -6,6 +6,7 @@ use App\Http\Controllers\API\ApiEmbedController;
 use App\Http\Controllers\API\QrScanController;
 use App\Http\Controllers\mobileAPI\AuthController;
 use App\Http\Controllers\mobileAPI\InspectionController;
+use App\Http\Controllers\TriggerController;
 use App\Http\Controllers\Auth\GoogleController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
@@ -20,6 +21,10 @@ Route::prefix('v1')
             Route::get('/inventory', [InventoryController::class, 'apiIndex']);
             Route::get('/inventory/{id}', [InventoryController::class, 'apiShow']);
         });
+
+
+        Route::post('/trigger', [TriggerController::class, 'store'])
+            ->name('trigger.store');
 
         // Mobile
         Route::post('/login', [AuthController::class, 'login']);

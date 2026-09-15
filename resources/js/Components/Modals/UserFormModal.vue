@@ -22,15 +22,22 @@ const form = useForm({
     id: null,
     email: "",
     status: 0,
+
     user_profiles: {
+        employee_number: "",
+        title_name: "",
         first_name: "",
-        last_name: "",
         middle_name: "",
+        last_name: "",
+        ext_name: "",
+        primary_unit_division_department: "",
+        employee_primary_unit_college: "",
         contact_number: "",
     },
+
     role: null,
     organizations: [],
-    primary_organization_id: null,
+    primary_unit: "",
 });
 
 const givePermissions = ref([]);
@@ -38,7 +45,9 @@ const revokePermissions = ref([]);
 
 const rolePermissionNames = computed(() => {
     if (!form.role) return [];
+
     const selectedRole = props.roles.find((r) => r.name === form.role);
+
     return selectedRole?.permissions?.map((p) => p.name) ?? [];
 });
 
@@ -58,19 +67,27 @@ const moduleLabels = {
 
 function getModuleKey(permName) {
     const parts = permName.split(" ");
+
     if (parts.length === 3) {
         return parts.slice(1).join(" ");
     }
+
     return parts[1] ?? "other";
 }
 
 const groupedPermissions = computed(() => {
     const groups = {};
+
     for (const perm of allPermissions.value) {
         const key = getModuleKey(perm.name);
-        if (!groups[key]) groups[key] = [];
+
+        if (!groups[key]) {
+            groups[key] = [];
+        }
+
         groups[key].push(perm);
     }
+
     return groups;
 });
 
@@ -82,11 +99,13 @@ function permissionState(name) {
     if (fromRole && !isRevoked) return "granted";
     if (fromRole && isRevoked) return "revoked";
     if (!fromRole && isGiven) return "given";
+
     return "none";
 }
 
 function isSelected(name) {
     const state = permissionState(name);
+
     return state === "granted" || state === "given";
 }
 
@@ -119,6 +138,7 @@ function isModuleFullySelected(modulePerms) {
 
 function isModulePartiallySelected(modulePerms) {
     const selectedCount = modulePerms.filter((p) => isSelected(p.name)).length;
+
     return selectedCount > 0 && selectedCount < modulePerms.length;
 }
 
@@ -131,7 +151,6 @@ function toggleModule(modulePerms) {
         const currentlySelected = isSelected(name);
 
         if (allSelected) {
-            // Deselect everything in this module
             if (fromRole && currentlySelected) {
                 if (!revokePermissions.value.includes(name)) {
                     revokePermissions.value.push(name);
@@ -142,7 +161,6 @@ function toggleModule(modulePerms) {
                 );
             }
         } else {
-            // Select everything in this module
             if (fromRole && !currentlySelected) {
                 revokePermissions.value = revokePermissions.value.filter(
                     (p) => p !== name,
@@ -170,14 +188,28 @@ watch(
         form.id = val.id;
         form.email = val.email;
         form.status = val.status ?? 0;
-        form.user_profiles.first_name = val.user_profiles?.first_name ?? "";
-        form.user_profiles.last_name = val.user_profiles?.last_name ?? "";
-        form.user_profiles.middle_name = val.user_profiles?.middle_name ?? "";
-        form.organizations = val.user_profiles?.organizations?.map((o) => o.id) ?? [];
-        form.primary_organization_id =
-            val.user_profiles?.primary_organization_id ?? null;
-        form.user_profiles.contact_number =
-            val.user_profiles?.contact_number ?? "";
+
+        const profile = val.user_profiles ?? {};
+
+        form.user_profiles.employee_number = profile.employee_number ?? "";
+        form.user_profiles.title_name = profile.title_name ?? "";
+        form.user_profiles.first_name = profile.first_name ?? "";
+        form.user_profiles.middle_name = profile.middle_name ?? "";
+        form.user_profiles.last_name = profile.last_name ?? "";
+        form.user_profiles.ext_name = profile.ext_name ?? "";
+
+        form.user_profiles.primary_unit_division_department =
+            profile.primary_unit_division_department ?? "";
+
+        form.user_profiles.employee_primary_unit_college =
+            profile.employee_primary_unit_college ?? "";
+
+        form.user_profiles.contact_number = profile.contact_number ?? "";
+
+        form.organizations = profile.organizations?.map((o) => o.id) ?? [];
+
+        form.primary_unit = profile.primary_unit ?? "";
+
         form.role = val.roles?.length ? val.roles[0].name : null;
 
         givePermissions.value =
@@ -206,6 +238,7 @@ const isClosing = ref(false);
 
 function closeWithAnimation() {
     isClosing.value = true;
+
     setTimeout(() => {
         emit("close");
         isClosing.value = false;
@@ -231,6 +264,7 @@ function submit() {
                     },
                     {
                         preserveScroll: true,
+
                         onSuccess: () => {
                             toast.add({
                                 severity: "success",
@@ -238,9 +272,11 @@ function submit() {
                                 detail: "User and permissions updated successfully.",
                                 life: 3000,
                             });
+
                             emit("submit");
                             emit("close");
                         },
+
                         onError: (errors) => {
                             toast.add({
                                 severity: "error",
@@ -258,11 +294,14 @@ function submit() {
                     detail: "User added successfully.",
                     life: 3000,
                 });
+
                 form.reset();
+
                 emit("submit");
                 emit("close");
             }
         },
+
         onError: (errors) => {
             toast.add({
                 severity: "error",
@@ -277,42 +316,18 @@ function submit() {
 function inputClass(hasError) {
     return [
         "w-full rounded-md px-3 py-3 text-[#3B3B3B] bg-[#F8F8F8] text-sm focus:ring-1 focus:outline-none border",
+
         hasError
             ? "border-red-500 focus:ring-red-500 focus:border-red-500"
             : "border-gray-300 focus:ring-[#850038] focus:border-[#850038]",
     ];
 }
 
-const selectedOrganizations = computed(() =>
-    (props.organizations ?? []).filter((org) =>
-        form.organizations.includes(org.id),
-    ),
-);
-
-function orgLabel(org) {
-    return `${org.name} (${org.short_code})`;
-}
-
 const organizationOptions = computed(() =>
     (props.organizations ?? []).map((org) => ({
         value: org.id,
-        label: orgLabel(org),
+        label: `${org.name} (${org.short_code})`,
     })),
-);
-
-watch(
-    () => [...form.organizations],
-    (newVal) => {
-        if (
-            form.primary_organization_id &&
-            !newVal.includes(form.primary_organization_id)
-        ) {
-            form.primary_organization_id = null;
-        }
-        if (newVal.length === 1) {
-            form.primary_organization_id = newVal[0];
-        }
-    },
 );
 </script>
 
@@ -436,51 +451,86 @@ watch(
                         </div>
 
                         <div class="grid grid-cols-2 gap-3">
-    <div>
-        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-            Units <span class="text-red-500">*</span>
-        </label>
+                            <!-- Department -->
+                            <div>
+                                <label
+                                    class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                >
+                                    Department
+                                </label>
 
-        <Multiselect
-            v-model="form.organizations"
-            :options="organizationOptions"
-            mode="tags"
-            :searchable="true"
-            :close-on-select="false"
-            placeholder="Select units"
-            :classes="{
-                container: form.errors.organizations
-                    ? 'multiselect border border-red-500 rounded-md bg-[#F8F8F8]'
-                    : 'multiselect border border-gray-300 rounded-md bg-[#F8F8F8]',
-            }"
-        />
+                                <input
+                                    v-model="
+                                        form.user_profiles
+                                            .primary_unit_division_department
+                                    "
+                                    type="text"
+                                    placeholder="Department"
+                                    :class="
+                                        inputClass(
+                                            form.errors[
+                                                'user_profiles.primary_unit_division_department'
+                                            ],
+                                        )
+                                    "
+                                />
 
-        <p v-if="form.errors.organizations" class="text-red-500 text-xs mt-1">
-            {{ form.errors.organizations }}
-        </p>
-    </div>
+                                <p
+                                    v-if="
+                                        form.errors[
+                                            'user_profiles.primary_unit_division_department'
+                                        ]
+                                    "
+                                    class="text-red-500 text-xs mt-1"
+                                >
+                                    {{
+                                        form.errors[
+                                            "user_profiles.primary_unit_division_department"
+                                        ]
+                                    }}
+                                </p>
+                            </div>
 
-    <div>
-        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-            Primary Unit <span class="text-red-500">*</span>
-        </label>
-        <select
-            v-model="form.primary_organization_id"
-            :disabled="selectedOrganizations.length === 0"
-            :class="inputClass(form.errors.primary_organization_id)"
-        >
-            <option :value="null" disabled>
-                {{ selectedOrganizations.length === 0 ? "Select units first" : "Select primary unit" }}
-            </option>
-            <option v-for="org in selectedOrganizations" :key="org.id" :value="org.id">
-                {{ org.name }}
-            </option>
-        </select>
-        <p v-if="form.errors.primary_organization_id" class="text-red-500 text-xs mt-1">
-            {{ form.errors.primary_organization_id }}
-        </p>
-    </div>
-</div>
+                            <!-- College -->
+                            <div>
+                                <label
+                                    class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                >
+                                    College
+                                </label>
+
+                                <input
+                                    v-model="
+                                        form.user_profiles
+                                            .employee_primary_unit_college
+                                    "
+                                    type="text"
+                                    placeholder="College"
+                                    :class="
+                                        inputClass(
+                                            form.errors[
+                                                'user_profiles.employee_primary_unit_college'
+                                            ],
+                                        )
+                                    "
+                                />
+
+                                <p
+                                    v-if="
+                                        form.errors[
+                                            'user_profiles.employee_primary_unit_college'
+                                        ]
+                                    "
+                                    class="text-red-500 text-xs mt-1"
+                                >
+                                    {{
+                                        form.errors[
+                                            "user_profiles.employee_primary_unit_college"
+                                        ]
+                                    }}
+                                </p>
+                            </div>
+                        </div>
 
                         <template v-if="mode === 'edit'">
                             <div class="grid grid-cols-2 gap-3">

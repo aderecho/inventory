@@ -31,41 +31,45 @@ const { roleActions, permissionActions, userActions } = usePermissions();
 
 const canViewUsers = computed(() => userActions.value.includes("view"));
 const canViewRoles = computed(() => roleActions.value.includes("view"));
-const canViewPermissions = computed(() => permissionActions.value.includes("view"));
+const canViewPermissions = computed(() =>
+    permissionActions.value.includes("view"),
+);
 
 const status = ref(null);
 const search = ref("");
 
 const columns = [
+    { label: "Employee Number", key: "user_profiles.employee_number" },
     { label: "Email", key: "email" },
     { label: "First Name", key: "user_profiles.first_name" },
     { label: "Last Name", key: "user_profiles.last_name" },
     { label: "Middle Name", key: "user_profiles.middle_name" },
-    { label: "Contact Number", key: "user_profiles.contact_number" },
+    { label: "Extension", key: "user_profiles.ext_name" },
     {
-        label: "Primary Unit",
-        key: "user_profiles.primary_organization",
-        format: (org) => org?.name ?? "N/A",
+        label: "Department",
+        key: "user_profiles.primary_unit_division_department",
     },
+    { label: "Contact Number", key: "user_profiles.contact_number" },
     {
         label: "Status",
         key: "status",
         format: (status) => {
             let label = "Unknown";
             let cls = "text-gray-500";
-            let icon = "";
 
             if (status === 0) {
                 label = "Inactive";
-                cls = "text-[#D32F2F] font-bold bg-[#F8D4D4] py-2 px-4 rounded-md";
+                cls =
+                    "text-[#D32F2F] font-bold bg-[#F8D4D4] py-2 px-4 rounded-md";
             }
 
             if (status === 1) {
                 label = "Active";
-                cls = "text-[#2E7D32] font-bold bg-[#D4F8D4] py-2 px-4 rounded-md";
+                cls =
+                    "text-[#2E7D32] font-bold bg-[#D4F8D4] py-2 px-4 rounded-md";
             }
 
-            return `<span class="${cls}">${icon} ${label}</span>`;
+            return `<span class="${cls}">${label}</span>`;
         },
     },
     { label: "Action", key: "action" },
@@ -139,14 +143,19 @@ const filterStatus = [
         <PageHeader title="User Permissions" />
 
         <div class="w-full h-full">
-            <div class="mt-10 flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+            <div
+                class="mt-10 flex flex-col md:flex-row md:items-end md:justify-between gap-3"
+            >
                 <div class="flex flex-col sm:flex-row items-stretch gap-3">
                     <PrimaryButton v-if="canViewUsers" @click="openAdd">
                         <i class="fa-solid fa-user-group"></i>
                         <span>Add User</span>
                     </PrimaryButton>
 
-                    <PrimaryButton v-if="canViewRoles" @click="showRoleModal = true">
+                    <PrimaryButton
+                        v-if="canViewRoles"
+                        @click="showRoleModal = true"
+                    >
                         <i class="fa-solid fa-shield-halved"></i>
                         <span>Manage Roles</span>
                     </PrimaryButton>
@@ -161,7 +170,9 @@ const filterStatus = [
                     </button>
                 </div>
 
-                <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3">
+                <div
+                    class="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3"
+                >
                     <SearchFilterBar
                         :search="search"
                         :status="status"

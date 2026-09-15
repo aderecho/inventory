@@ -92,8 +92,8 @@ class PrintService
         $acknowledgementItems = AcknowledgementItem::with([
             'inventoryItems.supplier',
             'inventoryItems.latestHistoryLocation',
-            'accountablePerson.primaryOrganization',
-            'issuedBy.primaryOrganization',
+            'accountablePerson',
+            'issuedBy',
             'acknowledgementReceipts',
         ])
             ->whereIn('inventory_item_id', $ids)
