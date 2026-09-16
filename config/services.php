@@ -22,6 +22,10 @@ return [
         'base_url' => env('PUSO_API_BASE_URL'),
     ],
 
+    'api_trigger' => [
+        'token' => env('INVENTORY_API_TRIGGER_TOKEN'),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
@@ -46,7 +50,7 @@ return [
     ],
 
     'saml' => [
-        'sp_entity_id' => env('SAML_SP_ENTITY_ID', rtrim((string) env('APP_URL'), '/').'/saml2/metadata'),
+        'sp_entity_id' => env('SAML_SP_ENTITY_ID', rtrim((string) env('APP_URL'), '/') . '/saml2/metadata'),
         'idp_name' => env('SAML_IDP_NAME', 'UP Cebu AMS'),
         'idp_entity_id' => env('SAML_IDP_ENTITY_ID'),
         'idp_sso_url' => env('SAML_IDP_SSO_URL'),

@@ -49,8 +49,6 @@ class TriggerService
                 $page++;
             } while ($page <= $lastPage);
 
-            // Only create a successful trigger
-            // after every page has been processed.
             return Trigger::create([
                 'date' => now()->toDateString(),
                 'status' => 1,
@@ -60,42 +58,46 @@ class TriggerService
 
     private function syncEmployee(array $employee): void
     {
-        if (empty($employee['up_mail'])) {
+        $email = trim($employee['up_mail'] ?? '');
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return;
         }
 
-        /*
-         * API status:
-         * active = 1
-         * anything else = 0
-         */
         $status = strtolower($employee['status'] ?? '') === 'active'
             ? 1
             : 0;
 
-        /*
-         * Find existing user by email.
-         * If it doesn't exist, create it.
-         */
-        $user = User::updateOrCreate(
-            [
-                'email' => $employee['up_mail'],
-            ],
-            [
-                'status' => $status,
-            ]
-        );
+        $profile = UserProfile::where('employee_number', $employee['employee_number'])
+            ->first();
 
-        /*
-         * Create or update the user's profile.
-         */
+        if ($profile) {
+            $user = $profile->user;
+            $user->update([
+                'email' => $email,
+                'status' => $status,
+            ]);
+        } else {
+            $user = User::where('email', $email)->first();
+
+            if ($user) {
+                $user->update([
+                    'status' => $status,
+                ]);
+            } else {
+                $user = User::create([
+                    'email' => $email,
+                    'status' => $status,
+                ]);
+            }
+        }
+
         UserProfile::updateOrCreate(
             [
-                'user_id' => $user->id,
+                'employee_number' => $employee['employee_number'],
             ],
             [
-                'employee_number' =>
-                $employee['employee_number'] ?? null,
+                'user_id' => $user->id,
 
                 'title_name' =>
                 $employee['title_name'] ?? null,

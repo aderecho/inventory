@@ -17,12 +17,15 @@
         "laravel/tinker": "^2.10.1",
         "onelogin/php-saml": "^4.3",
         "phpoffice/phpspreadsheet": "^5.3",
+        "setasign/fpdi": "^2.6",
         "simplesoftwareio/simple-qrcode": "^4.2",
         "spatie/browsershot": "^5.4",
         "spatie/image": "^3.9",
         "spatie/laravel-activitylog": "^4.12",
         "spatie/laravel-pdf": "^2.12",
         "spatie/laravel-permission": "^6.24",
+        "tecnickcom/tc-lib-pdf-font": "^4.3",
+        "tecnickcom/tcpdf": "6.10",
         "tightenco/ziggy": "^2.0"
     },
     "require-dev": {

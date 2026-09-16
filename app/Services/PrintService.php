@@ -232,4 +232,33 @@ class PrintService
             'type' => $type,
         ];
     }
+
+
+    public function generateAndStoreReceiptPdf(int|array $ids): array
+    {
+        $result = $this->generateReceiptPdf($ids);
+
+        $fileName = $result['type']
+            . '_'
+            . now()->format('Y_m_d_His')
+            . '_'
+            . uniqid()
+            . '.pdf';
+
+        $directory = 'receipts';
+
+        $path = $directory . '/' . $fileName;
+
+        \Storage::disk('public')->put(
+            $path,
+            $result['pdf']
+        );
+
+        return [
+            'path' => $path,
+            'file_name' => $fileName,
+            'type' => $result['type'],
+            'pdf' => $result['pdf'],
+        ];
+    }
 }

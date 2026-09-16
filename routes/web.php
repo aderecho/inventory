@@ -132,6 +132,7 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
         Route::post('/inventory/qr-pngs', [InventoryController::class, 'downloadQrPngs'])->name('inventory.qr.pngs');
         Route::post('/inventory/qr-pdfs', [InventoryController::class, 'downloadQrPdfs'])->name('inventory.qr.pdfs');
         Route::post('/print/receipt', [PrintController::class, 'printReceipt'])->name('print.receipt');
+        Route::post('/print/receipt/sign',[PrintController::class, 'signReceipt'])->name('print.receipt.sign');
     });
     Route::middleware('can:import inventory')->group(function () {
         Route::post('/convert-excel-to-csv', [InventoryController::class, 'convert']);
@@ -170,8 +171,8 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
         Route::get('/', [DisposalController::class, 'index'])->name('disposal.index');
 
         Route::post('/print/iirup', [DisposalPrintController::class, 'printIirup'])
-      
-        ->name('disposal.print.iirup');
+
+            ->name('disposal.print.iirup');
     });
 
     // Inspection Items
