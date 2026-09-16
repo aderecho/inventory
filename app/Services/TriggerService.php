@@ -49,8 +49,6 @@ class TriggerService
                 $page++;
             } while ($page <= $lastPage);
 
-            // Only create a successful trigger
-            // after every page has been processed.
             return Trigger::create([
                 'date' => now()->toDateString(),
                 'status' => 1,
@@ -60,68 +58,88 @@ class TriggerService
 
     private function syncEmployee(array $employee): void
     {
-        if (empty($employee['up_mail'])) {
+        $email = trim($employee['up_mail'] ?? '');
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return;
         }
 
-        /*
-         * API status:
-         * active = 1
-         * anything else = 0
-         */
         $status = strtolower($employee['status'] ?? '') === 'active'
             ? 1
             : 0;
 
         /*
-         * Find existing user by email.
-         * If it doesn't exist, create it.
-         */
-        $user = User::updateOrCreate(
-            [
-                'email' => $employee['up_mail'],
-            ],
-            [
+     * Find existing profile by employee_number (stable key).
+     */
+        $profile = UserProfile::where('employee_number', $employee['employee_number'])
+            ->first();
+
+        if ($profile) {
+            // Already synced before — update the linked user.
+            $user = $profile->user;
+            $user->update([
+                'email' => $email,
                 'status' => $status,
-            ]
-        );
+            ]);
+        } else {
+            // No profile with this employee_number yet.
+            // Check if a user with this email already exists.
+            $user = User::where('email', $email)->first();
 
-        /*
-         * Create or update the user's profile.
-         */
-        UserProfile::updateOrCreate(
-            [
-                'user_id' => $user->id,
-            ],
-            [
-                'employee_number' =>
-                $employee['employee_number'] ?? null,
+            if ($user) {
+                $user->update(['status' => $status]);
+            } else {
+                $user = User::create([
+                    'email' => $email,
+                    'status' => $status,
+                ]);
+            }
 
-                'title_name' =>
-                $employee['title_name'] ?? null,
+            // The profile's id must match the user's id.
+            // See if a profile row already sits at that id.
+            $profile = UserProfile::find($user->id);
 
-                'first_name' =>
-                $employee['first_name'] ?? '',
+            if ($profile && $profile->employee_number !== $employee['employee_number']) {
+                throw new RuntimeException(
+                    "user_profiles.id {$user->id} is already claimed by employee_number " .
+                        "'{$profile->employee_number}', cannot assign it to '{$employee['employee_number']}'."
+                );
+            }
 
-                'middle_name' =>
-                $employee['middle_name'] ?? null,
+            if (!$profile) {
+                $profile = new UserProfile();
+                $profile->id = $user->id; // force the same id as users.id
+            }
+        }
 
-                'last_name' =>
-                $employee['last_name'] ?? '',
+        $profile->fill([
+            'user_id' => $user->id,
+            'employee_number' => $employee['employee_number'],
 
-                'ext_name' =>
-                !empty($employee['ext_name'])
-                    ? $employee['ext_name']
-                    : null,
+            'title_name' =>
+            $employee['title_name'] ?? null,
 
-                'primary_unit_division_department' =>
-                $employee['primary_unit_division_department'] ?? null,
+            'first_name' =>
+            $employee['first_name'] ?? '',
 
-                'employee_primary_unit_college' =>
-                $employee['employee_primary_unit_college'] ?? null,
+            'middle_name' =>
+            $employee['middle_name'] ?? null,
 
-                'contact_number' => null,
-            ]
-        );
+            'last_name' =>
+            $employee['last_name'] ?? '',
+
+            'ext_name' =>
+            !empty($employee['ext_name'])
+                ? $employee['ext_name']
+                : null,
+
+            'primary_unit_division_department' =>
+            $employee['primary_unit_division_department'] ?? null,
+
+            'employee_primary_unit_college' =>
+            $employee['employee_primary_unit_college'] ?? null,
+        ]);
+
+        $profile->save();
     }
 }

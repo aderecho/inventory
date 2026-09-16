@@ -22,9 +22,10 @@ Route::prefix('v1')
             Route::get('/inventory/{id}', [InventoryController::class, 'apiShow']);
         });
 
-
-        Route::post('/trigger', [TriggerController::class, 'store'])
-            ->name('trigger.store');
+        Route::middleware('api.trigger')->group(function () {
+            Route::post('/trigger', [TriggerController::class, 'store'])
+                ->name('trigger.store');
+        });
 
         // Mobile
         Route::post('/login', [AuthController::class, 'login']);
