@@ -35,7 +35,7 @@ export function usePermissions() {
         return result;
     });
 
-      // Saml configuration
+    // Saml configuration
     const samlConfigurationActions = computed(() => {
         const result = [];
         if (can("view saml_configurations")) result.push("view");
@@ -129,6 +129,14 @@ export function usePermissions() {
         return result;
     });
 
+    const archiveUserActions = computed(() => {
+        const result = [];
+        if (can("view archive_users")) result.push("view");
+        if (can("restore archive_users")) result.push("restore");
+        if (can("force delete archive_users")) result.push("force-delete");
+        return result;
+    });
+
     const archiveSupplierActions = computed(() => {
         const result = [];
         if (can("view archive_supplier")) result.push("view");
@@ -189,5 +197,6 @@ export function usePermissions() {
         // Archives
         archiveItemActions,
         archiveSupplierActions,
+        archiveUserActions,
     };
 }

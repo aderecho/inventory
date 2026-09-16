@@ -188,4 +188,16 @@ class UserService
     {
         $user->delete();
     }
+
+    public function filterAndPaginateArchiveUsers(
+        ?string $search = null,
+        int $perPage = 10
+    ) {
+        return User::onlyTrashed()
+            ->with('userProfiles')
+            ->when($search, fn($query, $search) => $query->search($search))
+            ->orderBy('deleted_at', 'desc')
+            ->paginate($perPage)
+            ->withQueryString();
+    }
 }
