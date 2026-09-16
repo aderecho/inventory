@@ -11,7 +11,11 @@ class InventoryApiResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'Item' => $this->item_name,
+            'Item' => implode(' | ', array_filter([
+                $this->item_name,
+                $this->brand,
+                $this->model,
+            ], fn ($value) => filled($value))),
             'Classification' => $this->itemClassification?->classification_name
                 ?? $this->itemClassification?->name,
             'Property_number' => $this->property_number,

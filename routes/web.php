@@ -24,6 +24,7 @@ use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\DisposalController;
 use App\Http\Controllers\InspectionController;
 use App\Http\Controllers\SamlConfigurationController;
+use App\Http\Controllers\DisposalPrintController;
 use App\Http\Controllers\Auth\GoogleController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -167,6 +168,10 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
     // Disposal
     Route::prefix('disposal')->group(function () {
         Route::get('/', [DisposalController::class, 'index'])->name('disposal.index');
+
+        Route::post('/print/iirup', [DisposalPrintController::class, 'printIirup'])
+      
+        ->name('disposal.print.iirup');
     });
 
     // Inspection Items
