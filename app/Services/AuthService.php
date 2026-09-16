@@ -39,8 +39,6 @@ class AuthService
                 ->event('login')
                 ->log('User logged in');
 
-            // Clear any stale "intended" URL from before login so it can't
-            // override the permission-based redirect below.
             $request->session()->forget('url.intended');
 
             return $user->can('view dashboard')

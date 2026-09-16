@@ -391,7 +391,7 @@
 
         .signature-position {
             display: block;
-            font-size: 9pt;
+            font-size: 7pt;
             font-weight: bold;
             text-decoration: underline;
             margin-top: 2mm;
@@ -753,7 +753,7 @@
                             </span>
 
                             <span class="signature-position">
-                                {{ $firstAckItem->issuedBy->primaryOrganization->name ?? 'N/A' }}
+                                {{ $firstAckItem->issuedBy->primary_unit_division_department ?? 'N/A' }}
                             </span>
 
                             <span class="signature-position-label">
@@ -789,7 +789,7 @@
                             </span>
 
                             <span class="signature-position">
-                                {{ $firstAckItem->accountablePerson->primaryOrganization->name ?? 'N/A' }}
+                                {{ $firstAckItem->accountablePerson->primary_unit_division_department ?? 'N/A' }}
                             </span>
 
                             <span class="signature-position-label">

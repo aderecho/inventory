@@ -9,7 +9,18 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 class UserProfile extends Model
 {
     use HasFactory;
-    protected $fillable = ['user_id', 'primary_organization_id','first_name', 'middle_name', 'last_name', 'contact_number', 'status'];
+    protected $fillable = [
+        'user_id',
+        'employee_number',
+        'title_name',
+        'first_name',
+        'middle_name',
+        'last_name',
+        'ext_name',
+        'primary_unit_division_department',
+        'employee_primary_unit_college',
+        'contact_number',
+    ];
     protected $appends = ['full_name'];
 
     public function user()

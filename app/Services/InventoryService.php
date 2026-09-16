@@ -82,8 +82,8 @@ class InventoryService
 
     public function getAccountableUserProfiles()
     {
-        return User::whereHas('userProfiles.primaryOrganization', function ($query) {
-            $query->where('short_code', 'SPMO');
+        return User::whereHas('userProfiles', function ($query) {
+            $query->where('primary_unit_division_department', 'UPC SUPPLY AND PROPERTY MANAGEMENT OFFICE');
         })
             ->with('userProfiles.primaryOrganization')
             ->get()
