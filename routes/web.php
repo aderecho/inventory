@@ -24,6 +24,7 @@ use App\Http\Controllers\AuditLogsController;
 use App\Http\Controllers\DisposalController;
 use App\Http\Controllers\InspectionController;
 use App\Http\Controllers\SamlConfigurationController;
+use App\Http\Controllers\UserArchiveController;
 use App\Http\Controllers\DisposalPrintController;
 use App\Http\Controllers\Auth\GoogleController;
 use Illuminate\Http\Request;
@@ -132,7 +133,7 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
         Route::post('/inventory/qr-pngs', [InventoryController::class, 'downloadQrPngs'])->name('inventory.qr.pngs');
         Route::post('/inventory/qr-pdfs', [InventoryController::class, 'downloadQrPdfs'])->name('inventory.qr.pdfs');
         Route::post('/print/receipt', [PrintController::class, 'printReceipt'])->name('print.receipt');
-        Route::post('/print/receipt/sign',[PrintController::class, 'signReceipt'])->name('print.receipt.sign');
+        Route::post('/print/receipt/sign', [PrintController::class, 'signReceipt'])->name('print.receipt.sign');
     });
     Route::middleware('can:import inventory')->group(function () {
         Route::post('/convert-excel-to-csv', [InventoryController::class, 'convert']);
@@ -213,6 +214,11 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
         Route::post('/', [UserManagementController::class, 'store'])->middleware('can:create users')->name('user_management.store');
         Route::put('/{user}', [UserManagementController::class, 'update'])->middleware('can:edit users')->name('user_management.update');
         Route::delete('/{user}', [UserManagementController::class, 'destroy'])->middleware('can:delete users')->name('user_management.destroy');
+
+        // User Archive
+        Route::middleware('can:view archive_users')->get('/archive', [UserArchiveController::class, 'index'])->name('user_management.archive.index');
+        Route::patch('/{id}/archive', [UserArchiveController::class, 'restore'])->middleware('can:restore archive_users')->name('user_management.restore');
+        Route::delete('/{id}/force-delete', [UserArchiveController::class, 'forceDelete'])->middleware('can:force delete archive_users')->name('user_management.forceDelete');
     });
     Route::put('/users/{user}/permissions', [RolePermissionController::class, 'updateUserPermissions'])->name('user_management.permissions');
 

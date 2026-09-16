@@ -106,6 +106,12 @@ const menuItems = [
                 route: "categories.archive.index",
                 permission: "view archive_supplier",
             },
+            {
+                name: "User Archive",
+                icon: "fa-solid fa-recycle",
+                route: "user_management.archive.index",
+                permission: "view archive_users",
+            }
         ],
     },
     {
