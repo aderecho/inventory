@@ -6,13 +6,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Notifications\Notifiable;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, LogsActivity, HasFactory, HasRoles, SoftDeletes {
+    use HasApiTokens, LogsActivity, HasFactory, HasRoles, Notifiable,SoftDeletes {
         HasRoles::hasPermissionTo as protected spatieHasPermissionTo;
     }
     protected $fillable = ['email', 'status', 'last_activity'];
