@@ -8,7 +8,7 @@ import InventoryTable from "@/Components/InventoryTable.vue";
 import SearchFilterBar from "@/Components/Filters/SearchFilterBar.vue";
 import PrimaryButton from "@/Components/Buttons/PrimaryButton.vue";
 import UserFormModal from "@/Components/Modals/UserFormModal.vue";
-import DeleteModal from "@/Components/Modals/DeleteModal.vue";
+import ArchiveModal from "@/Components/Modals/ArchiveModal.vue";
 import SuccessModal from "@/Components/Modals/SuccessModal.vue";
 import SuccessDeleteModal from "@/Components/Modals/SuccessDeleteModal.vue";
 import RoleFormModal from "@/Components/Modals/RoleFormModal.vue";
@@ -23,7 +23,6 @@ const page = usePage();
 const users = computed(() => page.props.users || {});
 const roles = computed(() => page.props.roles || []);
 const permissions = computed(() => page.props.permissions || []);
-const organizations = computed(() => page.props.organizations || []);
 const showRoleModal = ref(false);
 const showPermissionModal = ref(false);
 
@@ -79,7 +78,7 @@ const formMode = ref("create");
 const showFormModal = ref(false);
 const currentUser = ref(null);
 
-const showDeleteModal = ref(false);
+const showArchiveModal = ref(false);
 const showSuccessModal = ref(false);
 const showDeleteSuccessModal = ref(false);
 
@@ -110,15 +109,15 @@ function handleEdit(user) {
 
 function handleDelete(user) {
     currentUser.value = user;
-    showDeleteModal.value = true;
+    showArchiveModal.value = true;
 }
 
-function confirmDelete() {
+function confirmArchive() {
     router.delete(route("user_management.destroy", currentUser.value.id), {
         preserveScroll: true,
         onSuccess: () => {
             stopLoading();
-            showDeleteModal.value = false;
+            showArchiveModal.value = false;
             showDeleteSuccessModal.value = true;
             currentUser.value = null;
         },
@@ -204,16 +203,15 @@ const filterStatus = [
                 :user="currentUser"
                 :roles="roles"
                 :permissions="permissions"
-                :organizations="organizations"
                 @submit="handleSubmit"
                 @close="showFormModal = false"
             />
 
-            <DeleteModal
-                v-if="showDeleteModal"
+            <ArchiveModal
+                v-if="showArchiveModal"
                 :item="currentUser"
-                @confirm="confirmDelete"
-                @close="showDeleteModal = false"
+                @confirm="confirmArchive"
+                @close="showArchiveModal = false"
             />
 
             <SuccessModal
@@ -225,8 +223,8 @@ const filterStatus = [
 
             <SuccessDeleteModal
                 v-if="showDeleteSuccessModal"
-                title="Delete Success"
-                message="User deleted successfully!"
+                title="Archive Success"
+                message="User archived successfully!"
                 buttonText="Confirm"
                 @close="showDeleteSuccessModal = false"
             />

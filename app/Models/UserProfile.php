@@ -10,6 +10,7 @@ class UserProfile extends Model
 {
     use HasFactory;
     protected $fillable = [
+        'id',
         'user_id',
         'employee_number',
         'title_name',
@@ -38,21 +39,6 @@ class UserProfile extends Model
         return $this->hasMany(AcknowledgementItem::class, 'issued_by_id');
     }
 
-    public function primaryOrganization()
-    {
-        return $this->belongsTo(Organization::class, 'primary_organization_id');
-    }
-
-    public function organizations()
-    {
-        return $this->belongsToMany(
-            Organization::class,
-            'organization_user_profile',
-            'user_profile_id',
-            'organization_id'
-        )->withTimestamps();
-    }
-
     public function fullName(): Attribute
     {
         return Attribute::make(
@@ -63,6 +49,7 @@ class UserProfile extends Model
                     $this->last_name,
                 ])
                     ->filter()
+                    ->map(fn($name) => ucfirst(strtolower(trim($name))))
                     ->join(' ');
             }
         );

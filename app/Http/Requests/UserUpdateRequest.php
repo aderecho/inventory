@@ -30,21 +30,17 @@ class UserUpdateRequest extends FormRequest
             'user_profiles.last_name' => 'required|string|max:255',
             'user_profiles.middle_name' => 'nullable|string|max:255',
             'user_profiles.contact_number' => 'nullable|string|max:50',
+            'user_profiles.employee_number' => 'nullable|string|max:255',
+            'user_profiles.title_name' => 'nullable|string|max:255',
+            'user_profiles.ext_name' => 'nullable|string|max:255',
+            'user_profiles.primary_unit_division_department' => 'nullable|string|max:255',
+            'user_profiles.employee_primary_unit_college' => 'nullable|string|max:255',
 
-            'role' => 'required|string|exists:roles,name',
+            'roles' => ['required', 'array', 'min:1'],
+            'roles.*' => ['string', 'exists:roles,name'],
 
             'permissions' => 'nullable|array',
             'permissions.*' => 'string|exists:permissions,name',
-
-            'organizations' => 'required|array|min:1',
-            'organizations.*' => 'integer|exists:organizations,id',
-
-            'primary_organization_id' => [
-                'required',
-                'integer',
-                'exists:organizations,id',
-                Rule::in($this->input('organizations', [])),
-            ],
         ];
     }
 
@@ -57,20 +53,27 @@ class UserUpdateRequest extends FormRequest
             'email.unique' => 'This email address is already registered.',
 
             'status.required' => 'The status field is required.',
+            'status.in' => 'The selected status is invalid.',
 
             'user_profiles.first_name.required' => 'The first name field is required.',
             'user_profiles.last_name.required' => 'The last name field is required.',
-            'user_profiles.middle_name.required' => 'The middle name field is required.',
-            'user_profiles.contact_number.required' => 'The contact number field is required.',
+            'user_profiles.middle_name.string' => 'The middle name must be a valid text value.',
+            'user_profiles.contact_number.string' => 'The contact number must be a valid text value.',
+            'user_profiles.employee_number.string' => 'The employee number must be a valid text value.',
+            'user_profiles.title_name.string' => 'The title must be a valid text value.',
+            'user_profiles.ext_name.string' => 'The suffix must be a valid text value.',
+            'user_profiles.primary_unit_division_department.string' => 'The department must be a valid text value.',
+            'user_profiles.employee_primary_unit_college.string' => 'The college must be a valid text value.',
 
-            'role.required' => 'The role field is required.',
+            'roles.required' => 'At least one role is required.',
+            'roles.array' => 'The roles value must be a list.',
+            'roles.min' => 'At least one role must be selected.',
+            'roles.*.string' => 'Each role must be a valid text value.',
+            'roles.*.exists' => 'One or more selected roles do not exist.',
 
-            'organizations.required' => 'Please select at least one unit.',
-            'organizations.min' => 'Please select at least one unit.',
-            'organizations.*.exists' => 'One or more selected units are invalid.',
-
-            'primary_organization_id.required' => 'Please select a primary unit.',
-            'primary_organization_id.in' => 'The primary unit must be one of the selected units.',
+            'permissions.array' => 'The permissions value must be a list.',
+            'permissions.*.string' => 'Each permission must be a valid text value.',
+            'permissions.*.exists' => 'One or more selected permissions are invalid.',
         ];
     }
 }

@@ -10,6 +10,7 @@ use App\Models\ItemHistoryLocation;
 use App\Models\AcknowledgementReceipt;
 use App\Models\User;
 use App\Models\AssetInspection;
+use App\Notifications\ItemsPendingApproval;
 use Spatie\Permission\Models\Permission;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
@@ -85,7 +86,7 @@ class InventoryService
         return User::whereHas('userProfiles', function ($query) {
             $query->where('primary_unit_division_department', 'UPC SUPPLY AND PROPERTY MANAGEMENT OFFICE');
         })
-            ->with('userProfiles.primaryOrganization')
+            ->with('userProfiles')
             ->get()
             ->pluck('userProfiles')
             ->filter()
@@ -101,18 +102,15 @@ class InventoryService
             ->get()
             ->keyBy('id');
 
-        // Group item IDs by PO Number
         $groupedByPo = collect($itemIds)->groupBy(function ($itemId) use ($inventoryItems) {
             return $inventoryItems[$itemId]->po_number ?? 'unknown';
         });
 
-        // e.g. "223-2026-06-123"
         $baseCategory = rtrim($data['category'], '-');
         $parts = explode('-', $baseCategory);
         $seriesNumber = (int) array_pop($parts);
         $prefix = implode('-', $parts) . '-';
 
-        // Prevent duplicate category numbers
         $lastReceipt = AcknowledgementReceipt::where('category', 'like', $prefix . '%')
             ->orderByRaw('CAST(SUBSTRING_INDEX(category, "-", -1) AS UNSIGNED) DESC')
             ->first();
@@ -120,6 +118,9 @@ class InventoryService
         $increment = $lastReceipt
             ? ((int) last(explode('-', $lastReceipt->category))) + 1
             : $seriesNumber;
+
+        $accountablePerson = User::with('userProfiles')
+            ->find($data['accountable_persons_id']);
 
         foreach ($groupedByPo as $poNumber => $groupedItemIds) {
 
@@ -133,6 +134,8 @@ class InventoryService
                 'remarks'      => $data['remarks'] ?? null,
             ]);
 
+            $assignedItems = [];
+
             foreach ($groupedItemIds as $itemId) {
 
                 AcknowledgementItem::create([
@@ -143,7 +146,10 @@ class InventoryService
                     'status'                => 1,
                 ]);
 
-                // Only log a new location if it actually changed
+                InventoryItem::where('id', $itemId)->update([
+                    'approval_status' => 'pending',
+                ]);
+
                 $currentLocation = $inventoryItems[$itemId]->latestHistoryLocation;
 
                 if (!$currentLocation || $currentLocation->room_id != $data['room_id']) {
@@ -152,6 +158,27 @@ class InventoryService
                         'room_id'           => $data['room_id'],
                     ]);
                 }
+
+                $assignedItems[] = [
+                    'id'              => $itemId,
+                    'property_number' => $inventoryItems[$itemId]->property_number,
+                    'item_name'       => $inventoryItems[$itemId]->item_name,
+                    'unit_cost'       => $inventoryItems[$itemId]->unit_cost,
+                ];
+            }
+
+            if ($accountablePerson) {
+                $documentType = collect($assignedItems)->sum('unit_cost') >= 50000
+                    ? 'PAR'
+                    : 'ICS';
+
+                $accountablePerson->notify(
+                    new ItemsPendingApproval(
+                        $assignedItems,
+                        $category,
+                        $documentType
+                    )
+                );
             }
 
             $increment++;
@@ -184,7 +211,7 @@ class InventoryService
                 'serial_number' => $serialNumber,
                 'pr_number' => $data['pr_number'],
                 'po_number' => $data['po_number'],
-                'po_number_date' => $data['po_number_date'] ?? null, 
+                'po_number_date' => $data['po_number_date'] ?? null,
                 'remarks' => $data['remarks'],
                 'date_acquired' => $data['date_acquired'],
                 'lifespan' => $data['lifespan'] ?? null,
@@ -252,10 +279,10 @@ class InventoryService
             'serial_number' => $data['serial_number'],
             'pr_number' => $data['pr_number'],
             'po_number' => $data['po_number'],
-            'po_number_date' => $data['po_number_date'] ?? null, 
+            'po_number_date' => $data['po_number_date'] ?? null,
             'remarks' => $data['remarks'] ?? null,
             'date_acquired' => $data['date_acquired'],
-            'lifespan' => $data['lifespan'] ?? null, 
+            'lifespan' => $data['lifespan'] ?? null,
             'is_private' => $data['is_private'] ?? 0,
         ]);
 

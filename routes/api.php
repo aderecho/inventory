@@ -7,7 +7,7 @@ use App\Http\Controllers\API\QrScanController;
 use App\Http\Controllers\mobileAPI\AuthController;
 use App\Http\Controllers\mobileAPI\InspectionController;
 use App\Http\Controllers\TriggerController;
-use App\Http\Controllers\Auth\GoogleController;
+use App\Http\Controllers\API\AccessTokenController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 
@@ -16,6 +16,9 @@ Route::prefix('v1')
     ->group(function () {
         Route::post('/auth/up/sso', [UPSSOController::class, 'ssoRedirect']);
         Route::post('/embed-token', [ApiEmbedController::class, 'issueToken']);
+
+        Route::post('/access-token', [AccessTokenController::class, 'store'])
+            ->middleware('throttle:10,1');
 
         Route::middleware('api.token')->group(function () {
             Route::get('/inventory', [InventoryController::class, 'apiIndex']);

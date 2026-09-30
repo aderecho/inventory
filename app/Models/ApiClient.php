@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ApiClient extends Model
 {
@@ -12,4 +13,9 @@ class ApiClient extends Model
         'allowed_domains' => 'array',
         'is_active' => 'boolean',
     ];
+
+    public function accessTokens(): HasMany
+    {
+        return $this->hasMany(AccessToken::class);
+    }
 }

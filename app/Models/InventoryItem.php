@@ -33,6 +33,7 @@ class InventoryItem extends Model
         'serial_number',
         'remarks',
         'date_acquired',
+        'approval_status',
         'lifespan',
         'is_private',
     ];

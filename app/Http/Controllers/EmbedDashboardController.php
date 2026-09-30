@@ -2,58 +2,42 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ApiClient;
-use App\Services\DashboardService;
+use App\Services\EmbedDashboardService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class EmbedDashboardController extends Controller
 {
-    public function __construct(protected DashboardService $dashboardService) {}
+    public function __construct(
+        protected EmbedDashboardService $embedDashboardService
+    ) {}
 
-    public function show(Request $request, string $token)
+    public function show(Request $request)
     {
-        try {
-            $payload = decrypt($token);
-        } catch (\Throwable $e) {
-            abort(403, 'Invalid embed link.');
-        }
+        $token = $request->query('access_token');
 
-        abort_if(now()->timestamp > $payload['exp'], 410, 'This embed link has expired.');
+        abort_unless(
+            $token,
+            401,
+            'Missing access token.'
+        );
 
-        $client = ApiClient::find($payload['client_id']);
-        abort_unless($client && $client->is_active, 403, 'This embed link is no longer valid.');
+        $this->embedDashboardService
+            ->validateAccessToken($token);
 
-        // $origin = $request->headers->get('origin') ?? $request->headers->get('referer');
+        $data = $this->embedDashboardService
+            ->getDashboardData($request);
 
-        // if (!empty($client->allowed_domains) && $origin) {
-        //     $allowed = collect($client->allowed_domains)
-        //         ->contains(fn ($domain) => Str::startsWith($origin, $domain));
+        $response = Inertia::render(
+            'Embed/Dashboard',
+            $data
+        )->toResponse($request);
 
-        //     abort_unless($allowed, 403, 'This domain is not permitted to embed this dashboard.');
-        // }
+        $response->headers->set(
+            'Content-Security-Policy',
+            'frame-ancestors *;'
+        );
 
-        $availableYears = $this->dashboardService->getAvailableYears();
-        $selectedYear = $this->dashboardService->resolveSelectedYear($request, $availableYears);
-
-        $data = [
-            'stats' => $this->dashboardService->getStats(),
-            'classificationChartData' => $this->dashboardService->getClassificationChartData(),
-            'acquisitionsByClassification' => $this->dashboardService->getAcquisitionsByClassification($selectedYear),
-            'icsParChartData' => $this->dashboardService->getIcsParChartData(),
-            'accountablePersonChartData' => $this->dashboardService->getAccountablePersonChartData(),
-            'organizationChartData' => $this->dashboardService->getOrganizationChartData(),
-            'availableYears' => $availableYears,
-            'selectedYear' => (int) $selectedYear,
-            'embedToken' => $token,
-        ];
-
-        return Inertia::render('Embed/Dashboard', $data)
-            ->toResponse($request)
-            ->withHeaders([
-                'Content-Security-Policy' => 'frame-ancestors ' .
-                    ($client->allowed_domains ? implode(' ', $client->allowed_domains) : "'self'") . ';',
-            ]);
+        return $response;
     }
 }

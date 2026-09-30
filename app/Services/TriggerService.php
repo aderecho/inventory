@@ -60,22 +60,41 @@ class TriggerService
     {
         $email = trim($employee['up_mail'] ?? '');
 
-        // Skip employee if email is invalid
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return;
         }
 
-        $status = strtolower($employee['status'] ?? '') === 'active'
-            ? 1
-            : 0;
+        $employeeNumber = trim($employee['employee_number'] ?? '') ?: null;
+        $status = strtolower($employee['status'] ?? '') === 'active' ? 1 : 0;
 
-        /*
-     * 1. Find existing user by email.
-     *
-     * If the email already exists, we KEEP the existing users.id.
-     * If it doesn't exist, create a new user.
-     */
-        $user = User::where('email', $email)->first();
+        $profile = null;
+        $user = null;
+
+        if ($employeeNumber) {
+            $profile = UserProfile::where('employee_number', $employeeNumber)->first();
+
+            if ($profile) {
+                $user = User::find($profile->id);
+            }
+        }
+
+        if (!$user) {
+            $user = User::where('email', $email)->first();
+
+            if ($user) {
+                $profile = UserProfile::find($user->id);
+            }
+        }
+
+        if ($profile && $user && $profile->id !== $user->id) {
+            Log::warning('Employee sync conflict: employee_number and email point to different users', [
+                'employee_number' => $employeeNumber,
+                'email' => $email,
+                'profile_id' => $profile->id,
+                'email_user_id' => $user->id,
+            ]);
+            return;
+        }
 
         if (!$user) {
             $user = User::create([
@@ -84,48 +103,30 @@ class TriggerService
             ]);
         } else {
             $user->update([
+                'email' => $email,
                 'status' => $status,
             ]);
         }
 
-        /*
-     * 2. Find the profile using the user's ID.
-     *
-     * user_profiles.id must always be the same as users.id.
-     */
-        $profile = UserProfile::find($user->id);
+        if (!$profile) {
+            $profile = UserProfile::find($user->id);
+        }
 
         if (!$profile) {
             $profile = new UserProfile();
-
-            // Force profile ID to match users.id
             $profile->id = $user->id;
         }
 
-        /*
-     * 3. Update the employee profile information.
-     */
         $profile->fill([
             'user_id' => $user->id,
-            'employee_number' => $employee['employee_number'] ?? null,
-
+            'employee_number' => $employeeNumber,
             'title_name' => $employee['title_name'] ?? null,
-
             'first_name' => $employee['first_name'] ?? '',
-
             'middle_name' => $employee['middle_name'] ?? null,
-
             'last_name' => $employee['last_name'] ?? '',
-
-            'ext_name' => !empty($employee['ext_name'])
-                ? $employee['ext_name']
-                : null,
-
-            'primary_unit_division_department' =>
-            $employee['primary_unit_division_department'] ?? null,
-
-            'employee_primary_unit_college' =>
-            $employee['employee_primary_unit_college'] ?? null,
+            'ext_name' => !empty($employee['ext_name']) ? $employee['ext_name'] : null,
+            'primary_unit_division_department' => $employee['primary_unit_division_department'] ?? null,
+            'employee_primary_unit_college' => $employee['employee_primary_unit_college'] ?? null,
         ]);
 
         $profile->save();

@@ -14,6 +14,12 @@ use Laravel\Socialite\Two\InvalidStateException;
 class GoogleController extends Controller
 {
     private const SESSION_KEY = 'google_auth_client';
+    private const ROLE_DASHBOARDS = [
+        'admin' => 'dashboard.index',
+        'super-admin' => 'dashboard.index',
+        'staff' => 'dashboard.index',
+        'user'  => 'user.dashboard',
+    ];
 
     public function redirect(Request $request)
     {
@@ -58,7 +64,6 @@ class GoogleController extends Controller
 
         Auth::login($user, false);
 
-        // Audit Log
         activity()
             ->causedBy($user)
             ->event('login')
@@ -72,6 +77,27 @@ class GoogleController extends Controller
             return view('auth.mobile-redirect', [
                 'deepLink' => 'upcebuims://auth/callback?token=' . urlencode($token),
             ]);
+        }
+
+        return $this->resolveWebRedirect($user);
+    }
+
+    private function resolveWebRedirect(User $user)
+    {
+        $roleNames = $user->getRoleNames()->map(fn($role) => strtolower($role));
+
+        // Only roles that actually map to a distinct dashboard matter for the choice
+        $availableDashboards = $roleNames
+            ->filter(fn($role) => isset(self::ROLE_DASHBOARDS[$role]))
+            ->map(fn($role) => self::ROLE_DASHBOARDS[$role])
+            ->unique()
+            ->values();
+
+        if ($availableDashboards->count() > 1) {
+            // Multiple distinct dashboards available — let the user choose
+            session(['role_dashboard_options' => $availableDashboards->all()]);
+
+            return redirect()->route('auth.select-dashboard');
         }
 
         try {
@@ -90,9 +116,6 @@ class GoogleController extends Controller
             : redirect()->route('user.dashboard');
     }
 
-    /**
-     * Handle a failed login attempt for either client type.
-     */
     private function fail(bool $isMobile, string $message)
     {
         if ($isMobile) {

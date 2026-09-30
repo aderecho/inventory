@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed, onBeforeUnmount } from "vue";
-import { router } from "@inertiajs/vue3";
+import { ref, computed, watch, onBeforeUnmount } from "vue";
+import { router, usePage } from "@inertiajs/vue3";
 
 import NavBar from "@/Components/UserComponents/NavBar.vue";
 import ItemTable from "@/Components/UserComponents/ItemTable.vue";
@@ -15,13 +15,43 @@ const props = defineProps({
     stats: { type: Object, default: () => ({}) },
     filters: {
         type: Object,
-        default: () => ({ search: null, sort: null, direction: "asc" }),
+        default: () => ({
+            search: null,
+            sort: null,
+            direction: "asc",
+            approval_status: null,
+        }),
     },
 });
 
-const search = ref(props.filters?.search ?? "");
-const sortKey = ref(props.filters?.sort ?? null);
-const sortDirection = ref(props.filters?.direction ?? "asc");
+const page = usePage();
+
+const queryParam = (key) =>
+    new URLSearchParams(window.location.search).get(key) || "";
+
+const pageFilters = computed(
+    () => page.props.filters ?? props.filters ?? {},
+);
+
+const syncFromFilters = () => {
+    const filters = pageFilters.value;
+
+    search.value = filters.search ?? queryParam("search");
+    sortKey.value = filters.sort ?? (queryParam("sort") || null);
+    sortDirection.value =
+        filters.direction ?? (queryParam("direction") || "asc");
+    approvalStatus.value =
+        filters.approval_status ?? queryParam("approval_status");
+};
+
+const search = ref("");
+const sortKey = ref(null);
+const sortDirection = ref("asc");
+const approvalStatus = ref("");
+
+syncFromFilters();
+
+watch(pageFilters, syncFromFilters, { deep: true });
 
 const isSearching = ref(false);
 let searchTimeout = null;
@@ -32,9 +62,10 @@ const fetchItems = (extra = {}) => {
     router.get(
         route("user.dashboard"),
         {
-            search: search.value,
-            sort: sortKey.value,
+            search: search.value || undefined,
+            sort: sortKey.value || undefined,
             direction: sortDirection.value,
+            approval_status: approvalStatus.value || undefined,
             ...extra,
         },
         {
@@ -44,7 +75,7 @@ const fetchItems = (extra = {}) => {
             onFinish: () => {
                 isSearching.value = false;
             },
-        }
+        },
     );
 };
 
@@ -66,21 +97,18 @@ const handleSort = (key) => {
 onBeforeUnmount(() => {
     if (searchTimeout) clearTimeout(searchTimeout);
 });
-
 </script>
 
 <template>
     <div class="min-h-screen bg-gray-50 flex flex-col">
-        <!-- Navbar -->
         <NavBar :user="user" />
 
-        <!-- Main -->
         <main class="flex-1">
             <div class="max-w-7xl mx-auto px-6 py-8">
                 <Banner :user="user" class="mb-4" />
                 <StatusStrip class="mb-8" />
-                 <SessionTimeoutWarning />
-                <!-- Stats -->
+                <SessionTimeoutWarning />
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                     <ItemCard
                         title="Assigned Items"
@@ -95,15 +123,11 @@ onBeforeUnmount(() => {
                     />
                 </div>
 
-                <!-- Content -->
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-                    <!-- Assets -->
                     <div class="lg:col-span-12">
                         <div
                             class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
                         >
-                            <!-- Header -->
                             <div
                                 class="p-6 border-b border-gray-200 bg-gradient-to-r from-[#005740]/5 via-transparent to-transparent"
                             >
@@ -116,54 +140,75 @@ onBeforeUnmount(() => {
                                         >
                                             My Assigned Assets
                                         </h2>
-
                                         <p class="text-sm text-gray-500 mt-1">
                                             View all inventory items currently
                                             assigned to you.
                                         </p>
                                     </div>
 
-                                    <div class="relative w-full md:w-80">
-                                        <input
-                                            v-model="search"
-                                            @input="searchItems"
-                                            type="text"
-                                            placeholder="Search assigned items..."
-                                            class="w-full border border-gray-300 rounded-lg pl-4 pr-10 py-2 focus:outline-none focus:ring-2 focus:ring-[#005740] transition-shadow"
-                                        />
-                                        <div
-                                            class="absolute right-3 top-1/2 -translate-y-1/2"
+                                    <div
+                                        class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto"
+                                    >
+                                        <select
+                                            v-model="approvalStatus"
+                                            @change="fetchItems()"
+                                            class="w-full sm:w-44 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#005740] transition-shadow"
                                         >
-                                            <svg
-                                                v-if="isSearching"
-                                                class="w-4 h-4 text-[#005740] animate-spin"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
+                                            <option value="">
+                                                All statuses
+                                            </option>
+                                            <option value="pending">
+                                                Pending
+                                            </option>
+                                            <option value="approved">
+                                                Approved
+                                            </option>
+                                            <option value="rejected">
+                                                Rejected
+                                            </option>
+                                        </select>
+
+                                        <div class="relative w-full md:w-80">
+                                            <input
+                                                v-model="search"
+                                                @input="searchItems"
+                                                type="text"
+                                                placeholder="Search assigned items..."
+                                                class="w-full border border-gray-300 rounded-lg pl-4 pr-10 py-2 focus:outline-none focus:ring-2 focus:ring-[#005740] transition-shadow"
+                                            />
+                                            <div
+                                                class="absolute right-3 top-1/2 -translate-y-1/2"
                                             >
-                                                <circle
-                                                    class="opacity-25"
-                                                    cx="12"
-                                                    cy="12"
-                                                    r="10"
-                                                    stroke="currentColor"
-                                                    stroke-width="4"
-                                                />
-                                                <path
-                                                    class="opacity-75"
-                                                    fill="currentColor"
-                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                                                />
-                                            </svg>
-                                            <i
-                                                v-else
-                                                class="fa-solid fa-magnifying-glass text-gray-300 text-[13px]"
-                                            ></i>
+                                                <svg
+                                                    v-if="isSearching"
+                                                    class="w-4 h-4 text-[#005740] animate-spin"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <circle
+                                                        class="opacity-25"
+                                                        cx="12"
+                                                        cy="12"
+                                                        r="10"
+                                                        stroke="currentColor"
+                                                        stroke-width="4"
+                                                    />
+                                                    <path
+                                                        class="opacity-75"
+                                                        fill="currentColor"
+                                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                                    />
+                                                </svg>
+                                                <i
+                                                    v-else
+                                                    class="fa-solid fa-magnifying-glass text-gray-300 text-[13px]"
+                                                ></i>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Table -->
                             <ItemTable
                                 :items="items"
                                 :sort-key="sortKey"
@@ -176,13 +221,11 @@ onBeforeUnmount(() => {
             </div>
         </main>
 
-        <!-- Footer -->
         <footer class="bg-white border-t border-gray-200 py-4">
             <div
                 class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-2"
             >
                 <p class="text-sm text-gray-500">Inventory Management System</p>
-
                 <p class="text-sm text-gray-400">
                     © {{ new Date().getFullYear() }}
                     All Rights Reserved UP-CEBU

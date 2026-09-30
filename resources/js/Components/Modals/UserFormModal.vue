@@ -5,8 +5,10 @@ import Toast from "primevue/toast";
 import { useToast } from "primevue/usetoast";
 import Multiselect from "@vueform/multiselect";
 import "/node_modules/@vueform/multiselect/themes/default.css";
+import { usePermissions } from "@/Composables/usePermissions";
 
 const toast = useToast();
+const { permissionActions } = usePermissions();
 
 const props = defineProps({
     mode: String,
@@ -21,7 +23,7 @@ const emit = defineEmits(["submit", "close"]);
 const form = useForm({
     id: null,
     email: "",
-    status: 0,
+    status: 1,
 
     user_profiles: {
         employee_number: "",
@@ -35,23 +37,30 @@ const form = useForm({
         contact_number: "",
     },
 
-    role: null,
-    organizations: [],
-    primary_unit: "",
+    roles: [],
 });
 
 const givePermissions = ref([]);
 const revokePermissions = ref([]);
 
 const rolePermissionNames = computed(() => {
-    if (!form.role) return [];
+    if (!form.roles?.length) return [];
 
-    const selectedRole = props.roles.find((r) => r.name === form.role);
+    const selectedRoles = props.roles.filter((r) =>
+        form.roles.includes(r.name),
+    );
 
-    return selectedRole?.permissions?.map((p) => p.name) ?? [];
+    const names = selectedRoles.flatMap(
+        (r) => r.permissions?.map((p) => p.name) ?? [],
+    );
+
+    return [...new Set(names)];
 });
 
 const allPermissions = computed(() => props.permissions ?? []);
+const canManagePermissionOverrides = computed(() =>
+    permissionActions.value.includes("edit"),
+);
 
 const moduleLabels = {
     inventory: "Inventory",
@@ -210,7 +219,7 @@ watch(
 
         form.primary_unit = profile.primary_unit ?? "";
 
-        form.role = val.roles?.length ? val.roles[0].name : null;
+        form.roles = val.roles?.map((r) => r.name) ?? [];
 
         givePermissions.value =
             val.direct_permissions?.map((p) =>
@@ -226,12 +235,13 @@ watch(
 );
 
 watch(
-    () => form.role,
+    () => form.roles,
     () => {
         revokePermissions.value = revokePermissions.value.filter((name) =>
             rolePermissionNames.value.includes(name),
         );
     },
+    { deep: true },
 );
 
 const isClosing = ref(false);
@@ -378,7 +388,12 @@ const organizationOptions = computed(() =>
                 <div class="flex flex-1 overflow-hidden">
                     <!-- LEFT: Account details -->
                     <div
-                        class="w-full md:w-[60%] p-6 overflow-y-auto border-r border-gray-100 space-y-4"
+                        :class="[
+                            'p-6 overflow-y-auto space-y-4',
+                            canManagePermissionOverrides && mode === 'edit'
+                                ? 'w-full md:w-[60%] border-r border-gray-100'
+                                : 'w-full',
+                        ]"
                     >
                         <div>
                             <label
@@ -426,26 +441,121 @@ const organizationOptions = computed(() =>
                                 <label
                                     class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
                                 >
-                                    Role <span class="text-red-500">*</span>
+                                    Roles <span class="text-red-500">*</span>
                                 </label>
-                                <select
-                                    v-model="form.role"
-                                    :class="inputClass(form.errors.role)"
-                                >
-                                    <option value="">Select</option>
-                                    <option
-                                        v-for="role in roles"
-                                        :key="role.id"
-                                        :value="role.name"
-                                    >
-                                        {{ role.name }}
-                                    </option>
-                                </select>
+                                <Multiselect
+                                    v-model="form.roles"
+                                    mode="tags"
+                                    :close-on-select="false"
+                                    :searchable="true"
+                                    :options="
+                                        roles.map((r) => ({
+                                            value: r.name,
+                                            label: r.name,
+                                        }))
+                                    "
+                                    placeholder="Select roles"
+                                    :class="{
+                                        'border-red-500': form.errors.roles,
+                                    }"
+                                />
                                 <p
-                                    v-if="form.errors.role"
+                                    v-if="form.errors.roles"
                                     class="text-red-500 text-xs mt-1"
                                 >
-                                    {{ form.errors.role }}
+                                    {{ form.errors.roles }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label
+                                    class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                >
+                                    Employee no.
+                                </label>
+                                <input
+                                    v-model="form.user_profiles.employee_number"
+                                    type="text"
+                                    placeholder="Employee no."
+                                    :class="
+                                        inputClass(
+                                            form.errors[
+                                                'user_profiles.employee_number'
+                                            ],
+                                        )
+                                    "
+                                />
+                                <p
+                                    v-if="
+                                        form.errors[
+                                            'user_profiles.employee_number'
+                                        ]
+                                    "
+                                    class="text-red-500 text-xs mt-1"
+                                >
+                                    {{
+                                        form.errors[
+                                            "user_profiles.employee_number"
+                                        ]
+                                    }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <label
+                                    class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                >
+                                    Title
+                                </label>
+                                <input
+                                    v-model="form.user_profiles.title_name"
+                                    type="text"
+                                    placeholder="Mr. / Ms. (Title)"
+                                    :class="
+                                        inputClass(
+                                            form.errors[
+                                                'user_profiles.title_name'
+                                            ],
+                                        )
+                                    "
+                                />
+                                <p
+                                    v-if="
+                                        form.errors['user_profiles.title_name']
+                                    "
+                                    class="text-red-500 text-xs mt-1"
+                                >
+                                    {{
+                                        form.errors["user_profiles.title_name"]
+                                    }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <label
+                                    class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                >
+                                    Suffix
+                                </label>
+                                <input
+                                    v-model="form.user_profiles.ext_name"
+                                    type="text"
+                                    placeholder="Jr. / Sr. (Suffix)"
+                                    :class="
+                                        inputClass(
+                                            form.errors[
+                                                'user_profiles.ext_name'
+                                            ],
+                                        )
+                                    "
+                                />
+                                <p
+                                    v-if="form.errors['user_profiles.ext_name']"
+                                    class="text-red-500 text-xs mt-1"
+                                >
+                                    {{ form.errors["user_profiles.ext_name"] }}
                                 </p>
                             </div>
                         </div>
@@ -532,7 +642,140 @@ const organizationOptions = computed(() =>
                             </div>
                         </div>
 
-                        <template v-if="mode === 'edit'">
+                        <template
+                            v-if="
+                                mode === 'edit' && canManagePermissionOverrides
+                            "
+                        >
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label
+                                        class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                    >
+                                        First Name
+                                        <span class="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        v-model="form.user_profiles.first_name"
+                                        :class="
+                                            inputClass(
+                                                form.errors[
+                                                    'user_profiles.first_name'
+                                                ],
+                                            )
+                                        "
+                                    />
+                                    <p
+                                        v-if="
+                                            form.errors[
+                                                'user_profiles.first_name'
+                                            ]
+                                        "
+                                        class="text-red-500 text-xs mt-1"
+                                    >
+                                        {{
+                                            form.errors[
+                                                "user_profiles.first_name"
+                                            ]
+                                        }}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label
+                                        class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                    >
+                                        Last Name
+                                        <span class="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        v-model="form.user_profiles.last_name"
+                                        :class="
+                                            inputClass(
+                                                form.errors[
+                                                    'user_profiles.last_name'
+                                                ],
+                                            )
+                                        "
+                                    />
+                                    <p
+                                        v-if="
+                                            form.errors[
+                                                'user_profiles.last_name'
+                                            ]
+                                        "
+                                        class="text-red-500 text-xs mt-1"
+                                    >
+                                        {{
+                                            form.errors[
+                                                "user_profiles.last_name"
+                                            ]
+                                        }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label
+                                    class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                >
+                                    Middle Name
+                                </label>
+                                <input
+                                    v-model="form.user_profiles.middle_name"
+                                    :class="
+                                        inputClass(
+                                            form.errors[
+                                                'user_profiles.middle_name'
+                                            ],
+                                        )
+                                    "
+                                />
+                                <p
+                                    v-if="
+                                        form.errors['user_profiles.middle_name']
+                                    "
+                                    class="text-red-500 text-xs mt-1"
+                                >
+                                    {{
+                                        form.errors["user_profiles.middle_name"]
+                                    }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <label
+                                    class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                >
+                                    Contact Number
+                                </label>
+                                <input
+                                    v-model="form.user_profiles.contact_number"
+                                    :class="
+                                        inputClass(
+                                            form.errors[
+                                                'user_profiles.contact_number'
+                                            ],
+                                        )
+                                    "
+                                />
+                                <p
+                                    v-if="
+                                        form.errors[
+                                            'user_profiles.contact_number'
+                                        ]
+                                    "
+                                    class="text-red-500 text-xs mt-1"
+                                >
+                                    {{
+                                        form.errors[
+                                            "user_profiles.contact_number"
+                                        ]
+                                    }}
+                                </p>
+                            </div>
+                        </template>
+                        <template v-else>
                             <div class="grid grid-cols-2 gap-3">
                                 <div>
                                     <label
@@ -665,6 +908,7 @@ const organizationOptions = computed(() =>
 
                     <!-- RIGHT: Permission overrides / name details -->
                     <div
+                        v-if="mode === 'edit' && canManagePermissionOverrides"
                         class="w-full md:w-[56%] p-6 overflow-y-auto bg-gray-50/60"
                     >
                         <template v-if="mode === 'edit'">
