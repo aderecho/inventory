@@ -6,7 +6,6 @@ use App\Models\AcknowledgementItem;
 use App\Models\AcknowledgementReceipt;
 use App\Models\InventoryItem;
 use App\Models\ItemClassification;
-use App\Models\Organization;
 use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -49,7 +48,6 @@ class DashboardService
             'acquisitionsByClassification' => $this->getAcquisitionsByClassification($selectedYear),
             'icsParChartData' => $this->getIcsParChartData(),
             'accountablePersonChartData' => $this->getAccountablePersonChartData(),
-            'organizationChartData' => $this->getOrganizationChartData(),
             'availableYears' => $availableYears,
             'selectedYear' => (int) $selectedYear,
 
@@ -65,17 +63,6 @@ class DashboardService
                 'id' => $c->id,
                 'classification_name' => $c->classification_name,
                 'total_items' => $c->inventory_items_count,
-            ]);
-    }
-
-    public function getOrganizationChartData()
-    {
-        return Organization::withCount('userProfiles')
-            ->get()
-            ->map(fn($org) => [
-                'id' => $org->id,
-                'organization_name' => $org->name,
-                'total_user_profiles' => $org->user_profiles_count,
             ]);
     }
 

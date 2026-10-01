@@ -21,13 +21,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/Components/ui/dropdown-menu";
-import {
-    ChevronDown,
-    UserPlus,
-    QrCode,
-    Printer,
-    X,
-} from "lucide-vue-next";
+import { ChevronDown, UserPlus, QrCode, Printer, X } from "lucide-vue-next";
 import { Plus } from "lucide-vue-next";
 
 defineProps({
@@ -133,6 +127,31 @@ const viewItem = [
         },
     },
     {
+        label: "Approval Status",
+        key: "latest_acknowledgement_item",
+        format: (val) => {
+            const person = val?.accountable_person;
+
+            if (!person) {
+                return `<span class="bg-gray-100 text-gray-500 font-semibold py-1 px-2 rounded-full text-xs">Unassigned</span>`;
+            }
+
+            const map = {
+                approved: {
+                    label: "Approved",
+                    cls: "bg-green-100 text-green-700",
+                },
+                rejected: { label: "Rejected", cls: "bg-red-100 text-red-700" },
+                pending: {
+                    label: "Pending",
+                    cls: "bg-yellow-100 text-yellow-700",
+                },
+            };
+            const status = map[val?.approval_status] ?? map.pending;
+            return `<span class="${status.cls} font-semibold py-1 px-2 rounded-full text-xs">${status.label}</span>`;
+        },
+    },
+    {
         label: "Visibility",
         key: "is_private",
         format: (val) =>
@@ -148,7 +167,7 @@ const lifespanField = [
         model: "lifespan",
         placeholder: "e.g. 5",
         type: "number",
-        required: false,
+        required: true,
     },
 ];
 
@@ -250,7 +269,7 @@ const requestFields = [
         label: "Purchase Order Date",
         model: "po_number_date",
         type: "date",
-        required: false,
+        required: true,
     },
     {
         label: "Remarks",
@@ -268,12 +287,14 @@ const invoicesFundFields = [
         placeholder: "0000",
         type: "text",
         readonly: false,
+        required: true,
     },
     {
         label: "Invoice Number Date",
         model: "sales_invoice_date",
         type: "date",
         readonly: false,
+        required: true,
     },
     {
         label: "Fund Source",
@@ -281,6 +302,7 @@ const invoicesFundFields = [
         placeholder: "000",
         type: "text",
         readonly: false,
+        required: true,
     },
 ];
 
@@ -374,7 +396,9 @@ const page = usePage();
 
 const items = computed(() => page.props.items || { data: [] });
 const rooms = computed(() => page.props.rooms || []);
-const itemClassifications = computed(() => page.props.itemClassifications || []);
+const itemClassifications = computed(
+    () => page.props.itemClassifications || [],
+);
 const suppliers = computed(() => page.props.suppliers || []);
 const assetConditions = computed(() => page.props.assetConditions || []);
 
@@ -437,7 +461,9 @@ function handleDelete(item) {
 // ------------------------------------------------------------------
 const selectedItemsMap = ref(new Map());
 
-const tempSelectedIds = computed(() => Array.from(selectedItemsMap.value.keys()));
+const tempSelectedIds = computed(() =>
+    Array.from(selectedItemsMap.value.keys()),
+);
 const selectedItemsDetails = computed(() =>
     Array.from(selectedItemsMap.value.values()),
 );
@@ -559,7 +585,12 @@ const printSelected = async (idsOverride) => {
     } catch (error) {
         const text = await error.response.data.text();
         const json = JSON.parse(text);
-        toast.add({ severity: "error", summary: "Error", detail: json.message, life: 10000 });
+        toast.add({
+            severity: "error",
+            summary: "Error",
+            detail: json.message,
+            life: 10000,
+        });
     } finally {
         stopLoading();
     }
@@ -591,7 +622,12 @@ const handlePrint = async (id) => {
     } catch (error) {
         const text = await error.response.data.text();
         const json = JSON.parse(text);
-        toast.add({ severity: "error", summary: "Error", detail: json.message, life: 10000 });
+        toast.add({
+            severity: "error",
+            summary: "Error",
+            detail: json.message,
+            life: 10000,
+        });
         toast.add({
             severity: "info",
             summary: "Tip",
@@ -631,7 +667,10 @@ async function proceedPrint() {
 }
 
 async function printQrCodesAsPng() {
-    startLoading("Generating QR Codes...", "Please wait while we prepare your files.");
+    startLoading(
+        "Generating QR Codes...",
+        "Please wait while we prepare your files.",
+    );
     try {
         const response = await axios.post(
             route("inventory.qr.pngs"),
@@ -662,7 +701,10 @@ async function printQrCodesAsPng() {
 }
 
 async function printQrCodesAsPdf() {
-    startLoading("Generating QR PDF...", "Please wait while we prepare your document.");
+    startLoading(
+        "Generating QR PDF...",
+        "Please wait while we prepare your document.",
+    );
     try {
         const response = await axios.post(
             route("inventory.qr.pdfs"),
@@ -694,24 +736,68 @@ async function printQrCodesAsPdf() {
     }
 }
 
+const formatName = (name) => {
+    if (!name) return "";
+
+    return name
+        .trim()
+        .toLowerCase()
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
 const users = computed(() => {
-    return (page.props.users ?? []).map((user) => {
-        const profile = user.user_profiles;
-        return {
-            ...user,
-            full_name: profile
-                ? `${profile.last_name ?? ""}, ${profile.first_name ?? ""}`.trim()
-                : "N/A",
-        };
-    });
+    return (page.props.users ?? [])
+        .map((user) => {
+            const profile = user.user_profiles;
+
+            return {
+                ...user,
+                full_name: profile
+                    ? [
+                          formatName(profile.first_name),
+                          formatName(profile.middle_name),
+                          formatName(profile.last_name),
+                      ]
+                          .filter(Boolean)
+                          .join(" ")
+                    : "N/A",
+            };
+        })
+        .sort((a, b) => a.full_name.localeCompare(b.full_name));
 });
 
 const adminProfiles = computed(() => {
-    return (page.props.adminProfiles ?? []).map((u) => ({
-        ...u,
-        full_name: `${u.last_name}, ${u.first_name}`.trim(),
-        roles_label: (u.roles ?? []).join(", "),
-    }));
+    return (page.props.adminProfiles ?? [])
+        .map((u) => ({
+            ...u,
+            full_name: [
+                formatName(u.first_name),
+                formatName(u.middle_name),
+                formatName(u.last_name),
+            ]
+                .filter(Boolean)
+                .join(" "),
+            roles_label: (u.roles ?? []).join(", "),
+        }))
+        .sort((a, b) => a.full_name.localeCompare(b.full_name));
+});
+
+const defaultIssuedBy = computed(() => {
+    const targetNames = ["grace", "lenarez", "mendez"];
+
+    return (
+        adminProfiles.value.find((person) => {
+            const names = [
+                person.first_name,
+                person.middle_name,
+                person.last_name,
+            ]
+                .filter(Boolean)
+                .map((name) => name.trim().toLowerCase());
+
+            return targetNames.some((target) => names.includes(target));
+        })?.id ?? null
+    );
 });
 
 const accountableField = [
@@ -785,7 +871,9 @@ function handleAssignSubmit(ids) {
 
                     <DropdownMenu>
                         <DropdownMenuTrigger as-child>
-                            <Button class="bg-[#0E6021] hover:bg-[#19703a] text-white text-xs sm:text-sm">
+                            <Button
+                                class="bg-[#0E6021] hover:bg-[#19703a] text-white text-xs sm:text-sm"
+                            >
                                 Actions
                                 <ChevronDown class="w-4 h-4 ml-2" />
                             </Button>
@@ -793,7 +881,9 @@ function handleAssignSubmit(ids) {
 
                         <DropdownMenuSeparator />
 
-                        <DropdownMenuContent class="w-48 rounded-lg shadow-lg border border-[#f5c6d8]">
+                        <DropdownMenuContent
+                            class="w-48 rounded-lg shadow-lg border border-[#f5c6d8]"
+                        >
                             <DropdownMenuItem
                                 @click="openAss"
                                 class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
@@ -820,14 +910,18 @@ function handleAssignSubmit(ids) {
                                 class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
                             >
                                 <Printer class="w-4 h-4 mr-2 text-[#850038]" />
-                                {{ isPrintingSelected ? "Printing..." : "Print" }}
+                                {{
+                                    isPrintingSelected ? "Printing..." : "Print"
+                                }}
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
             </div>
 
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mt-5">
+            <div
+                class="flex flex-col md:flex-row md:items-center justify-between gap-3 mt-5"
+            >
                 <SearchFilterBar
                     :search="search"
                     :cost_range="cost_range"
@@ -839,7 +933,9 @@ function handleAssignSubmit(ids) {
                     @update:search="search = $event"
                     @update:asset_condition_id="status = $event"
                     @update:cost_range="cost_range = $event"
-                    @update:acknowledgement_status="acknowledgement_status = $event"
+                    @update:acknowledgement_status="
+                        acknowledgement_status = $event
+                    "
                     :mode="'inventory'"
                 />
 
@@ -849,10 +945,15 @@ function handleAssignSubmit(ids) {
                         @click="toggleSelectedPanel"
                         class="flex items-center gap-2 bg-white border border-gray-300 rounded-full pl-1 pr-3 py-1 shadow-sm hover:bg-gray-50 transition-colors"
                     >
-                        <span class="flex items-center justify-center w-7 h-7 rounded-full bg-[#0E6021] text-white text-xs font-bold flex-shrink-0">
+                        <span
+                            class="flex items-center justify-center w-7 h-7 rounded-full bg-[#0E6021] text-white text-xs font-bold flex-shrink-0"
+                        >
                             {{ tempSelectedIds.length }}
                         </span>
-                        <span class="text-xs font-medium text-gray-600 whitespace-nowrap">Selected</span>
+                        <span
+                            class="text-xs font-medium text-gray-600 whitespace-nowrap"
+                            >Selected</span
+                        >
                         <ChevronDown
                             class="w-4 h-4 text-gray-500 transition-transform duration-200"
                             :class="{ 'rotate-180': showSelectedPanel }"
@@ -863,8 +964,12 @@ function handleAssignSubmit(ids) {
                         v-if="showSelectedPanel"
                         class="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-30 max-h-80 overflow-y-auto"
                     >
-                        <div class="px-4 py-2 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white">
-                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        <div
+                            class="px-4 py-2 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white"
+                        >
+                            <p
+                                class="text-xs font-semibold text-gray-500 uppercase tracking-wide"
+                            >
                                 Selected ({{ tempSelectedIds.length }})
                             </p>
                             <button
@@ -877,7 +982,10 @@ function handleAssignSubmit(ids) {
                             </button>
                         </div>
 
-                        <ul v-if="selectedItemsDetails.length" class="divide-y divide-gray-100">
+                        <ul
+                            v-if="selectedItemsDetails.length"
+                            class="divide-y divide-gray-100"
+                        >
                             <li
                                 v-for="item in selectedItemsDetails"
                                 :key="item.id"
@@ -893,12 +1001,17 @@ function handleAssignSubmit(ids) {
                                 </button>
                                 <span class="text-gray-700 truncate">
                                     {{ item.item_name }}
-                                    <template v-if="item.property_number">- {{ item.property_number }}</template>
+                                    <template v-if="item.property_number"
+                                        >- {{ item.property_number }}</template
+                                    >
                                 </span>
                             </li>
                         </ul>
 
-                        <p v-else class="px-4 py-6 text-center text-xs text-gray-400">
+                        <p
+                            v-else
+                            class="px-4 py-6 text-center text-xs text-gray-400"
+                        >
                             No items selected yet.
                         </p>
                     </div>
@@ -915,6 +1028,7 @@ function handleAssignSubmit(ids) {
                 :items="items"
                 :rooms="rooms"
                 :userProfiles="users"
+                :defaultIssuedBy="defaultIssuedBy"
                 @close="() => (showAssignModal = false)"
                 @assigned="handleAssignSubmit"
             />
@@ -977,46 +1091,77 @@ function handleAssignSubmit(ids) {
         </div>
 
         <!-- Print Format Modal -->
-        <div v-if="showPrintModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div
+            v-if="showPrintModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        >
             <div class="bg-white rounded-lg w-full max-w-md overflow-hidden">
-                <div class="px-6 py-3 bg-gradient-to-r from-[#005740] to-[#00795a]">
-                    <h3 class="text-white text-lg font-bold">Download QR Codes</h3>
+                <div
+                    class="px-6 py-3 bg-gradient-to-r from-[#005740] to-[#00795a]"
+                >
+                    <h3 class="text-white text-lg font-bold">
+                        Download QR Codes
+                    </h3>
                 </div>
                 <div class="p-6">
-                    <p class="text-md font-bold text-gray-600 mb-4">Choose output format:</p>
+                    <p class="text-md font-bold text-gray-600 mb-4">
+                        Choose output format:
+                    </p>
 
                     <div class="space-y-3 mb-4">
                         <label class="flex items-start gap-3">
-                            <input type="radio" value="png" v-model="selectedPrintFormat" class="form-radio mt-1" />
+                            <input
+                                type="radio"
+                                value="png"
+                                v-model="selectedPrintFormat"
+                                class="form-radio mt-1"
+                            />
                             <div>
                                 <div class="flex items-center gap-2">
                                     <i class="pi pi-image text-[#005740]"></i>
-                                    <span class="text-sm font-semibold">PNG (images)</span>
+                                    <span class="text-sm font-semibold"
+                                        >PNG (images)</span
+                                    >
                                 </div>
                                 <p class="text-xs text-gray-500 mt-1">
-                                    PNG files are flexible in size and will not be constrained to a fixed
-                                    sticker dimension. Use this when you need images or variable sizing.
+                                    PNG files are flexible in size and will not
+                                    be constrained to a fixed sticker dimension.
+                                    Use this when you need images or variable
+                                    sizing.
                                 </p>
                             </div>
                         </label>
 
                         <label class="flex items-start gap-3">
-                            <input type="radio" value="pdf" v-model="selectedPrintFormat" class="form-radio mt-1" />
+                            <input
+                                type="radio"
+                                value="pdf"
+                                v-model="selectedPrintFormat"
+                                class="form-radio mt-1"
+                            />
                             <div>
                                 <div class="flex items-center gap-2">
-                                    <i class="pi pi-file-pdf text-[#005740]"></i>
-                                    <span class="text-sm font-semibold">PDF (document)</span>
+                                    <i
+                                        class="pi pi-file-pdf text-[#005740]"
+                                    ></i>
+                                    <span class="text-sm font-semibold"
+                                        >PDF (document)</span
+                                    >
                                 </div>
                                 <p class="text-xs text-gray-500 mt-1">
-                                    PDF produces fixed-size pages suitable for printing standardized
-                                    stickers. Choose this for consistent print layout.
+                                    PDF produces fixed-size pages suitable for
+                                    printing standardized stickers. Choose this
+                                    for consistent print layout.
                                 </p>
                             </div>
                         </label>
                     </div>
 
                     <div class="flex justify-end gap-3">
-                        <button @click="showPrintModal = false" class="px-4 py-2 rounded bg-gray-100">
+                        <button
+                            @click="showPrintModal = false"
+                            class="px-4 py-2 rounded bg-gray-100"
+                        >
                             Cancel
                         </button>
                         <button

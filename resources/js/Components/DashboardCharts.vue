@@ -7,7 +7,6 @@ import ItemsByClassificationChart from "@/Components/ItemsByClassificationChart.
 import AcquisitionsByClassificationChart from "@/Components/AcquisitionsByClassificationChart.vue";
 import AccountablePersonChart from "@/Components/AccountablePersonChart.vue";
 import IcsParPercentageChart from "@/Components/IcsParPercentageChart.vue";
-import OrganizationUserProfileChart from "@/Components/OrganizationUserProfileChart.vue";
 import { Boxes, Truck, Users } from "lucide-vue-next";
 
 defineProps({
@@ -35,9 +34,6 @@ const selectedYear = computed(() => page.props.selectedYear);
 const icsParChartData = computed(() => page.props.icsParChartData || []);
 const accountablePersonChartData = computed(
     () => page.props.accountablePersonChartData || [],
-);
-const organizationChartData = computed(
-    () => page.props.organizationChartData || [],
 );
 
 const itemOverview = computed(() => [
@@ -92,12 +88,6 @@ const itemOverview = computed(() => [
         </div>
 
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <div class="xl:col-span-2 min-h-[420px] lg:min-h-[480px]">
-                <OrganizationUserProfileChart
-                    class="w-full h-full"
-                    :organization-chart-data="organizationChartData"
-                />
-            </div>
             <div class="xl:col-span-2 min-h-[420px] lg:min-h-[480px]">
                 <AcquisitionsByClassificationChart
                     class="w-full h-full"

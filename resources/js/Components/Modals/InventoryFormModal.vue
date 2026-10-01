@@ -789,17 +789,41 @@ function fieldByModel(fields, model) {
                                                     ></label
                                                 >
                                                 <Multiselect
-                                                    v-if="sdf.allowCustom === true"
+                                                    v-if="
+                                                        sdf.allowCustom === true
+                                                    "
                                                     v-model="form[sdf.model]"
-                                                    :options="sdf.options ?? (props[sdf.name] || [])"
-                                                    :value-prop="sdf.options ? 'value' : sdf.value"
-                                                    :label="sdf.options ? 'label' : sdf.option"
-                                                    :track-by="sdf.options ? 'value' : sdf.value"
+                                                    :options="
+                                                        sdf.options ??
+                                                        (props[sdf.name] || [])
+                                                    "
+                                                    :value-prop="
+                                                        sdf.options
+                                                            ? 'value'
+                                                            : sdf.value
+                                                    "
+                                                    :label="
+                                                        sdf.options
+                                                            ? 'label'
+                                                            : sdf.option
+                                                    "
+                                                    :track-by="
+                                                        sdf.options
+                                                            ? 'value'
+                                                            : sdf.value
+                                                    "
                                                     :searchable="true"
-                                                    :allow-absent="sdf.allowCustom === true"
-                                                    :create-option="sdf.allowCustom === true"
+                                                    :allow-absent="
+                                                        sdf.allowCustom === true
+                                                    "
+                                                    :create-option="
+                                                        sdf.allowCustom === true
+                                                    "
                                                     :options-limit="100"
-                                                    :placeholder="sdf.placeholder || 'Select or type'"
+                                                    :placeholder="
+                                                        sdf.placeholder ||
+                                                        'Select or type'
+                                                    "
                                                     :class="[
                                                         'second-dropdown-select',
                                                         form.errors[sdf.model]
@@ -817,13 +841,28 @@ function fieldByModel(fields, model) {
                                                             : 'border-gray-300 focus:ring-[#005740] focus:border-[#005740]',
                                                     ]"
                                                 >
-                                                    <option value="">Select</option>
+                                                    <option value="">
+                                                        Select
+                                                    </option>
                                                     <option
-                                                        v-for="op in sdf.options ?? (props[sdf.name] || [])"
-                                                        :key="sdf.options ? op.value : op[sdf.value]"
-                                                        :value="sdf.options ? op.value : op[sdf.value]"
+                                                        v-for="op in sdf.options ??
+                                                        (props[sdf.name] || [])"
+                                                        :key="
+                                                            sdf.options
+                                                                ? op.value
+                                                                : op[sdf.value]
+                                                        "
+                                                        :value="
+                                                            sdf.options
+                                                                ? op.value
+                                                                : op[sdf.value]
+                                                        "
                                                     >
-                                                        {{ sdf.options ? op.label : op[sdf.option] }}
+                                                        {{
+                                                            sdf.options
+                                                                ? op.label
+                                                                : op[sdf.option]
+                                                        }}
                                                     </option>
                                                 </select>
                                                 <div
@@ -1319,6 +1358,7 @@ function fieldByModel(fields, model) {
                                             class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
                                         >
                                             Lifespan (years)
+                                            <span class="text-red-500">*</span>
                                         </label>
                                         <input
                                             v-model="form.lifespan"
@@ -1493,6 +1533,16 @@ function fieldByModel(fields, model) {
                                                     "invoice",
                                                 )?.label
                                             }}
+                                            <span
+                                                v-if="
+                                                    fieldByModel(
+                                                        invoicesFundFields,
+                                                        'invoice',
+                                                    )?.required
+                                                "
+                                                class="text-red-500"
+                                                >*</span
+                                            >
                                         </label>
                                         <input
                                             v-model="form.invoice"
@@ -1528,6 +1578,16 @@ function fieldByModel(fields, model) {
                                                     "sales_invoice_date",
                                                 )?.label
                                             }}
+                                            <span
+                                                v-if="
+                                                    fieldByModel(
+                                                        invoicesFundFields,
+                                                        'sales_invoice_date',
+                                                    )?.required
+                                                "
+                                                class="text-red-500"
+                                                >*</span
+                                            >
                                         </label>
                                         <input
                                             v-model="form.sales_invoice_date"
@@ -1560,6 +1620,16 @@ function fieldByModel(fields, model) {
                                                 "fund_source",
                                             )?.label
                                         }}
+                                        <span
+                                            v-if="
+                                                fieldByModel(
+                                                    invoicesFundFields,
+                                                    'fund_source',
+                                                )?.required
+                                            "
+                                            class="text-red-500"
+                                            >*</span
+                                        >
                                     </label>
                                     <input
                                         v-model="form.fund_source"

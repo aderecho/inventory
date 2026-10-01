@@ -7,6 +7,8 @@ use App\Models\InventoryItem;
 use App\Models\UserProfile;
 use App\Models\AcknowledgementItem;
 use App\Models\AcknowledgementReceipt;
+use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Role;
 
 
 class UserService
@@ -16,7 +18,7 @@ class UserService
         int|string|null $status = null,
         int $perPage = 10
     ) {
-        return User::with('userProfiles.organizations', 'userProfiles.primaryOrganization', 'roles', 'permissions')
+        return User::with('userProfiles', 'roles', 'permissions')
             ->when(
                 $search,
                 fn($query, $search) =>
@@ -38,11 +40,12 @@ class UserService
     }
     public function filterAndPaginateAssignedItems(
         int $userId,
-        ?string $search = null,
-        ?string $sort = null,
+        ?string $search,
+        ?string $sort,
         string $direction = 'asc',
         int $perPage = 10,
-        array $matchingRoomIds = []
+        array $matchingRoomIds = [],
+        ?string $approvalStatus = null,
     ) {
         $sortable = ['item_name', 'date_acquired', 'date_assigned'];
         $sort = in_array($sort, $sortable, true) ? $sort : null;
@@ -92,6 +95,10 @@ class UserService
             ]);
         }
 
+        if (filled($approvalStatus)) {
+            $query->where('approval_status', $approvalStatus);
+        }
+
         match ($sort) {
             'date_assigned' => $query->orderBy('sort_par_date', $direction),
             null            => $query->orderByDesc('created_at'),
@@ -126,27 +133,35 @@ class UserService
 
     public function createUser(array $data): User
     {
-        $user = User::create([
-            'email'    => $data['email'],
-            'status'   => $data['status'],
-        ]);
+        return DB::transaction(function () use ($data) {
+            $user = User::create([
+                'email' => $data['email'],
+                'status' => $data['status'],
+            ]);
 
-        $profile = $user->userProfiles()->create($data['user_profiles'] ?? []);
+            $profileData = collect($data['user_profiles'] ?? [])->only([
+                'employee_number',
+                'title_name',
+                'first_name',
+                'middle_name',
+                'last_name',
+                'ext_name',
+                'primary_unit_division_department',
+                'employee_primary_unit_college',
+                'contact_number',
+            ])->all();
 
-        $profile->organizations()->sync($data['organizations'] ?? []);
-        $profile->update([
-            'primary_organization_id' => $data['primary_organization_id'] ?? null,
-        ]);
+            $user->userProfiles()->create($profileData);
 
-        if (!empty($data['role'])) {
-            $user->assignRole($data['role']);
-        }
+            if (!empty($data['roles'])) {
+                $user->assignRole($data['roles']);
+            }
 
-        if (!empty($data['permissions'])) {
-            $user->syncPermissions($data['permissions']);
-        }
-
-        return $user;
+            return $user->load([
+                'userProfiles',
+                'roles',
+            ]);
+        });
     }
 
     public function updateUser(User $user, array $data): User
@@ -158,20 +173,25 @@ class UserService
 
         $user->update($updateData);
 
-        $profileData = $data['user_profiles'] ?? [];
+        $profileData = collect($data['user_profiles'] ?? [])->only([
+            'employee_number',
+            'title_name',
+            'first_name',
+            'middle_name',
+            'last_name',
+            'ext_name',
+            'primary_unit_division_department',
+            'employee_primary_unit_college',
+            'contact_number',
+        ])->all();
 
-        $profile = UserProfile::updateOrCreate(
+        UserProfile::updateOrCreate(
             ['user_id' => $user->id],
             array_merge($profileData, ['user_id' => $user->id])
         );
 
-        $profile->organizations()->sync($data['organizations'] ?? []);
-        $profile->update([
-            'primary_organization_id' => $data['primary_organization_id'] ?? null,
-        ]);
-
-        if (!empty($data['role'])) {
-            $user->syncRoles([$data['role']]);
+        if (!empty($data['roles'])) {
+            $user->syncRoles($data['roles']);
         } else {
             $user->roles()->detach();
         }

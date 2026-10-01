@@ -26,7 +26,10 @@ use App\Http\Controllers\InspectionController;
 use App\Http\Controllers\SamlConfigurationController;
 use App\Http\Controllers\UserArchiveController;
 use App\Http\Controllers\DisposalPrintController;
+use App\Http\Controllers\DashboardSelectionController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Auth\GoogleController;
+use App\Http\Controllers\EmbedTestController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -57,7 +60,7 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthController::class, 'authenticate']);
 });
 
-Route::get('/embed/dashboard/{token}', [EmbedDashboardController::class, 'show'])
+Route::get('/embed/dashboard', [EmbedDashboardController::class, 'show'])
     ->middleware('throttle:60,1')
     ->name('embed.dashboard');
 
@@ -68,8 +71,15 @@ Route::middleware(['auth', 'check.session.timeout'])->get('/test-logout', functi
     ]);
 })->name('test.logout');
 
+Route::get('/select-dashboard', [DashboardSelectionController::class, 'show'])->name('auth.select-dashboard');
+Route::post('/select-dashboard', [DashboardSelectionController::class, 'choose'])->name('auth.choose-dashboard');
+
 // All authenticated routes with session timeout check
 Route::middleware(['auth', 'check.session.timeout'])->group(function () {
+
+
+    Route::get('/dashboard-test', [EmbedTestController::class, 'index'])
+        ->name('dashboard.test');
 
     Route::get('/session/ping', function (Request $request) {
         return response()->json([
@@ -87,6 +97,15 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
 
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'searchBar'])->middleware('can:view dashboard')->name('dashboard.index');
+
+    Route::patch('/inventory-items/{inventory_item}/approval', [UserController::class, 'updateApproval'])
+        ->name('inventory_items.approval');
+
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::patch('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+    Route::patch('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
+    Route::patch('/notifications/{id}/items', [NotificationController::class, 'removeItems'])
+        ->name('notifications.remove-items');
 
     // API Clients
     Route::prefix('api-clients')->group(function () {

@@ -12,13 +12,14 @@ const props = defineProps({
     mode: { type: String, default: "create" },
     accountableField: { type: Array, default: () => [] },
     adminProfiles: { type: Array, default: () => [] },
+    defaultIssuedBy: { type: [Number, String], default: null },
     itemSelectedField: { type: Array, default: () => [] },
     selectedIDs: { type: Array, default: () => [] },
     items: { type: Object, default: () => ({ data: [] }) },
     accPerson: { type: Object, default: () => ({ data: [] }) },
     users: { type: Array, default: () => [] },
     userProfiles: { type: Array, default: () => [] },
-    rooms: { type: Array, default: () => [] }, // <-- Add this
+    rooms: { type: Array, default: () => [] },
     viewItem: { type: Array, default: () => [] },
     item: { type: Object, default: () => ({}) },
 });
@@ -153,12 +154,12 @@ function submit() {
                         life: 5000,
                     });
 
-                        const printedIds = [...props.selectedIDs];
+                    const printedIds = [...props.selectedIDs];
 
                     emit("close");
-                        emit("created");
-                        emit("submit", form);
-                        emit("assigned", printedIds);
+                    emit("created");
+                    emit("submit", form);
+                    emit("assigned", printedIds);
                     selectedCategory.value = "";
                     form.reset();
                 },
@@ -224,6 +225,16 @@ watch(
     (mode) => {
         if (mode === "create" && !form.par_date) {
             form.par_date = getTodayLocalDate();
+        }
+    },
+    { immediate: true },
+);
+
+watch(
+    () => props.defaultIssuedBy,
+    (newValue) => {
+        if (props.mode === "create") {
+            form.issued_by_id = newValue ?? "";
         }
     },
     { immediate: true },

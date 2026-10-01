@@ -9,9 +9,5 @@ defineProps({
 </script>
 
 <template>
-    <UserLayout
-        :user="user"
-        :items="items"
-        :stats="stats"
-    />
+    <UserLayout :user="user" :items="items" :stats="stats" :filters="filters" />
 </template>

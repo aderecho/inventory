@@ -21,13 +21,13 @@ class ApiEmbedController extends Controller
 
         $payload = [
             'client_id' => $client->id,
-            'exp' => now()->addMinutes(1440)->timestamp,
+            'exp'       => now()->addMinutes(1440)->timestamp,
         ];
 
         $token = encrypt($payload);
 
         return response()->json([
-            'embed_url' => route('embed.dashboard', $token),
+            'embed_url'  => route('embed.dashboard', ['token' => $token]),
             'expires_in' => 86400,
         ]);
     }
