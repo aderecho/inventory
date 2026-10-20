@@ -20,10 +20,7 @@ class PrintController extends Controller
 
             $result = $this->printService->generateReceiptPdf($ids);
 
-            $fileName = $result['type']
-                . '_'
-                . now()->format('Y_m_d_His')
-                . '.pdf';
+            $fileName = $result['file_name'];
 
             return response($result['pdf'])
                 ->header('Content-Type', 'application/pdf')

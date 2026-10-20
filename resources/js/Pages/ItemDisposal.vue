@@ -4,24 +4,77 @@ import { usePage, router } from "@inertiajs/vue3";
 import { Head } from "@inertiajs/vue3";
 import Layout from "@/Layouts/Layout.vue";
 import PageHeader from "@/Components/PageHeader.vue";
-import InventoryArchiveTable from "@/Components/InventoryArchiveTable.vue";
-import RestoreModal from "@/Components/Modals/RestoreModal.vue";
-import ForceDeleteModal from "@/Components/Modals/ForceDeleteModal.vue";
+import InventoryTable from "@/Components/InventoryTable.vue";
+import SearchFilterBar from "@/Components/Filters/SearchFilterBar.vue";
+import BatchRestoreModal from "@/Components/Modals/BatchRestoreModal.vue";
+import BatchForceDeleteModal from "@/Components/Modals/BatchForceDeleteModal.vue";
 import Toast from "primevue/toast";
 import { useToast } from "primevue/usetoast";
 import { useLoading } from "@/Composables/useLoading";
 import { usePermissions } from "@/Composables/usePermissions";
 
-const { stopLoading } = useLoading();
+const { startLoading, stopLoading } = useLoading();
 const { archiveItemActions } = usePermissions();
+const page = usePage();
+const toast = useToast();
+
+const items = computed(() => page.props.items || { data: [] });
+const rooms = computed(() => page.props.rooms || []);
+const assetConditions = computed(() => page.props.assetConditions || []);
+
+// Filters: the same set the Item List (inventory) module uses.
+const search = ref("");
+const cost_range = ref("");
+const acknowledgement_status = ref("");
+const asset_condition_id = ref("");
+const room_id = ref("");
+
+const unitCostOptions = [
+    {
+        label: "Unit Cost",
+        options: [
+            { label: "Select All", value: "" },
+            { label: "₱50,000 Below", value: "0-50000" },
+            { label: "₱50,000 Above", value: "50000-99999999" },
+        ],
+    },
+];
+
+const acknowledgementFilter = [
+    {
+        label: "Accountable Person",
+        options: [
+            { label: "All Items", value: "" },
+            { label: "Assigned", value: "with_acknowledgement" },
+            { label: "Unassigned", value: "without_acknowledgement" },
+        ],
+    },
+];
+
+const filterCondition = computed(() => [
+    {
+        label: "Condition",
+        options: assetConditions.value.map((condition) => ({
+            label: condition.condition_name,
+            value: condition.id,
+        })),
+    },
+]);
 
 const columns = [
+    { label: "", key: "select_all" },
     { label: "Item Name", key: "item_name" },
     { label: "Unit", key: "unit", format: (val) => val ?? "N/A" },
     {
         label: "Unit Cost",
         key: "unit_cost",
-        format: (val) => (val ? `₱${val}` : "N/A"),
+        format: (val) =>
+            val != null
+                ? `₱${Number(val).toLocaleString("en-PH", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                  })}`
+                : "N/A",
     },
     { label: "Property Number", key: "property_number" },
     { label: "Serial Number", key: "serial_number" },
@@ -45,158 +98,277 @@ const columns = [
     { label: "Action", key: "action" },
 ];
 
-const page = usePage();
-const items = computed(() => page.props.items || { data: [] });
-const toast = useToast();
+// The table renders a button per action, so only the archive ones are passed.
+const rowActions = computed(() =>
+    (archiveItemActions.value ?? []).filter((action) =>
+        ["restore", "force-delete"].includes(action),
+    ),
+);
 
-const search = ref(page.props.filters?.search ?? "");
-const status = ref(page.props.filters?.status ?? null);
+// SELECTION
+const selectedItemsMap = ref(new Map());
 
-let debounceTimer = null;
+// Derived from the map below, so the table's selection-changed event is the
+// single source of truth and selections survive pagination.
+const tempSelectedIds = computed(() =>
+    Array.from(selectedItemsMap.value.keys()),
+);
+const selectedItemsDetails = computed(() =>
+    Array.from(selectedItemsMap.value.values()),
+);
 
-watch(search, (value) => {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-        router.get(
-            route("items.archive.index"),
-            { search: value, status: status.value ?? "" },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-                only: ["items"],
-            },
-        );
-    }, 300);
-});
+function handleSelectionChanged(ids, currentPageRows = []) {
+    const idSet = new Set(ids);
+    const newMap = new Map(selectedItemsMap.value);
 
-watch(status, (value) => {
-    router.get(
-        route("items.archive.index"),
-        { search: search.value, status: value ?? "" },
-        {
-            preserveState: true,
-            preserveScroll: true,
-            replace: true,
-            only: ["items"],
-        },
-    );
-});
+    currentPageRows.forEach((row) => {
+        if (idSet.has(row.id)) newMap.set(row.id, row);
+    });
 
-// MODAL STATE
+    for (const key of newMap.keys()) {
+        if (!idSet.has(key)) newMap.delete(key);
+    }
+
+    idSet.forEach((id) => {
+        if (!newMap.has(id) && selectedItemsMap.value.has(id)) {
+            newMap.set(id, selectedItemsMap.value.get(id));
+        }
+    });
+
+    selectedItemsMap.value = newMap;
+}
+
+function clearSelection() {
+    selectedItemsMap.value = new Map();
+}
+
+// MODALS
 const showRestoreModal = ref(false);
 const showForceDeleteModal = ref(false);
-const currentItem = ref(null);
+const modalItems = ref([]);
 
-function handleRestore(item) {
-    currentItem.value = item;
+function openRestore(rows) {
+    modalItems.value = rows;
     showRestoreModal.value = true;
 }
 
-function handleForceDelete(item) {
-    currentItem.value = item;
+function openForceDelete(rows) {
+    modalItems.value = rows;
     showForceDeleteModal.value = true;
 }
 
+// Row actions reuse the same modals with a single row.
+function handleRestoreItem(item) {
+    openRestore([item]);
+}
+
+function handleForceDeleteItem(item) {
+    openForceDelete([item]);
+}
+
 function confirmRestore() {
+    startLoading(
+        "Restoring Items...",
+        "Please wait while we restore the selected items.",
+    );
+
     router.patch(
-        route("items.restore", currentItem.value.id),
-        {},
+        route("items.batch-restore"),
+        { ids: modalItems.value.map((item) => item.id) },
         {
             preserveScroll: true,
             onSuccess: () => {
-                stopLoading();
                 showRestoreModal.value = false;
-
-                toast.add({
-                    severity: "success",
-                    summary: "Restored",
-                    detail: `${currentItem.value.item_name} has been restored.`,
-                    life: 3000,
-                });
+                clearSelection();
             },
-            onError: (errors) => {
-                showRestoreModal.value = false;
-
-                toast.add({
-                    severity: "error",
-                    summary: "Restore Failed",
-                    detail: errors.restore,
-                    life: 5000,
-                });
-            },
+            onFinish: () => stopLoading(),
         },
     );
 }
 
 function confirmForceDelete() {
-    router.delete(route("items.forceDelete", currentItem.value.id), {
+    startLoading(
+        "Deleting Items...",
+        "Please wait while we permanently delete the selected items.",
+    );
+
+    router.delete(route("items.batch-force-delete"), {
+        data: { ids: modalItems.value.map((item) => item.id) },
         preserveScroll: true,
         onSuccess: () => {
-            stopLoading();
             showForceDeleteModal.value = false;
-            toast.add({
-                severity: "success",
-                summary: "Permanently Deleted",
-                detail: `${currentItem.value.item_name} has been permanently deleted.`,
-                life: 3000,
-            });
+            clearSelection();
         },
+        onFinish: () => stopLoading(),
     });
 }
+
+// Backend flash messages (restore conflicts, counts, failures).
+watch(
+    () => page.props.flash,
+    (flash) => {
+        if (!flash) return;
+
+        if (flash.success) {
+            toast.add({
+                severity: "success",
+                summary: "Success",
+                detail: flash.success,
+                life: 3000,
+            });
+        }
+
+        if (flash.warning) {
+            toast.add({
+                severity: "warn",
+                summary: "Not Restored",
+                detail: flash.warning,
+                life: 6000,
+            });
+        }
+
+        if (flash.error) {
+            toast.add({
+                severity: "error",
+                summary: "Error",
+                detail: flash.error,
+                life: 5000,
+            });
+        }
+    },
+    { immediate: true },
+);
 </script>
 
 <template>
-    <Head title="UP | Item Disposal" />
+    <Head title="UP | Item Archive" />
 
     <Layout>
         <Toast />
 
-        <RestoreModal
+        <BatchRestoreModal
             v-if="showRestoreModal"
-            :item="currentItem"
+            :items="modalItems"
+            entityLabel="item"
             @confirm="confirmRestore"
             @close="showRestoreModal = false"
         />
 
-        <ForceDeleteModal
+        <BatchForceDeleteModal
             v-if="showForceDeleteModal"
-            :item="currentItem"
+            :items="modalItems"
+            entityLabel="item"
             @confirm="confirmForceDelete"
             @close="showForceDeleteModal = false"
         />
 
-        <PageHeader title="Item Disposal" />
-        <div class="bg-white h-screen drop-shadow-md mt-[1rem]">
-            <!-- Search + Filter -->
-            <div class="p-4 flex items-center justify-end gap-3">
-                <input
-                    v-model="search"
-                    type="text"
-                    placeholder="Search items..."
-                    class="w-80 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#850038]"
-                />
-                <select
-                    v-model="status"
-                    class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#850038]"
+        <PageHeader title="Item Archive" />
+
+        <div class="w-full h-full">
+            <div
+                class="mt-6 rounded-xl border border-gray-200 bg-white p-3 shadow-sm"
+            >
+                <div
+                    class="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between"
                 >
-                    <option :value="null">All Status</option>
-                    <option :value="1">Serviceable</option>
-                    <option :value="0">Unserviceable</option>
-                </select>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button
+                            v-if="rowActions.includes('restore')"
+                            type="button"
+                            :disabled="tempSelectedIds.length === 0"
+                            @click="openRestore(selectedItemsDetails)"
+                            class="flex items-center gap-2 rounded-md bg-[#0E6021] px-3 py-2 text-xs text-white transition-colors hover:bg-[#19703a] disabled:cursor-not-allowed disabled:opacity-40 sm:text-sm"
+                        >
+                            <i class="fa-solid fa-rotate-left"></i>
+                            <span>Restore Selected</span>
+                            <span
+                                class="inline-flex h-5 w-7 shrink-0 items-center justify-center rounded-full bg-white/25 text-[11px] tabular-nums leading-5"
+                            >
+                                {{ tempSelectedIds.length }}
+                            </span>
+                        </button>
+
+                        <button
+                            v-if="rowActions.includes('force-delete')"
+                            type="button"
+                            :disabled="tempSelectedIds.length === 0"
+                            @click="openForceDelete(selectedItemsDetails)"
+                            class="flex items-center gap-2 rounded-md bg-[#D71D1D] px-3 py-2 text-xs text-white transition-colors hover:bg-[#b81616] disabled:cursor-not-allowed disabled:opacity-40 sm:text-sm"
+                        >
+                            <i class="fa-solid fa-trash-can"></i>
+                            <span>Delete Permanently</span>
+                            <span
+                                class="inline-flex h-5 w-7 shrink-0 items-center justify-center rounded-full bg-white/25 text-[11px] tabular-nums leading-5"
+                            >
+                                {{ tempSelectedIds.length }}
+                            </span>
+                        </button>
+                    </div>
+
+                    <div class="w-full xl:max-w-3xl">
+                        <SearchFilterBar
+                            :search="search"
+                            :cost_range="cost_range"
+                            :room_id="room_id"
+                            :rooms="rooms"
+                            :unitCostOptions="unitCostOptions"
+                            :filterCondition="filterCondition"
+                            :acknowledgementFilter="acknowledgementFilter"
+                            @update:search="search = $event"
+                            @update:asset_condition_id="
+                                asset_condition_id = $event
+                            "
+                            @update:cost_range="cost_range = $event"
+                            @update:acknowledgement_status="
+                                acknowledgement_status = $event
+                            "
+                            :mode="'item-archive'"
+                            :collapsible-filters="true"
+                        />
+                    </div>
+                </div>
+
+                <!-- Selection summary -->
+                <div
+                    class="mt-3 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 transition-colors"
+                    :class="
+                        tempSelectedIds.length
+                            ? 'border-[#005740]/20 bg-[#005740]/[0.06]'
+                            : 'border-gray-200 bg-gray-50'
+                    "
+                >
+                    <span
+                        class="flex items-center gap-2 text-xs font-semibold transition-colors"
+                        :class="
+                            tempSelectedIds.length
+                                ? 'text-[#005740]'
+                                : 'text-gray-500'
+                        "
+                    >
+                        <i class="fa-solid fa-circle-check"></i>
+                        {{ tempSelectedIds.length }} selected
+                    </span>
+
+                    <button
+                        v-if="tempSelectedIds.length"
+                        type="button"
+                        @click="clearSelection"
+                        class="ml-auto text-xs font-semibold text-[#005740] hover:underline"
+                    >
+                        Clear
+                    </button>
+                </div>
             </div>
 
-            <div v-if="!items.data?.length" class="text-center py-10 text-gray-500">
-                No archived items yet.
-            </div>
-
-            <InventoryArchiveTable
-                :rows="items"
+            <InventoryTable
                 :columns="columns"
+                :rows="items"
                 :module="'archive_item'"
-                :actions="archiveItemActions"
-                @restore="handleRestore"
-                @permanent-delete="handleForceDelete"
+                :actions="rowActions"
+                :selected="tempSelectedIds"
+                @selection-changed="handleSelectionChanged"
+                @restore="handleRestoreItem"
+                @force-delete="handleForceDeleteItem"
             />
         </div>
     </Layout>

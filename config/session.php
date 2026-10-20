@@ -38,6 +38,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Session Guard Rails
+    |--------------------------------------------------------------------------
+    | Enforced by App\Http\Middleware\CheckSessionTimeout and mirrored to the
+    | browser through the sessionConfig Inertia prop, so the warning modal and
+    | the server always work from the same numbers.
+    */
+
+    // Inactivity before the user is signed out.
+    'idle_timeout' => (int) env('SESSION_IDLE_TIMEOUT', 900),
+
+    // How long before that sign-out the warning modal opens.
+    'idle_warning' => (int) env('SESSION_IDLE_WARNING', 30),
+
+    // How long before the absolute cap the second warning opens.
+    'absolute_warning' => (int) env('SESSION_ABSOLUTE_WARNING', 120),
+
+    // Silent session id + CSRF rotation interval while the user is active.
+    'regenerate_interval' => (int) env('SESSION_REGENERATE_INTERVAL', 1800),
+
+    /*
+    |--------------------------------------------------------------------------
     | Session Encryption
     |--------------------------------------------------------------------------
     |

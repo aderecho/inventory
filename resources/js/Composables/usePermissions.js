@@ -63,6 +63,7 @@ export function usePermissions() {
     });
 
     const canCreateSupplier = computed(() => can("create suppliers"));
+    const canViewSuppliers = computed(() => can("view suppliers"));
 
     // Categories
     const categoryActions = computed(() => {
@@ -73,20 +74,10 @@ export function usePermissions() {
     });
 
     const canCreateCategory = computed(() => can("create categories"));
+    const canViewCategories = computed(() => can("view categories"));
 
-    // Acknowledgements
-    const canViewAcknowledgements = computed(() =>
-        can("view acknowledgements"),
-    );
-    const canCreateAcknowledgements = computed(() =>
-        can("create acknowledgements"),
-    );
-    const canShowAcknowledgements = computed(() =>
-        can("show acknowledgements"),
-    );
-    const canUploadAcknowledgements = computed(() =>
-        can("upload acknowledgements"),
-    );
+    // Item approvals
+    const canViewItemApprovals = computed(() => can("view item approvals"));
 
     // Users
     const userActions = computed(() => {
@@ -119,6 +110,11 @@ export function usePermissions() {
     });
 
     const canCreatePermission = computed(() => can("create permissions"));
+
+    // Borrowings
+    const canViewBorrowings = computed(() => can("view borrowings"));
+    const canBorrowItems = computed(() => can("borrow items"));
+    const canReturnItems = computed(() => can("return items"));
 
     // Archives
     const archiveItemActions = computed(() => {
@@ -171,16 +167,15 @@ export function usePermissions() {
         // Suppliers
         supplierActions,
         canCreateSupplier,
+        canViewSuppliers,
 
         // Categories
         categoryActions,
         canCreateCategory,
+        canViewCategories,
 
-        // Acknowledgements
-        canViewAcknowledgements,
-        canCreateAcknowledgements,
-        canShowAcknowledgements,
-        canUploadAcknowledgements,
+        // Item approvals
+        canViewItemApprovals,
 
         // Users
         userActions,
@@ -193,6 +188,11 @@ export function usePermissions() {
         // Roles
         roleActions,
         canCreateRole,
+
+        // Borrowings
+        canViewBorrowings,
+        canBorrowItems,
+        canReturnItems,
 
         // Archives
         archiveItemActions,

@@ -6,7 +6,6 @@ import { useToast } from "primevue/usetoast";
 import "/node_modules/@vueform/multiselect/themes/default.css";
 import Multiselect from "@vueform/multiselect";
 import DatePicker from "primevue/datepicker";
-import SessionTimeoutWarning from "@/Components/SessionTimeoutWarning.vue";
 
 const props = defineProps({
     mode: { type: String, default: "create" },
@@ -22,6 +21,8 @@ const props = defineProps({
     rooms: { type: Array, default: () => [] },
     viewItem: { type: Array, default: () => [] },
     item: { type: Object, default: () => ({}) },
+    transferTypes: { type: Array, default: () => [] },
+    biggestCategories: { type: [Object, Array], default: () => ({}) },
 });
 
 const selectedCategory = ref("");
@@ -38,7 +39,14 @@ const form = useForm({
     created_by: "",
     par_date: "",
     remarks: "",
+    transfer_type: [],
+    transfer_type_other: "",
+    approved_by: null,
+    reason_for_transfer: "",
 });
+
+// "Others (specify)" on the Inventory Transfer Report: a checkbox plus free text.
+const otherTransferChecked = ref(false);
 
 const itemMap = computed(() => {
     const map = {};
@@ -52,13 +60,7 @@ const availableAccountableUsers = computed(() => {
     const assignedPersonIds = new Set();
 
     props.selectedIDs.forEach((id) => {
-        const item = itemMap.value[id];
-
-        const personId =
-            item?.latest_acknowledgement_item?.accountable_person?.id ??
-            item?.latest_acknowledgement_item?.accountable_persons_id ??
-            item?.accountable_person?.id ??
-            item?.accountable_persons_id;
+        const personId = getAccountablePersonId(id);
 
         if (personId !== null && personId !== undefined) {
             assignedPersonIds.add(Number(personId));
@@ -68,6 +70,39 @@ const availableAccountableUsers = computed(() => {
     return (props.userProfiles ?? []).filter(
         (user) => !assignedPersonIds.has(Number(user.id)),
     );
+});
+
+// Returns the accountable person id already recorded for an item, if any.
+function getAccountablePersonId(id) {
+    const item = itemMap.value[id];
+
+    return (
+        item?.latest_acknowledgement_item?.accountable_person?.id ??
+        item?.latest_acknowledgement_item?.accountable_persons_id ??
+        item?.accountable_person?.id ??
+        item?.accountable_persons_id
+    );
+}
+
+// True when at least one selected item already has an accountable person.
+const hasExistingAccountable = computed(() => {
+    return props.selectedIDs.some((id) => {
+        const personId = getAccountablePersonId(id);
+        return personId !== null && personId !== undefined;
+    });
+});
+
+// Category of the receipt the selected items are currently under, if any.
+const currentReceiptCategory = computed(() => {
+    for (const id of props.selectedIDs) {
+        const category =
+            itemMap.value[id]?.latest_acknowledgement_item
+                ?.acknowledgement_receipts?.category;
+
+        if (category) return category;
+    }
+
+    return "";
 });
 
 const availableIssuedByUsers = computed(() => {
@@ -89,6 +124,24 @@ function submit() {
                 "All selected items must have the same Category in Property Number.";
             return;
         }
+    }
+
+    form.clearErrors("transfer_type_other");
+
+    // Approval is recorded only for reassignments.
+    if (!hasExistingAccountable.value) {
+        form.approved_by = null;
+        form.reason_for_transfer = "";
+    }
+
+    if (!hasExistingAccountable.value || !otherTransferChecked.value) {
+        form.transfer_type_other = "";
+    } else if (!form.transfer_type_other.trim()) {
+        form.setError(
+            "transfer_type_other",
+            "Please specify the other transfer type.",
+        );
+        return;
     }
 
     form.inventory_item_id = props.selectedIDs;
@@ -150,7 +203,9 @@ function submit() {
                     toast.add({
                         severity: "success",
                         summary: "Created",
-                        detail: "Item assigned successfully.",
+                        detail: hasExistingAccountable.value
+                            ? "Item reassigned successfully."
+                            : "Item assigned successfully.",
                         life: 5000,
                     });
 
@@ -161,6 +216,7 @@ function submit() {
                     emit("submit", form);
                     emit("assigned", printedIds);
                     selectedCategory.value = "";
+                    otherTransferChecked.value = false;
                     form.reset();
                 },
                 onError: (errors) => {
@@ -178,7 +234,8 @@ function submit() {
     });
 }
 
-// Generates a category like "233-2025-12" from the first selected item's property_number
+// Fallback for a classification that has no receipts yet: starts the series at 1,
+// e.g. "233-2025-12-1", using the first selected item's property_number.
 function generateCategoryFromFirstSelected() {
     if (!props.selectedIDs.length) return "";
 
@@ -194,7 +251,32 @@ function generateCategoryFromFirstSelected() {
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0");
 
-    return `${firstNumber}-${year}-${month}-`;
+    return `${firstNumber}-${year}-${month}-1`;
+}
+
+// Classification code is the first segment of the property number, e.g. "223".
+function getSelectedClassification() {
+    if (!props.selectedIDs.length) return "";
+
+    const item = itemMap.value[props.selectedIDs[0]];
+    if (!item?.property_number) return "";
+
+    return item.property_number.split("-")[0] || "";
+}
+
+// Next PAR/ICS number for the classification: the biggest existing number + 1
+// (biggest, not the most recently created).
+function generateNextCategoryFromBiggest() {
+    const biggest = props.biggestCategories?.[getSelectedClassification()];
+
+    if (!biggest) return "";
+
+    const parts = String(biggest).split("-");
+    const lastNumber = Number.parseInt(parts.pop(), 10);
+
+    if (Number.isNaN(lastNumber)) return "";
+
+    return `${parts.join("-")}-${lastNumber + 1}`;
 }
 
 // Watch selectedIDs prop and initialize selectedCategory from first selected item
@@ -206,7 +288,14 @@ watch(
 
             if (firstItem) {
                 selectedCategory.value = firstItem.category || "";
-                form.category = generateCategoryFromFirstSelected();
+
+                // Reassigning keeps the existing receipt series; a brand new
+                // assignment starts a fresh category off the property number.
+                form.category =
+                    hasExistingAccountable.value && currentReceiptCategory.value
+                        ? currentReceiptCategory.value
+                        : generateNextCategoryFromBiggest() ||
+                          generateCategoryFromFirstSelected();
 
                 // Initialize room from the selected item
                 form.room_id = Number(firstItem.room_id);
@@ -309,9 +398,8 @@ function roomSearchFilter(option, query) {
 </script>
 
 <template>
-    <SessionTimeoutWarning />
     <div
-        class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+        class="fixed inset-0 modal-backdrop flex items-center justify-center p-4 z-50"
     >
         <div
             :class="[
@@ -332,7 +420,9 @@ function roomSearchFilter(option, query) {
                                 ? "Edit Item"
                                 : mode === "view"
                                   ? "Item Details"
-                                  : "Assign Item"
+                                  : hasExistingAccountable
+                                    ? "Reassign Item"
+                                    : "Assign Item"
                         }}
                     </h3>
                     <p class="text-xs text-white/70 mt-0.5">
@@ -341,7 +431,9 @@ function roomSearchFilter(option, query) {
                                 ? "Update this assignment's details."
                                 : mode === "view"
                                   ? "View assignment information."
-                                  : "Assign selected items to an accountable person."
+                                  : hasExistingAccountable
+                                    ? "Reassign selected items to a new accountable person."
+                                    : "Assign selected items to an accountable person."
                         }}
                     </p>
                 </div>
@@ -523,6 +615,125 @@ function roomSearchFilter(option, query) {
                                 </div>
                             </div>
 
+                            <!-- APPROVED BY (only applies when reassigning) -->
+                            <div v-if="hasExistingAccountable">
+                                <label
+                                    class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                >
+                                    Approved By
+                                </label>
+
+                                <Multiselect
+                                    v-model="form.approved_by"
+                                    :options="availableIssuedByUsers"
+                                    :searchable="true"
+                                    value-prop="id"
+                                    label="full_name"
+                                    track-by="full_name"
+                                    placeholder="Select"
+                                />
+
+                                <div
+                                    v-if="form.errors.approved_by"
+                                    class="text-red-500 text-xs mt-1"
+                                >
+                                    {{ form.errors.approved_by }}
+                                </div>
+                            </div>
+
+                            <!-- TRANSFER TYPE (only applies when reassigning) -->
+                            <div v-if="hasExistingAccountable">
+                                <label
+                                    class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                >
+                                    Transfer Type
+                                </label>
+
+                                <div
+                                    v-if="transferTypes.length === 0"
+                                    class="text-xs text-gray-400"
+                                >
+                                    No transfer types available.
+                                </div>
+
+                                <div
+                                    v-else
+                                    class="flex flex-wrap gap-x-6 gap-y-2 rounded-md border border-gray-300 bg-[#F8F8F8] px-3 py-3"
+                                >
+                                    <label
+                                        v-for="type in transferTypes"
+                                        :key="type.id"
+                                        class="flex items-center gap-2 text-sm text-[#3B3B3B] cursor-pointer"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            class="rounded border-gray-300 text-[#005740] focus:ring-[#005740]"
+                                            :value="type.id"
+                                            v-model="form.transfer_type"
+                                        />
+                                        <span>{{ type.name }}</span>
+                                    </label>
+
+                                    <label
+                                        class="flex items-center gap-2 text-sm text-[#3B3B3B] cursor-pointer"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            class="rounded border-gray-300 text-[#005740] focus:ring-[#005740]"
+                                            v-model="otherTransferChecked"
+                                        />
+                                        <span>Others (specify)</span>
+                                    </label>
+
+                                    <input
+                                        v-if="otherTransferChecked"
+                                        v-model="form.transfer_type_other"
+                                        type="text"
+                                        maxlength="255"
+                                        placeholder="e.g. Change of accountable officer"
+                                        :class="[
+                                            'w-full rounded-md px-3 py-2 bg-white text-[#3B3B3B] text-sm focus:ring-1 focus:outline-none border',
+                                            form.errors.transfer_type_other
+                                                ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                                                : 'border-gray-300 focus:ring-[#005740] focus:border-[#005740]',
+                                        ]"
+                                    />
+                                </div>
+
+                                <div
+                                    v-if="form.errors.transfer_type"
+                                    class="text-red-500 text-xs mt-1"
+                                >
+                                    {{ form.errors.transfer_type }}
+                                </div>
+                                <div
+                                    v-if="form.errors.transfer_type_other"
+                                    class="text-red-500 text-xs mt-1"
+                                >
+                                    {{ form.errors.transfer_type_other }}
+                                </div>
+                            </div>
+
+                            <!-- REASON/S FOR TRANSFER (only applies when reassigning) -->
+                            <div v-if="hasExistingAccountable">
+                                <label
+                                    class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                                    >Reason/s for Transfer</label
+                                >
+                                <textarea
+                                    v-model="form.reason_for_transfer"
+                                    maxlength="1000"
+                                    placeholder="Reason/s for Transfer"
+                                    class="w-full h-24 rounded-md border border-gray-300 px-3 py-2 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:ring-1 focus:ring-[#005740] focus:outline-none focus:border-[#005740]"
+                                ></textarea>
+                                <div
+                                    v-if="form.errors.reason_for_transfer"
+                                    class="text-red-500 text-xs mt-1"
+                                >
+                                    {{ form.errors.reason_for_transfer }}
+                                </div>
+                            </div>
+
                             <!-- REMARKS -->
                             <div>
                                 <label
@@ -662,7 +873,9 @@ function roomSearchFilter(option, query) {
                                 ? "Update"
                                 : mode === "view"
                                   ? "Assigned Details"
-                                  : "Assign"
+                                  : hasExistingAccountable
+                                    ? "Reassign"
+                                    : "Assign"
                         }}
                     </button>
                 </div>

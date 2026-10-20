@@ -7,19 +7,25 @@ use Illuminate\Http\Request;
 
 class DisposalService
 {
+    /**
+     * The disposal module is the home of disposed property: nothing that is
+     * still in service belongs in this list.
+     */
     public function filterAndPaginateDisposal(
         ?string $search = null,
         ?string $costRange = null,
-        int|string|null $status = null,
+        int|string|null $assetConditionId = null,
         ?string $acknowledgementStatus = null,
         int $perPage = 10
     ) {
         return InventoryItem::with([
             'supplier',
             'latestHistoryLocation',
+            'latestInspection.assetCondition',
             'latestAcknowledgementItem.accountablePerson',
             'acknowledgementHistory.accountablePerson',
         ])
+            ->where('status', InventoryItem::STATUS_DISPOSED)
             ->when(
                 $search,
                 fn($query, $search) =>
@@ -40,8 +46,10 @@ class DisposalService
                 }
             })
             ->when(
-                !is_null($status),
-                fn($query) => $query->where('status', $status)
+                filled($assetConditionId),
+                fn($query) => $query->whereHas('latestInspection', function ($q) use ($assetConditionId) {
+                    $q->where('asset_condition_id', $assetConditionId);
+                })
             )
             ->when($acknowledgementStatus, function ($query, $acknowledgementStatus) {
                 if ($acknowledgementStatus === 'with_acknowledgement') {

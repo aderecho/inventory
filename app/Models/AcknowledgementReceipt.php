@@ -14,7 +14,8 @@ class AcknowledgementReceipt extends Model
         'issued_by_id',
         'category',
         'remarks',
-        'created_by'
+        'reason_for_transfer',
+        'created_by',
     ];
 
     public function inventoryItems()

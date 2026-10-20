@@ -42,4 +42,46 @@ class SupplierArchiveController extends Controller
             'success' => 'Supplier permanently deleted.',
         ]);
     }
+
+    public function batchRestore(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $suppliers = Supplier::onlyTrashed()->whereIn('id', $data['ids'])->get();
+
+        foreach ($suppliers as $supplier) {
+            $supplier->restore();
+        }
+
+        return back()->with(
+            'success',
+            $suppliers->count() === 1
+                ? 'Supplier restored successfully.'
+                : $suppliers->count() . ' suppliers restored successfully.'
+        );
+    }
+
+    public function batchForceDelete(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $suppliers = Supplier::onlyTrashed()->whereIn('id', $data['ids'])->get();
+
+        foreach ($suppliers as $supplier) {
+            $supplier->forceDelete();
+        }
+
+        return back()->with(
+            'success',
+            $suppliers->count() === 1
+                ? 'Supplier permanently deleted.'
+                : $suppliers->count() . ' suppliers permanently deleted.'
+        );
+    }
 }

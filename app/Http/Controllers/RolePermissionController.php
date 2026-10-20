@@ -12,6 +12,23 @@ class RolePermissionController extends Controller
 {
     public function __construct(protected RolePermissionService $service) {}
 
+    /** Roles and the permissions each one carries, as a page. */
+    public function rolesIndex()
+    {
+        return inertia('Roles/Index', [
+            'roles'       => Role::with('permissions')->orderBy('name')->get(['id', 'name']),
+            'permissions' => Permission::orderBy('name')->get(['id', 'name']),
+        ]);
+    }
+
+    /** The permission catalogue, grouped by module on the page. */
+    public function permissionsIndex()
+    {
+        return inertia('Permissions/Index', [
+            'permissions' => Permission::orderBy('name')->get(['id', 'name']),
+        ]);
+    }
+
     // Roles
     public function storeRole(Request $request)
     {

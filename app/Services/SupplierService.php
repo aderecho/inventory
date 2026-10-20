@@ -61,7 +61,7 @@ class SupplierService
             'contact_no' => $data['contact_no'] ?? null,
             'email' => $data['email'] ?? null,
             'address' => $data['address'] ?? null,
-            'status' => 1,
+            'status' => $data['status'] ?? 1,
         ]);
     }
 
@@ -74,6 +74,7 @@ class SupplierService
             'contact_no' => $data['contact_no'] ?? null,
             'email' => $data['email'] ?? null,
             'address' => $data['address'] ?? null,
+            'status' => $data['status'] ?? $supplier->status,
         ]);
     }
 }

@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\AssetCondition;
+use App\Models\InventoryItem;
 use Illuminate\Foundation\Http\FormRequest;
+use Closure;
 
 class StoreAssetInspectionRequest extends FormRequest
 {
@@ -18,8 +21,30 @@ class StoreAssetInspectionRequest extends FormRequest
             'inspection_date' => ['required', 'date'],
             'remarks' => ['nullable', 'string', 'max:1000'],
             'selectedItemIds' => ['required', 'array', 'min:1'],
-            'selectedItemIds.*' => ['integer', 'exists:inventory_items,id'],
+            'selectedItemIds.*' => array_filter([
+                'integer',
+                'exists:inventory_items,id',
+                // Property on loan has to come back before it can be disposed of.
+                $this->conditionDisposesItems()
+                    ? function (string $attribute, mixed $value, Closure $fail): void {
+                        $onLoan = InventoryItem::whereKey($value)
+                            ->where('status', InventoryItem::STATUS_BORROWED)
+                            ->exists();
+
+                        if ($onLoan) {
+                            $fail('An item that is out on loan cannot be disposed of until it is returned.');
+                        }
+                    }
+                    : null,
+            ]),
         ];
+    }
+
+    private function conditionDisposesItems(): bool
+    {
+        return AssetCondition::whereKey($this->input('asset_condition_id'))
+            ->where('disposition', AssetCondition::DISPOSITION_DISPOSED)
+            ->exists();
     }
 
     public function messages(): array

@@ -1,10 +1,10 @@
 <script setup>
 import { computed } from "vue";
 import { Doughnut } from "vue-chartjs";
-import { FilePieChart, HelpCircle } from "lucide-vue-next";
-import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement } from "chart.js";
+import { Chart as ChartJS, Tooltip, Legend, ArcElement } from "chart.js";
+import { FilePieChart, Info } from "lucide-vue-next";
 
-ChartJS.register(Title, Tooltip, Legend, ArcElement);
+ChartJS.register(Tooltip, Legend, ArcElement);
 
 const props = defineProps({
     icsParChartData: {
@@ -13,27 +13,33 @@ const props = defineProps({
     },
 });
 
-const totalCount = computed(() =>
-    props.icsParChartData.reduce(
-        (sum, item) => sum + Number(item.count || 0),
-        0,
-    ),
+const COLORS = ["#0E6021", "#2346A6"];
+
+const total = computed(() =>
+    props.icsParChartData.reduce((sum, row) => sum + Number(row.count || 0), 0),
 );
 
-// Consistent charting color schemes matching your original array order
-const sliceColors = ["#1B8A5C", "#2346A6"];
+const rows = computed(() =>
+    props.icsParChartData.map((row, index) => {
+        const value = Number(row.count || 0);
+
+        return {
+            label: row.label,
+            count: value,
+            percent: total.value ? (value / total.value) * 100 : 0,
+            color: COLORS[index % COLORS.length],
+        };
+    }),
+);
 
 const chartData = computed(() => ({
-    labels: props.icsParChartData.map((item) => item.label),
+    labels: rows.value.map((row) => row.label),
     datasets: [
         {
-            data: props.icsParChartData.map((item) => Number(item.count || 0)),
-            backgroundColor: sliceColors,
-            borderColor: ["#ffffff", "#ffffff"],
-            borderWidth: 3,
-            borderAlign: "inner",
-            cutout: "70%", // Creates a cleaner, thinner doughnut ring
-            hoverOffset: 12,
+            data: rows.value.map((row) => row.count),
+            backgroundColor: rows.value.map((row) => row.color),
+            borderWidth: 0,
+            hoverOffset: 6,
         },
     ],
 }));
@@ -41,118 +47,140 @@ const chartData = computed(() => ({
 const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    cutout: "74%",
     plugins: {
-        legend: { display: false }, // Relying on the clean custom legend to the right
-        title: { display: false },
+        legend: { display: false },
         tooltip: {
-            backgroundColor: "#1e293b",
+            backgroundColor: "#0f172a",
             padding: 12,
-            bodyFont: { size: 13 },
-            titleFont: { size: 13, weight: "bold" },
+            displayColors: false,
             callbacks: {
                 label: (ctx) => {
-                    const value = Number(ctx.raw || 0);
-                    const percent = totalCount.value
-                        ? ((value / totalCount.value) * 100).toFixed(1)
+                    const percent = total.value
+                        ? ((Number(ctx.raw) / total.value) * 100).toFixed(1)
                         : "0.0";
-                    return ` ${ctx.label}: ${value} (${percent}%)`;
+
+                    return " " + ctx.label + ": " + ctx.raw + " (" + percent + "%)";
                 },
             },
         },
     },
 };
 
-const legendData = computed(() =>
-    props.icsParChartData.map((item, index) => {
-        const value = Number(item.count || 0);
-        const percent = totalCount.value
-            ? ((value / totalCount.value) * 100).toFixed(1)
-            : "0";
-        return {
-            label: item.label,
-            count: value,
-            percent: percent,
-            color: sliceColors[index % sliceColors.length],
-        };
-    }),
-);
+const percentLabel = (value) => value.toFixed(1) + "%";
 </script>
 
 <template>
     <div
-        class="rounded-xl border border-gray-100 shadow-sm w-full bg-white h-full flex flex-col overflow-hidden"
+        class="flex h-full w-full flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm"
     >
+        <!-- HEADER -->
         <div
-            class="relative px-6 py-7 overflow-hidden flex-shrink-0 bg-gradient-to-br from-[#005740] via-[#004d38] to-[#003d2d]"
+            class="relative flex-shrink-0 overflow-hidden bg-gradient-to-br from-[#005740] via-[#004d38] to-[#003d2d] px-5 py-4 sm:px-6"
         >
             <div
-                class="absolute -right-4 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"
+                class="absolute -right-6 -top-10 h-28 w-28 rounded-full bg-white/10 blur-2xl"
             ></div>
 
             <div class="relative flex items-center gap-3">
-                <div
-                    class="p-2.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-white shadow-inner"
+                <span
+                    class="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white"
                 >
-                    <FilePieChart class="w-5 h-5" />
-                </div>
-                <div>
-                    <h3
-                        class="text-base font-semibold text-white tracking-tight"
-                    >
+                    <FilePieChart class="h-5 w-5" />
+                </span>
+
+                <div class="min-w-0">
+                    <h3 class="truncate text-sm font-semibold text-white">
                         Receipt Types
                     </h3>
-                    <p class="text-xs text-white/70">
-                        Proportional breakdown of ICS vs PAR allocations
+                    <p class="truncate text-xs text-white/70">
+                        Every acknowledgement receipt, split by form used
                     </p>
                 </div>
             </div>
         </div>
 
-        <div class="p-6 flex-1 min-h-0 flex flex-col overflow-hidden">
+        <!-- BODY -->
+        <div class="flex min-h-0 flex-1 flex-col p-4 sm:p-5">
             <div
-                v-if="icsParChartData.length"
-                class="flex-1 min-h-0 flex items-center gap-4"
+                v-if="total > 0"
+                class="flex flex-col items-center gap-5 sm:flex-row sm:gap-6"
             >
-                <div class="relative h-[180px] w-[180px] flex-shrink-0">
+                <div
+                    class="relative h-[168px] w-[168px] flex-shrink-0 sm:h-[150px] sm:w-[150px] lg:h-[168px] lg:w-[168px]"
+                >
                     <Doughnut :data="chartData" :options="chartOptions" />
+
+                    <div
+                        class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
+                    >
+                        <span class="text-2xl font-bold text-gray-900">
+                            {{ total.toLocaleString() }}
+                        </span>
+                        <span
+                            class="text-[10px] font-semibold uppercase tracking-wide text-gray-400"
+                        >
+                            receipts
+                        </span>
+                    </div>
                 </div>
 
-                <div class="flex-1 min-w-0 flex flex-col gap-2">
+                <div class="flex w-full min-w-0 flex-1 flex-col gap-3">
                     <div
-                        v-for="item in legendData"
-                        :key="item.label"
-                        class="flex items-center justify-between gap-2"
+                        v-for="row in rows"
+                        :key="row.label"
+                        class="rounded-lg border border-gray-100 px-3 py-2"
                     >
-                        <div class="flex items-center gap-1.5 min-w-0">
-                            <span
-                                class="w-2 h-2 rounded-full flex-shrink-0"
-                                :style="{ backgroundColor: item.color }"
-                            ></span>
-                            <span class="text-xs font-medium text-gray-600 truncate">{{ item.label }}</span>
+                        <div
+                            class="flex items-center justify-between gap-3 text-sm"
+                        >
+                            <span class="flex min-w-0 items-center gap-2">
+                                <span
+                                    class="h-2.5 w-2.5 flex-shrink-0 rounded-full"
+                                    :style="{ backgroundColor: row.color }"
+                                ></span>
+                                <span class="truncate font-medium text-gray-700">
+                                    {{ row.label }}
+                                </span>
+                            </span>
+
+                            <span class="flex-shrink-0 text-gray-500">
+                                <span class="font-semibold text-gray-900">
+                                    {{ row.count }}
+                                </span>
+                                ({{ percentLabel(row.percent) }})
+                            </span>
                         </div>
-                        <span class="text-xs font-semibold text-gray-900 flex-shrink-0">
-                            {{ item.count }}
-                            <span class="text-gray-400 font-normal">({{ item.percent }}%)</span>
-                        </span>
+
+                        <div class="mt-2 h-1.5 w-full rounded-full bg-gray-100">
+                            <div
+                                class="h-1.5 rounded-full transition-all"
+                                :style="{
+                                    width: percentLabel(row.percent),
+                                    backgroundColor: row.color,
+                                }"
+                            ></div>
+                        </div>
                     </div>
                 </div>
             </div>
 
+            <!-- EMPTY -->
             <div
                 v-else
-                class="flex flex-col items-center justify-center flex-1 py-12 text-center"
+                class="flex flex-1 flex-col items-center justify-center py-8 text-center"
             >
-                <div class="p-3 rounded-full bg-gray-50 text-gray-400 mb-3">
-                    <HelpCircle class="w-6 h-6" />
-                </div>
-                <p class="text-sm font-semibold text-gray-900">
+                <span class="mb-3 rounded-full bg-gray-50 p-3 text-gray-400">
+                    <Info class="h-5 w-5" />
+                </span>
+                <p class="text-sm font-semibold text-gray-800">
                     No Receipts Found
                 </p>
-                <p class="text-xs text-gray-500 max-w-xs mt-1">
-                    There are currently no active clearance or inventory
-                    assignment receipts logged within this dashboard slice.
+                <p class="mt-1 max-w-xs text-xs text-gray-500">
+                    No PAR or ICS receipts have been created yet.
                 </p>
             </div>
         </div>
     </div>
 </template>
+

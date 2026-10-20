@@ -25,11 +25,13 @@ class AssetConditionService
 
     public function createCondition(
         string $conditionName,
-        ?string $description = null
+        ?string $description,
+        string $disposition
     ): AssetCondition {
         return AssetCondition::create([
             'condition_name' => $conditionName,
             'description' => $description,
+            'disposition' => $disposition,
         ]);
     }
 

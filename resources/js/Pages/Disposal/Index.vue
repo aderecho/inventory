@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { usePage } from "@inertiajs/vue3";
 import { Head } from "@inertiajs/vue3";
 import Layout from "@/Layouts/Layout.vue";
@@ -9,16 +9,17 @@ import PageHeader from "@/Components/PageHeader.vue";
 import InventoryFormModal from "@/Components/Modals/InventoryFormModal.vue";
 import SearchFilterBar from "@/Components/Filters/SearchFilterBar.vue";
 import { usePermissions } from "@/Composables/usePermissions";
-import { useLoading } from "@/Composables/useLoading";
-import axios from "axios";
+import DownloadProgressCard from "@/Components/DownloadProgressCard.vue";
+import { usePrintDownload } from "@/Composables/usePrintDownload";
+import { buildIirupPayload } from "@/lib/iirupPayload";
 import { useToast } from "primevue/usetoast";
-import { ChevronDown, X } from "lucide-vue-next";
+import { ChevronDown, Printer, X } from "lucide-vue-next";
+import { Button } from "@/Components/ui/button";
 
 defineProps({
     rooms: Array,
 });
 
-const { startLoading, stopLoading } = useLoading();
 const { disposalActions } = usePermissions();
 
 const columns = [
@@ -38,8 +39,27 @@ const columns = [
     },
     { label: "Property Number", key: "property_number" },
     { label: "Serial Number", key: "serial_number" },
+    {
+        label: "Date Acquired",
+        key: "date_acquired",
+        format: (val) => val ?? "N/A",
+    },
+    { label: "Quantity", key: "quantity", format: (val) => val ?? "N/A" },
+    {
+        label: "Total Cost",
+        key: "total_amount",
+        format: (val) =>
+            val != null
+                ? "₱" +
+                  Number(val).toLocaleString("en-PH", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                  })
+                : "N/A",
+    },
     { label: "PO Number", key: "po_number" },
     { label: "Room Name", key: "room_name" },
+    { label: "Remarks", key: "remarks", format: (val) => val ?? "N/A" },
     {
         label: "Accountable Person",
         key: "latest_acknowledgement_item",
@@ -57,20 +77,14 @@ const columns = [
         },
     },
     {
-        label: "Status",
-        key: "status",
-        format: (status) => {
-            let label = "Unknown",
-                cls = "text-gray-500",
-                icon = "";
-            if (status === 0) {
-                label = "Unserviceable";
-                cls = "text-[#D32F2F] font-bold bg-[#F8D4D4] py-1 px-2 rounded-md";
-            } else if (status === 1) {
-                label = "Serviceable";
-                cls = "text-[#2E7D32] font-bold bg-[#D4F8D4] py-2 px-2 rounded-md";
+        label: "Condition",
+        key: "latest_inspection",
+        format: (val) => {
+            const condition = val?.asset_condition?.condition_name;
+            if (!condition) {
+                return `<span class="text-gray-400 italic">Not Inspected</span>`;
             }
-            return `<span class="${cls}">${icon} ${label}</span>`;
+            return `<span class="text-black font-semibold py-1 px-2">${condition}</span>`;
         },
     },
     { label: "Action", key: "action" },
@@ -99,21 +113,9 @@ const viewItem = [
     { label: "Date Acquired", key: "date_acquired" },
     { label: "Room Name", key: "room_name" },
     {
-        label: "Status",
-        key: "status",
-        format: (status) => {
-            let label = "Unknown",
-                cls = "text-gray-500",
-                icon = "";
-            if (status === 0) {
-                label = "Unservicable";
-                cls = "text-[#D32F2F] font-bold bg-[#F8D4D4] py-1 px-2 rounded-md";
-            } else if (status === 1) {
-                label = "Serviceable";
-                cls = "text-[#2E7D32] font-bold bg-[#D4F8D4] py-1 px-2 rounded-md";
-            }
-            return `<span class="${cls}">${icon} ${label}</span>`;
-        },
+        label: "Condition",
+        key: "latest_inspection.asset_condition.condition_name",
+        format: (val) => val ?? "Not Inspected",
     },
     {
         label: "Visibility",
@@ -319,15 +321,15 @@ const unitCostOptions = [
     },
 ];
 
-const filterStatus = [
+const filterCondition = computed(() => [
     {
-        label: "Status",
-        options: [
-            { label: "Serviceable", value: 1 },
-            { label: "Unserviceable", value: 0 },
-        ],
+        label: "Condition",
+        options: (page.props.assetConditions ?? []).map((condition) => ({
+            label: condition.condition_name,
+            value: condition.id,
+        })),
     },
-];
+]);
 
 const acknowledgementFilter = [
     {
@@ -350,7 +352,7 @@ const toast = useToast();
 
 // INVENTORY FILTER
 const search = ref("");
-const status = ref(null);
+const asset_condition_id = ref("");
 const cost_range = ref(null);
 const acknowledgement_status = ref("");
 
@@ -371,6 +373,25 @@ const tempSelectedIds = computed(() => Array.from(selectedItemsMap.value.keys())
 const selectedItemsDetails = computed(() =>
     Array.from(selectedItemsMap.value.values()),
 );
+
+// One print covers both IIRUP forms: the server splits the selection at
+// ₱50,000 on each item's own total cost and puts every item on the form it
+// belongs on, each starting a new page.
+function formatMoney(value) {
+    return Number(value || 0).toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+}
+
+// What one article is worth on the selected list: quantity x unit cost, the
+// same per-item total the IIRUP uses to decide which form it belongs on.
+function itemTotalCost(item) {
+    const quantity = Number(item?.quantity ?? 1) || 0;
+    const unitCost = Number(item?.unit_cost ?? 0) || 0;
+
+    return quantity * unitCost;
+}
 
 function handleSelectionChanged(ids, currentPageRows = []) {
     const idSet = new Set(ids);
@@ -412,6 +433,48 @@ function toggleSelectedPanel() {
 }
 
 async function printIirup() {
+    return printIirupForm("disposal.print.iirup.combined.stream");
+}
+
+// The toolbar sticks to the top while scrolling, exactly like the item list, so
+// its height is published as a CSS variable that the table header reads to pin
+// itself right underneath instead of sliding under it.
+const toolbarRef = ref(null);
+let toolbarObserver = null;
+
+function publishToolbarHeight() {
+    if (!toolbarRef.value) return;
+
+    document.documentElement.style.setProperty(
+        "--table-sticky-top",
+        toolbarRef.value.offsetHeight + "px",
+    );
+}
+
+onMounted(() => {
+    publishToolbarHeight();
+
+    if (typeof ResizeObserver !== "undefined" && toolbarRef.value) {
+        toolbarObserver = new ResizeObserver(publishToolbarHeight);
+        toolbarObserver.observe(toolbarRef.value);
+    }
+
+    window.addEventListener("resize", publishToolbarHeight);
+});
+
+// The IIRUP download no longer blanks the screen with the loading overlay: the
+// PDF streams back from the print endpoint while this card follows the stages
+// the server reports, so the user can keep working while it is built.
+const { job: iirupJob, download: runIirupPrint, dismiss: dismissIirupJob } =
+    usePrintDownload();
+
+onBeforeUnmount(() => {
+    toolbarObserver?.disconnect();
+    window.removeEventListener("resize", publishToolbarHeight);
+    document.documentElement.style.removeProperty("--table-sticky-top");
+});
+
+async function printIirupForm(printRoute) {
     if (tempSelectedIds.value.length === 0) {
         toast.add({
             severity: "warn",
@@ -422,70 +485,16 @@ async function printIirup() {
         return;
     }
 
-    startLoading({
+    const payload = buildIirupPayload(selectedItemsDetails.value);
+
+    await runIirupPrint({
+        url: route(printRoute),
+        payload,
         title: "Generating IIRUP",
-        message: "Preparing your report...",
+        successTitle: "IIRUP report downloaded",
+        errorTitle: "IIRUP was not generated",
+        errorMessage: "Failed to generate the IIRUP report.",
     });
-
-    try {
-        const payload = {
-            items: selectedItemsDetails.value.map((item) => ({
-                date_acquired: item.date_acquired ?? "",
-                particulars: item.item_name ?? "",
-                property_no: item.property_number ?? "",
-                qty: item.quantity ?? 1,
-                unit_measure: item.unit ?? "",
-                unit_cost: item.unit_cost ?? 0,
-                impairment_loss: item.impairment_loss ?? 0,
-                remarks: item.remarks ?? "",
-            })),
-        };
-
-        const response = await axios.post(route("disposal.print.iirup"), payload, {
-            responseType: "blob",
-        });
-
-        const blob = new Blob([response.data], { type: "application/pdf" });
-        const url = window.URL.createObjectURL(blob);
-
-        const disposition = response.headers["content-disposition"] || "";
-        const match = disposition.match(/filename="?([^"]+)"?/);
-        const fileName = match ? match[1] : `IIRUP_${Date.now()}.pdf`;
-
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-
-        toast.add({
-            severity: "success",
-            summary: "Report generated",
-            detail: "The IIRUP report has been downloaded.",
-            life: 3000,
-        });
-    } catch (error) {
-        let message = "Failed to generate the IIRUP report.";
-        if (error.response?.data instanceof Blob) {
-            try {
-                const text = await error.response.data.text();
-                const parsed = JSON.parse(text);
-                message = parsed.message || message;
-            } catch (_) {
-                // fall back to default message
-            }
-        }
-        toast.add({
-            severity: "error",
-            summary: "Error",
-            detail: message,
-            life: 4000,
-        });
-    } finally {
-        stopLoading();
-    }
 }
 </script>
 
@@ -495,93 +504,154 @@ async function printIirup() {
     <Layout>
         <Toast />
 
+        <DownloadProgressCard :job="iirupJob" @dismiss="dismissIirupJob" />
+
         <PageHeader title="Disposal" />
 
         <div class="w-full h-full">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mt-5">
-                <button
-                    type="button"
-                    @click="printIirup"
-                    :disabled="tempSelectedIds.length === 0"
-                    class="flex items-center gap-2 bg-[#0E6021] text-white text-xs font-medium px-4 py-2 rounded-full shadow-sm hover:bg-[#0a4a19] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#0E6021] flex-shrink-0"
+            <!-- TOOLBAR: print actions, selection, and filters. It sticks to the
+                 top while scrolling; the table header pins itself below it. -->
+            <div
+                ref="toolbarRef"
+                class="sticky top-0 z-30 mt-6 rounded-xl border border-gray-200 bg-white/95 p-3 shadow-sm backdrop-blur"
+            >
+                <div
+                    class="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between"
                 >
-                    Print IIRUP
-                </button>
-
-                <SearchFilterBar
-                    :search="search"
-                    :cost_range="cost_range"
-                    :status="status"
-                    :acknowledgement_status="acknowledgement_status"
-                    :unitCostOptions="unitCostOptions"
-                    :filterStatus="filterStatus"
-                    :acknowledgementFilter="acknowledgementFilter"
-                    @update:search="search = $event"
-                    @update:status="status = $event"
-                    @update:cost_range="cost_range = $event"
-                    @update:acknowledgement_status="acknowledgement_status = $event"
-                    :mode="'disposal'"
-                />
-
-                <!-- SELECTED ITEMS BADGE -->
-                <div class="relative flex-shrink-0 self-start md:self-auto">
-                    <button
-                        type="button"
-                        @click="toggleSelectedPanel"
-                        class="flex items-center gap-2 bg-white border border-gray-300 rounded-full pl-1 pr-3 py-1 shadow-sm hover:bg-gray-50 transition-colors"
-                    >
-                        <span class="flex items-center justify-center w-7 h-7 rounded-full bg-[#0E6021] text-white text-xs font-bold flex-shrink-0">
-                            {{ tempSelectedIds.length }}
-                        </span>
-                        <span class="text-xs font-medium text-gray-600 whitespace-nowrap">Selected</span>
-                        <ChevronDown
-                            class="w-4 h-4 text-gray-500 transition-transform duration-200"
-                            :class="{ 'rotate-180': showSelectedPanel }"
-                        />
-                    </button>
-
+                    <!-- PRINT ACTIONS AND THE SELECTED-ITEMS PANEL -->
                     <div
-                        v-if="showSelectedPanel"
-                        class="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-30 max-h-80 overflow-y-auto"
+                        class="flex w-full flex-col gap-2 sm:flex-row sm:items-center xl:w-auto"
                     >
-                        <div class="px-4 py-2 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white">
-                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                                Selected ({{ tempSelectedIds.length }})
-                            </p>
-                            <button
-                                v-if="tempSelectedIds.length"
+                        <div class="w-full sm:w-auto">
+                            <Button
                                 type="button"
-                                @click="clearSelection"
-                                class="text-xs text-[#850038] hover:underline"
+                                @click="printIirup"
+                                :disabled="tempSelectedIds.length === 0"
+                                class="w-full justify-center bg-[#0E6021] text-xs text-white hover:bg-[#19703a] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-[#0E6021] sm:text-sm"
                             >
-                                Clear all
-                            </button>
+                                <Printer class="h-4 w-4" />
+                                Reprint IIRUP
+                                <span
+                                    class="hidden rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold sm:inline"
+                                >
+                                    Both forms, one file
+                                </span>
+                            </Button>
                         </div>
 
-                        <ul v-if="selectedItemsDetails.length" class="divide-y divide-gray-100">
-                            <li
-                                v-for="item in selectedItemsDetails"
-                                :key="item.id"
-                                class="px-4 py-2 flex items-center gap-2 text-sm"
+                        <!-- SELECTED ITEMS BADGE -->
+                        <div class="relative flex-shrink-0">
+                            <button
+                                type="button"
+                                @click="toggleSelectedPanel"
+                                class="flex h-10 items-center gap-2 rounded-lg border bg-white pl-1.5 pr-3 shadow-sm transition-colors"
+                                :class="
+                                    showSelectedPanel
+                                        ? 'border-[#005740] ring-1 ring-[#005740]/25'
+                                        : 'border-gray-300 hover:bg-gray-50'
+                                "
                             >
-                                <button
-                                    type="button"
-                                    @click="removeFromSelection(item.id)"
-                                    class="text-gray-400 hover:text-[#D71D1D] flex-shrink-0"
-                                    title="Remove from selection"
+                                <span
+                                    class="flex h-7 min-w-7 items-center justify-center rounded-md bg-[#0E6021] px-1.5 text-xs font-bold text-white"
                                 >
-                                    <X class="w-3.5 h-3.5" />
-                                </button>
-                                <span class="text-gray-700 truncate">
-                                    {{ item.item_name }}
-                                    <template v-if="item.property_number">- {{ item.property_number }}</template>
+                                    {{ tempSelectedIds.length }}
                                 </span>
-                            </li>
-                        </ul>
+                                <span
+                                    class="whitespace-nowrap text-xs font-medium text-[#3B3B3B]"
+                                >
+                                    Selected
+                                </span>
+                                <ChevronDown
+                                    class="h-4 w-4 text-gray-500 transition-transform duration-200"
+                                    :class="{ 'rotate-180': showSelectedPanel }"
+                                />
+                            </button>
 
-                        <p v-else class="px-4 py-6 text-center text-xs text-gray-400">
-                            No items selected yet.
-                        </p>
+                            <div
+                                v-if="showSelectedPanel"
+                                class="absolute right-0 z-30 mt-2 max-h-80 w-72 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
+                            >
+                                <div
+                                    class="sticky top-0 flex items-center justify-between border-b border-gray-100 bg-white px-4 py-2"
+                                >
+                                    <p
+                                        class="text-xs font-semibold uppercase tracking-wide text-gray-500"
+                                    >
+                                        Selected ({{ tempSelectedIds.length }})
+                                    </p>
+                                    <button
+                                        v-if="tempSelectedIds.length"
+                                        type="button"
+                                        @click="clearSelection"
+                                        class="text-xs text-[#850038] hover:underline"
+                                    >
+                                        Clear all
+                                    </button>
+                                </div>
+
+                                <ul
+                                    v-if="selectedItemsDetails.length"
+                                    class="divide-y divide-gray-100"
+                                >
+                                    <li
+                                        v-for="item in selectedItemsDetails"
+                                        :key="item.id"
+                                        class="flex items-center gap-2 px-4 py-2 text-sm"
+                                    >
+                                        <button
+                                            type="button"
+                                            @click="removeFromSelection(item.id)"
+                                            class="flex-shrink-0 text-gray-400 hover:text-[#D71D1D]"
+                                            title="Remove from selection"
+                                        >
+                                            <X class="h-3.5 w-3.5" />
+                                        </button>
+                                        <span
+                                            class="min-w-0 flex-1 truncate text-gray-700"
+                                        >
+                                            {{ item.item_name }}
+                                            <template v-if="item.property_number">
+                                                - {{ item.property_number }}
+                                            </template>
+                                        </span>
+
+                                        <span
+                                            class="flex-shrink-0 text-[11px] font-semibold text-gray-500"
+                                        >
+                                            &#8369;{{ formatMoney(itemTotalCost(item)) }}
+                                        </span>
+                                    </li>
+                                </ul>
+
+                                <p
+                                    v-else
+                                    class="px-4 py-6 text-center text-xs text-gray-400"
+                                >
+                                    No items selected yet.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SEARCH; THE FILTERS SIT BEHIND THE THREE-DOT BUTTON -->
+                    <div class="w-full xl:w-auto">
+                        <SearchFilterBar
+                            :search="search"
+                            :cost_range="cost_range"
+                            :asset_condition_id="asset_condition_id"
+                            :acknowledgement_status="acknowledgement_status"
+                            :unitCostOptions="unitCostOptions"
+                            :filterCondition="filterCondition"
+                            :acknowledgementFilter="acknowledgementFilter"
+                            @update:search="search = $event"
+                            @update:asset_condition_id="asset_condition_id = $event"
+                            @update:cost_range="cost_range = $event"
+                            @update:acknowledgement_status="
+                                acknowledgement_status = $event
+                            "
+                            :mode="'disposal'"
+                            :collapsible-filters="true"
+                        />
                     </div>
                 </div>
             </div>

@@ -102,3 +102,25 @@
     @apply bg-background text-foreground;
   }
 }
+
+/*
+ * Shared modal overlay.
+ *
+ * Modal headers use a green gradient that is darkest on the left, so the
+ * backdrop is graduated the other way round: lightest on the left, a touch
+ * darker on the right. That keeps the contrast between header and backdrop
+ * roughly even across the dialog, instead of the flat rgba(0,0,0,.5) it
+ * replaced. Tune the three stops here and every modal follows.
+ *
+ * NOTE: the values below are deliberately wide apart so the graduation is
+ * obvious at a glance while it is being reviewed. Dial them back in once the
+ * look is signed off - 0.34 / 0.44 / 0.58 is the subtle version.
+ */
+.modal-backdrop {
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.22) 0%,
+    rgba(0, 0, 0, 0.45) 50%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+}

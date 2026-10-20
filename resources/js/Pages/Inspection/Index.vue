@@ -296,9 +296,10 @@ function handleDeleteCondition(condition) {
         <PageHeader title="Records with history" />
 
         <div class="w-full h-full">
-            <div class="mt-5 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+            <!-- No overflow-hidden: it would trap the table's sticky header. -->
+            <div class="mt-5 bg-white border border-gray-200 rounded-2xl shadow-sm">
                 <!-- HEADER -->
-                <div class="bg-gradient-to-r from-[#003d2c] via-[#005740] to-[#00795a] px-6 py-5">
+                <div class="rounded-t-2xl bg-gradient-to-r from-[#003d2c] via-[#005740] to-[#00795a] px-6 py-5">
                     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
                         <div>
                             <h2 class="text-xl font-bold text-white">Asset Inspection</h2>

@@ -10,29 +10,64 @@ use App\Models\ItemHistoryLocation;
 use App\Models\AcknowledgementReceipt;
 use App\Models\User;
 use App\Models\AssetInspection;
+use App\Models\AssetCondition;
 use App\Notifications\ItemsPendingApproval;
 use Spatie\Permission\Models\Permission;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use Illuminate\Support\Facades\Validator;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use Illuminate\Validation\ValidationException;
 
 
 class InventoryService
 {
+    public function __construct(
+        protected InspectionService $inspections,
+    ) {}
+
+    /**
+     * Marks the items as disposed by recording the inspection that says so; the
+     * item status then follows its own latest inspection.
+     */
+    public function disposeItems(array $itemIds, ?int $userId = null): int
+    {
+        $condition = AssetCondition::ofDisposition(AssetCondition::DISPOSITION_DISPOSED)
+            ->orderBy('id')
+            ->first();
+
+        if (! $condition) {
+            throw ValidationException::withMessages([
+                'ids' => AssetCondition::MISSING_DISPOSED_MESSAGE,
+            ]);
+        }
+
+        $result = $this->inspections->createInspections(
+            assetConditionId: $condition->id,
+            inspectionDate: now()->toDateString(),
+            remarks: 'Disposed from the item list.',
+            itemIds: array_values($itemIds),
+            inspectedBy: $userId,
+        );
+
+        return $result['created_count'];
+    }
+
     public function filterAndPaginateInventory(
         ?string $search = null,
         ?string $costRange = null,
         ?int $assetConditionId = null,
         ?string $acknowledgementStatus = null,
         ?int $roomId = null,
-        int $perPage = 10
+        int $perPage = 10,
+        ?string $status = null
     ) {
         return InventoryItem::with([
             'itemClassification',
             'supplier',
             'latestInspection.assetCondition',
             'latestAcknowledgementItem.accountablePerson',
+            'latestAcknowledgementItem.acknowledgementReceipts',
             'acknowledgementHistory.accountablePerson',
             'acknowledgementHistory.acknowledgementReceipts',
             'latestHistoryLocation',
@@ -71,11 +106,48 @@ class InventoryService
                     $query->whereDoesntHave('latestAcknowledgementItem');
                 }
             })
+            // Disposed property is out of the inventory list unless the caller
+            // asks for that status on purpose.
+            ->when(
+                $status,
+                fn ($query, $status) => $query->where('status', $status),
+                fn ($query) => $query->where('status', '!=', InventoryItem::STATUS_DISPOSED)
+            )
             ->when($roomId, function ($query, $roomId) {
                 $query->whereHas('latestHistoryLocation', function ($q) use ($roomId) {
                     $q->where('room_id', $roomId);
                 });
             })
+            ->orderByDesc('created_at')
+            ->paginate($perPage)
+            ->withQueryString();
+    }
+
+    /**
+     * Item Approval: the items the accountable person has accepted, turned
+     * down, or not answered yet. Only the columns the approval list shows.
+     */
+    public function filterAndPaginateApprovals(
+        ?string $search = null,
+        ?string $approvalStatus = null,
+        int $perPage = 10
+    ) {
+        return InventoryItem::query()
+            ->select([
+                'id',
+                'item_name',
+                'property_number',
+                'unit_cost',
+                'approval_status',
+                'created_at',
+            ])
+            ->with([
+                'latestAcknowledgementItem.accountablePerson',
+                'latestAcknowledgementItem.acknowledgementReceipts',
+                'latestHistoryLocation',
+            ])
+            ->when($search, fn ($query, $search) => $query->search($search))
+            ->when($approvalStatus, fn ($query, $status) => $query->where('approval_status', $status))
             ->orderByDesc('created_at')
             ->paginate($perPage)
             ->withQueryString();
@@ -111,20 +183,27 @@ class InventoryService
         $seriesNumber = (int) array_pop($parts);
         $prefix = implode('-', $parts) . '-';
 
-        $lastReceipt = AcknowledgementReceipt::where('category', 'like', $prefix . '%')
-            ->orderByRaw('CAST(SUBSTRING_INDEX(category, "-", -1) AS UNSIGNED) DESC')
-            ->first();
-
-        $increment = $lastReceipt
-            ? ((int) last(explode('-', $lastReceipt->category))) + 1
-            : $seriesNumber;
+        $increment = $seriesNumber;
 
         $accountablePerson = User::with('userProfiles')
             ->find($data['accountable_persons_id']);
 
+        // Items someone already held are being reassigned (checked before the new rows exist).
+        $previouslyAssigned = AcknowledgementItem::whereIn('inventory_item_id', $itemIds)
+            ->distinct()
+            ->pluck('inventory_item_id')
+            ->flip();
+
+        $transferTypeOther = trim((string) ($data['transfer_type_other'] ?? '')) ?: null;
+        $approvedBy = $data['approved_by'] ?? null;
+        $reasonForTransfer = trim((string) ($data['reason_for_transfer'] ?? '')) ?: null;
+
         foreach ($groupedByPo as $poNumber => $groupedItemIds) {
 
             $category = $prefix . $increment;
+
+            $isReassignment = collect($groupedItemIds)
+                ->every(fn($itemId) => $previouslyAssigned->has($itemId));
 
             $ack = AcknowledgementReceipt::create([
                 'issued_by_id' => $data['issued_by_id'],
@@ -132,19 +211,28 @@ class InventoryService
                 'created_by'   => $data['created_by'],
                 'par_date'     => $data['par_date'],
                 'remarks'      => $data['remarks'] ?? null,
+                // The reason is printed on the ITR/PTR, so it only applies to reassignments.
+                'reason_for_transfer' => $isReassignment ? $reasonForTransfer : null,
             ]);
 
             $assignedItems = [];
 
             foreach ($groupedItemIds as $itemId) {
 
-                AcknowledgementItem::create([
+                $acknowledgementItem = AcknowledgementItem::create([
                     'acknowledgement_id'    => $ack->id,
                     'inventory_item_id'     => $itemId,
                     'accountable_person_id' => $data['accountable_persons_id'],
                     'issued_by_id'          => $data['issued_by_id'],
+                    // Approval only applies when the item is being reassigned.
+                    'approved_by'           => $previouslyAssigned->has($itemId) ? $approvedBy : null,
                     'status'                => 1,
+                    'transfer_type_other'   => $transferTypeOther,
                 ]);
+
+                if (! empty($data['transfer_type'])) {
+                    $acknowledgementItem->transferTypes()->sync($data['transfer_type']);
+                }
 
                 InventoryItem::where('id', $itemId)->update([
                     'approval_status' => 'pending',
@@ -168,9 +256,12 @@ class InventoryService
             }
 
             if ($accountablePerson) {
-                $documentType = collect($assignedItems)->sum('unit_cost') >= 50000
-                    ? 'PAR'
-                    : 'ICS';
+                $documentType = match (true) {
+                    collect($assignedItems)->sum('unit_cost') >= 50000 && $isReassignment => 'PTR',
+                    collect($assignedItems)->sum('unit_cost') >= 50000 => 'PAR',
+                    $isReassignment => 'ITR',
+                    default => 'ICS',
+                };
 
                 $accountablePerson->notify(
                     new ItemsPendingApproval(

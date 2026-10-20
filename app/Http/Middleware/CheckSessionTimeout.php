@@ -8,13 +8,15 @@ use Illuminate\Support\Facades\Auth;
 
 class CheckSessionTimeout
 {
-    protected int $absoluteTimeout;      // 2 hours - hard session cap
-    protected int $idleTimeout = 900;    // 15 minutes - inactivity logout
-    protected int $regenerateInterval = 1800; // 30 minutes - token refresh
+    protected int $absoluteTimeout;      // session cap, from session.lifetime
+    protected int $idleTimeout;          // inactivity logout
+    protected int $regenerateInterval;   // silent id + CSRF rotation
 
     public function __construct()
     {
-        $this->absoluteTimeout = config('session.lifetime') * 60;
+        $this->absoluteTimeout = (int) config('session.lifetime') * 60;
+        $this->idleTimeout = (int) config('session.idle_timeout', 900);
+        $this->regenerateInterval = (int) config('session.regenerate_interval', 1800);
     }
 
     public function handle(Request $request, Closure $next)

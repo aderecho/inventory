@@ -86,8 +86,9 @@
         }
 
         .header-center .campus {
-            font-size: 8.5pt;
-            margin-top: 1mm;
+            font-size: 11pt;
+            font-weight: bold;
+            text-transform: uppercase;
         }
 
         .right-logo {

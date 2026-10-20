@@ -11,17 +11,27 @@ use Spatie\Browsershot\Browsershot;
 class DownloadPdfService
 {
     private RoomApiService $roomsApi;
+    private QrImageService $qrImages;
 
-    public function __construct(RoomApiService $roomsApi)
+    public function __construct(RoomApiService $roomsApi, QrImageService $qrImages)
     {
         $this->roomsApi = $roomsApi;
+        $this->qrImages = $qrImages;
     }
 
-    public function generateQrPdf(array $ids): string
+    public function generateQrPdf(array $ids, ?callable $onProgress = null): string
     {
+        $report = function (int $percent, string $step) use ($onProgress): void {
+            if ($onProgress) {
+                $onProgress($percent, $step);
+            }
+        };
+
         if (empty($ids)) {
             abort(422, 'No items selected.');
         }
+
+        $report(10, 'Loading the selected items');
 
         $items = InventoryItem::with([
             'latestAcknowledgementItem.accountablePerson',
@@ -33,6 +43,8 @@ class DownloadPdfService
             abort(422, 'No valid items found.');
         }
 
+        $report(25, 'Resolving room names');
+
         $roomResult = $this->roomsApi->fetchRooms();
         $rooms = collect($roomResult['data'])->keyBy('id');
 
@@ -43,13 +55,23 @@ class DownloadPdfService
             $roomNames[$item->id] = $rooms[$roomId]['room_name'] ?? 'N/A';
         }
 
+        $qrImages = [];
+
+        foreach ($items as $item) {
+            $qrImages[$item->id] = $this->qrImages->dataUri($item->property_number, 260, 0);
+        }
+
         try {
-            return $this->generateWithBrowsershot($items, $roomNames);
+            $report(45, 'Rendering the sticker sheet');
+
+            return $this->generateWithBrowsershot($items, $roomNames, $qrImages);
         } catch (Exception $e) {
             Log::error('Browsershot PDF generation failed: ' . $e->getMessage());
 
             try {
-                return $this->generateWithDomPdf($items, $roomNames);
+                $report(45, 'Rendering the sticker sheet');
+
+                return $this->generateWithDomPdf($items, $roomNames, $qrImages);
             } catch (Exception $e2) {
                 Log::error('DOMPDF fallback also failed: ' . $e2->getMessage());
 
@@ -58,17 +80,19 @@ class DownloadPdfService
         }
     }
 
-    private function generateWithBrowsershot($items, array $roomNames): string
+    private function generateWithBrowsershot($items, array $roomNames, array $qrImages): string
     {
         $html = view('prints.inventory_qr_browsershot', [
             'items' => $items,
             'roomNames' => $roomNames,
+            'qrImages' => $qrImages,
         ])->render();
 
         $filename = 'qr-codes-' . now()->timestamp . '-bs.pdf';
         $path = storage_path('app/' . $filename);
 
         $shot = Browsershot::html($html)
+            ->setChromePath('/usr/bin/chromium')
             ->showBackground()
             ->addChromiumArguments([
                 'no-sandbox',
@@ -90,11 +114,12 @@ class DownloadPdfService
         return $path;
     }
 
-    private function generateWithDomPdf($items, array $roomNames): string
+    private function generateWithDomPdf($items, array $roomNames, array $qrImages): string
     {
         $pdf = Pdf::loadView('prints.inventory_qr_browsershot', [
             'items' => $items,
             'roomNames' => $roomNames,
+            'qrImages' => $qrImages,
         ]);
 
         $filename = 'qr-codes-' . now()->timestamp . '.pdf';

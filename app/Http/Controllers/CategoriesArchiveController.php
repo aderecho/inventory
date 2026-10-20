@@ -42,4 +42,50 @@ class CategoriesArchiveController extends Controller
             'success' => 'Category permanently deleted.',
         ]);
     }
+
+    public function batchRestore(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $categories = ItemClassification::onlyTrashed()
+            ->whereIn('id', $data['ids'])
+            ->get();
+
+        foreach ($categories as $category) {
+            $category->restore();
+        }
+
+        return back()->with(
+            'success',
+            $categories->count() === 1
+                ? 'Category restored successfully.'
+                : $categories->count() . ' categories restored successfully.'
+        );
+    }
+
+    public function batchForceDelete(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $categories = ItemClassification::onlyTrashed()
+            ->whereIn('id', $data['ids'])
+            ->get();
+
+        foreach ($categories as $category) {
+            $category->forceDelete();
+        }
+
+        return back()->with(
+            'success',
+            $categories->count() === 1
+                ? 'Category permanently deleted.'
+                : $categories->count() . ' categories permanently deleted.'
+        );
+    }
 }

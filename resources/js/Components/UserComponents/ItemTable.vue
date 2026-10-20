@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, onUnmounted } from "vue";
 import { router } from "@inertiajs/vue3";
+import { motion } from "motion-v";
 
 const props = defineProps({
     items: {
@@ -29,6 +30,33 @@ const selectedItem = ref(null);
 const copiedField = ref(null);
 const processingId = ref(null);
 
+// Instant action tooltip: native title attributes wait about a second before
+// showing, which feels broken on this table.
+const actionTooltip = ref({ visible: false, text: "", x: 0, y: 0 });
+
+function showActionTooltip(event, text) {
+    actionTooltip.value = {
+        visible: true,
+        text,
+        x: event.clientX,
+        y: event.clientY,
+    };
+}
+
+function moveActionTooltip(event) {
+    if (!actionTooltip.value.visible) return;
+
+    actionTooltip.value = {
+        ...actionTooltip.value,
+        x: event.clientX,
+        y: event.clientY,
+    };
+}
+
+function hideActionTooltip() {
+    actionTooltip.value = { ...actionTooltip.value, visible: false };
+}
+
 const openModal = (item) => {
     selectedItem.value = item;
     isModalOpen.value = true;
@@ -54,21 +82,6 @@ const isPending = (item) =>
 
 const receiptOf = (item) =>
     item?.latest_acknowledgement_item?.acknowledgement_receipts ?? null;
-
-const fileLabel = (file, index) => {
-    const path = file?.file_path ?? file?.name ?? "";
-    const name = path.split("/").pop();
-    return name || `File ${index + 1}`;
-};
-
-const fileIcon = (file) => {
-    const name = (file?.file_path ?? "").toLowerCase();
-    if (name.endsWith(".pdf")) return "fa-file-pdf";
-    if (/\.(png|jpe?g|gif|webp|svg)$/.test(name)) return "fa-file-image";
-    if (/\.(xlsx?|csv)$/.test(name)) return "fa-file-excel";
-    if (/\.docx?$/.test(name)) return "fa-file-word";
-    return "fa-file-lines";
-};
 
 async function copyText(label, text) {
     if (!text || text === "N/A") return;
@@ -164,10 +177,10 @@ onUnmounted(() => {
     <div class="overflow-x-auto">
         <table class="w-full">
             <thead>
-                <tr class="bg-gray-50 border-b border-gray-200">
+                <tr class="border-b border-[#00432f] bg-[#005740]">
                     <th
                         @click="toggleSort('item_name')"
-                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 font-['Poppins'] cursor-pointer select-none hover:text-[#005740] transition-colors"
+                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/90 font-['Poppins'] cursor-pointer select-none hover:text-white transition-colors"
                     >
                         <span class="inline-flex items-center gap-1">
                             Item
@@ -176,35 +189,35 @@ onUnmounted(() => {
                                 :class="
                                     sortKey === 'item_name'
                                         ? sortDirection === 'asc'
-                                            ? 'fa-arrow-up text-[#005740]'
-                                            : 'fa-arrow-down text-[#005740]'
-                                        : 'fa-sort text-gray-300'
+                                            ? 'fa-arrow-up text-white'
+                                            : 'fa-arrow-down text-white'
+                                        : 'fa-sort text-white/40'
                                 "
                             ></i>
                         </span>
                     </th>
 
                     <th
-                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 font-['Poppins']"
+                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/90 font-['Poppins']"
                     >
                         Property Number
                     </th>
 
                     <th
-                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 font-['Poppins']"
+                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/90 font-['Poppins']"
                     >
                         Unit Cost
                     </th>
 
                     <th
-                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 font-['Poppins']"
+                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/90 font-['Poppins']"
                     >
                         Facility
                     </th>
 
                     <th
                         @click="toggleSort('date_assigned')"
-                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 font-['Poppins'] cursor-pointer select-none hover:text-[#005740] transition-colors"
+                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/90 font-['Poppins'] cursor-pointer select-none hover:text-white transition-colors"
                     >
                         <span class="inline-flex items-center gap-1">
                             Date Assigned
@@ -213,9 +226,9 @@ onUnmounted(() => {
                                 :class="
                                     sortKey === 'date_assigned'
                                         ? sortDirection === 'asc'
-                                            ? 'fa-arrow-up text-[#005740]'
-                                            : 'fa-arrow-down text-[#005740]'
-                                        : 'fa-sort text-gray-300'
+                                            ? 'fa-arrow-up text-white'
+                                            : 'fa-arrow-down text-white'
+                                        : 'fa-sort text-white/40'
                                 "
                             ></i>
                         </span>
@@ -223,7 +236,7 @@ onUnmounted(() => {
 
                     <th
                         @click="toggleSort('date_acquired')"
-                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 font-['Poppins'] cursor-pointer select-none hover:text-[#005740] transition-colors"
+                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/90 font-['Poppins'] cursor-pointer select-none hover:text-white transition-colors"
                     >
                         <span class="inline-flex items-center gap-1">
                             Date Acquired
@@ -232,28 +245,28 @@ onUnmounted(() => {
                                 :class="
                                     sortKey === 'date_acquired'
                                         ? sortDirection === 'asc'
-                                            ? 'fa-arrow-up text-[#005740]'
-                                            : 'fa-arrow-down text-[#005740]'
-                                        : 'fa-sort text-gray-300'
+                                            ? 'fa-arrow-up text-white'
+                                            : 'fa-arrow-down text-white'
+                                        : 'fa-sort text-white/40'
                                 "
                             ></i>
                         </span>
                     </th>
 
                     <th
-                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 font-['Poppins']"
+                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/90 font-['Poppins']"
                     >
                         Receipt
                     </th>
 
                     <th
-                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 font-['Poppins']"
+                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/90 font-['Poppins']"
                     >
                         Approval
                     </th>
 
                     <th
-                        class="px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 font-['Poppins']"
+                        class="px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider text-white/90 font-['Poppins']"
                     >
                         Actions
                     </th>
@@ -264,32 +277,41 @@ onUnmounted(() => {
                 <tr
                     v-for="item in items.data"
                     :key="item.id"
-                    class="border-b border-gray-100 hover:bg-gray-50 hover:shadow-sm transition-all duration-150"
+                    class="cursor-pointer border-b border-gray-100 transition-colors odd:bg-white even:bg-[#005740]/[0.02] hover:bg-[#005740]/[0.05]"
+                    @click="openModal(item)"
                 >
-                    <td class="px-6 py-5 font-['Poppins']">
-                        <div>
-                            <p class="font-semibold text-gray-900 text-[13px]">
-                                {{ item.item_name }}
-                            </p>
-                            <p class="text-[12px] text-gray-400 mt-0.5">
-                                {{ item.serial_number ?? "No Serial Number" }}
-                            </p>
+                    <td class="px-6 py-4 font-['Poppins']">
+                        <div class="flex items-center gap-3">
+                            <span
+                                class="hidden h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#005740]/10 text-[#005740] sm:flex"
+                            >
+                                <i class="fa-solid fa-box text-[11px]"></i>
+                            </span>
+
+                            <div class="min-w-0">
+                                <p class="truncate text-[13px] font-semibold text-gray-900">
+                                    {{ item.item_name }}
+                                </p>
+                                <p class="mt-0.5 truncate text-[12px] text-gray-400">
+                                    {{ item.serial_number ?? "No Serial Number" }}
+                                </p>
+                            </div>
                         </div>
                     </td>
 
-                    <td class="px-6 py-5 font-['Poppins']">
+                    <td class="px-6 py-4 font-['Poppins']">
                         <span class="text-[13px] font-medium text-gray-700">
                             {{ item.property_number }}
                         </span>
                     </td>
 
-                    <td class="px-6 py-5 font-['Poppins']">
-                        <span class="text-[13px] font-semibold text-[#850038]">
+                    <td class="px-6 py-4 font-['Poppins']">
+                        <span class="text-[13px] font-semibold text-[#005740]">
                             {{ formatCurrency(item.unit_cost) }}
                         </span>
                     </td>
 
-                    <td class="px-6 py-5 font-['Poppins']">
+                    <td class="px-6 py-4 font-['Poppins']">
                         <div>
                             <p class="font-semibold text-gray-900 text-[13px]">
                                 {{ item.room_name ?? "N/A" }}
@@ -305,7 +327,7 @@ onUnmounted(() => {
                         </div>
                     </td>
 
-                    <td class="px-6 py-5 font-['Poppins']">
+                    <td class="px-6 py-4 font-['Poppins']">
                         <span class="text-[13px] text-gray-600">
                             {{
                                 formatDate(
@@ -316,13 +338,13 @@ onUnmounted(() => {
                         </span>
                     </td>
 
-                    <td class="px-6 py-5 font-['Poppins']">
+                    <td class="px-6 py-4 font-['Poppins']">
                         <span class="text-[13px] text-gray-600">
                             {{ formatDate(item.date_acquired) }}
                         </span>
                     </td>
 
-                    <td class="px-6 py-5 font-['Poppins']">
+                    <td class="px-6 py-4 font-['Poppins']">
                         <span class="text-[13px] text-gray-600">
                             {{
                                 item.latest_acknowledgement_item
@@ -332,44 +354,57 @@ onUnmounted(() => {
                         </span>
                     </td>
 
-                    <td class="px-6 py-5 font-['Poppins']">
+                    <td class="px-6 py-4 font-['Poppins']">
                         <span
                             :class="[
-                                'inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border',
+                                'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold',
                                 approvalBadge(item.approval_status).cls,
                             ]"
                         >
+                            <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
                             {{ approvalBadge(item.approval_status).label }}
                         </span>
                     </td>
 
-                    <td class="px-6 py-5 font-['Poppins']">
-                        <div class="flex items-center justify-center gap-2">
+                    <td class="px-6 py-4 font-['Poppins']" @click.stop>
+                        <div class="flex items-center justify-center gap-1.5">
                             <button
+                                type="button"
                                 @click="openModal(item)"
-                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold bg-[#850038]/10 text-[#850038] hover:bg-[#850038] hover:text-white transition-colors"
+                                class="flex h-8 w-8 items-center justify-center rounded-lg bg-[#005740]/10 text-[#005740] transition-colors hover:bg-[#005740] hover:text-white"
+                                aria-label="View details"
+                                @mouseenter="showActionTooltip($event, 'View details')"
+                                @mousemove="moveActionTooltip"
+                                @mouseleave="hideActionTooltip"
                             >
-                                <i class="fa-solid fa-eye text-xs"></i>
-                                View
+                                <i class="fa-solid fa-eye text-[11px]"></i>
                             </button>
 
                             <template v-if="isPending(item)">
                                 <button
+                                    type="button"
                                     @click="approveItem(item)"
                                     :disabled="processingId === item.id"
-                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold bg-green-50 text-green-700 hover:bg-green-600 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    class="flex h-8 w-8 items-center justify-center rounded-lg bg-green-50 text-green-700 transition-colors hover:bg-green-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                    aria-label="Approve item"
+                                    @mouseenter="showActionTooltip($event, 'Approve item')"
+                                    @mousemove="moveActionTooltip"
+                                    @mouseleave="hideActionTooltip"
                                 >
-                                    <i class="fa-solid fa-check text-xs"></i>
-                                    Approve
+                                    <i class="fa-solid fa-check text-[11px]"></i>
                                 </button>
 
                                 <button
+                                    type="button"
                                     @click="rejectItem(item)"
                                     :disabled="processingId === item.id"
-                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-700 hover:bg-red-600 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-700 transition-colors hover:bg-red-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                    aria-label="Reject item"
+                                    @mouseenter="showActionTooltip($event, 'Reject item')"
+                                    @mousemove="moveActionTooltip"
+                                    @mouseleave="hideActionTooltip"
                                 >
-                                    <i class="fa-solid fa-xmark text-xs"></i>
-                                    Reject
+                                    <i class="fa-solid fa-xmark text-[11px]"></i>
                                 </button>
                             </template>
                         </div>
@@ -422,7 +457,7 @@ onUnmounted(() => {
                     class="flex items-center gap-1.5 px-4 py-2 text-[12px] font-medium rounded-lg border border-gray-200 transition-colors duration-150"
                     :class="
                         items.prev_page_url
-                            ? 'text-gray-700 hover:bg-[#850038] hover:text-white hover:border-[#850038]'
+                            ? 'text-gray-700 hover:bg-[#005740] hover:text-white hover:border-[#005740]'
                             : 'text-gray-300 cursor-not-allowed bg-gray-50'
                     "
                 >
@@ -448,7 +483,7 @@ onUnmounted(() => {
                     class="flex items-center gap-1.5 px-4 py-2 text-[12px] font-medium rounded-lg border border-gray-200 transition-colors duration-150"
                     :class="
                         items.next_page_url
-                            ? 'text-gray-700 hover:bg-[#850038] hover:text-white hover:border-[#850038]'
+                            ? 'text-gray-700 hover:bg-[#005740] hover:text-white hover:border-[#005740]'
                             : 'text-gray-300 cursor-not-allowed bg-gray-50'
                     "
                 >
@@ -472,477 +507,349 @@ onUnmounted(() => {
 
         <Teleport to="body">
             <div
+                v-if="actionTooltip.visible"
+                class="pointer-events-none fixed z-[80] -translate-x-1/2 -translate-y-full rounded-md bg-gray-900 px-2 py-1 text-[11px] font-medium text-white shadow-lg"
+                :style="{
+                    left: actionTooltip.x + 'px',
+                    top: actionTooltip.y - 12 + 'px',
+                }"
+            >
+                {{ actionTooltip.text }}
+                <span
+                    class="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-gray-900"
+                ></span>
+            </div>
+        </Teleport>
+
+        <Teleport to="body">
+            <motion.div
                 v-if="isModalOpen"
-                class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/45 backdrop-blur-[2px] px-0 sm:px-4 font-['Poppins']"
+                class="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-0 backdrop-blur-[2px] sm:items-center sm:p-4"
+                :initial="{ opacity: 0 }"
+                :animate="{ opacity: 1 }"
                 @click.self="closeModal"
             >
-                <div
-                    class="bg-white w-full sm:max-w-3xl sm:rounded-2xl rounded-t-2xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden"
+                <motion.div
+                    class="flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:max-w-4xl sm:rounded-2xl"
+                    :initial="{ opacity: 0, y: 24, scale: 0.98 }"
+                    :animate="{ opacity: 1, y: 0, scale: 1 }"
+                    :transition="{ type: 'spring', stiffness: 300, damping: 30 }"
                 >
-                    <div
-                        class="relative shrink-0 px-5 sm:px-6 pt-5 pb-5 bg-gradient-to-r from-[#005740] via-[#006B4F] to-[#0E6021]"
-                    >
-                        <div
-                            class="pointer-events-none absolute inset-0 opacity-20"
-                            style="
-                                background-image: radial-gradient(
-                                    circle at 90% 10%,
-                                    #fff 0,
-                                    transparent 42%
-                                );
-                            "
-                        ></div>
-
-                        <div class="relative flex items-start gap-3">
-                            <div
-                                class="h-12 w-12 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0"
-                            >
-                                <i
-                                    class="fa-solid fa-box-open text-white text-lg"
-                                ></i>
-                            </div>
-
-                            <div class="min-w-0 flex-1">
-                                <p
-                                    class="text-[10px] uppercase tracking-[0.16em] text-white/70 font-semibold"
-                                >
-                                    Item details
-                                </p>
-                                <h3
-                                    class="text-[18px] font-semibold text-white leading-snug truncate mt-0.5"
-                                >
-                                    {{
-                                        selectedItem?.item_name ??
-                                        "Untitled item"
-                                    }}
-                                </h3>
-                                <p
-                                    class="text-[12px] text-white/75 mt-1 truncate"
-                                >
-                                    {{
-                                        selectedItem?.property_number ??
-                                        "No property number"
-                                    }}
-                                    <span class="text-white/40 mx-1.5">·</span>
-                                    {{
-                                        selectedItem?.serial_number ??
-                                        "No serial number"
-                                    }}
-                                </p>
-                            </div>
-
-                            <div class="flex items-center gap-2 shrink-0">
-                                <span
-                                    v-if="selectedItem"
-                                    :class="[
-                                        'hidden sm:inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border bg-white/95',
-                                        approvalBadge(
-                                            selectedItem.approval_status,
-                                        ).cls,
-                                    ]"
-                                >
-                                    {{
-                                        approvalBadge(
-                                            selectedItem.approval_status,
-                                        ).label
-                                    }}
-                                </span>
-                                <button
-                                    @click="closeModal"
-                                    class="w-8 h-8 flex items-center justify-center rounded-full text-white/80 hover:bg-white/15 hover:text-white transition-colors"
-                                >
-                                    <i class="fa-solid fa-xmark"></i>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div
-                            v-if="selectedItem"
-                            class="relative mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2"
-                        >
-                            <div
-                                class="rounded-xl bg-white/10 border border-white/10 px-3 py-2.5"
-                            >
-                                <p
-                                    class="text-[10px] uppercase tracking-wider text-white/60"
-                                >
-                                    Unit cost
-                                </p>
-                                <p
-                                    class="text-[13px] font-semibold text-white mt-0.5"
-                                >
-                                    {{ formatCurrency(selectedItem.unit_cost) }}
-                                </p>
-                            </div>
-                            <div
-                                class="rounded-xl bg-white/10 border border-white/10 px-3 py-2.5"
-                            >
-                                <p
-                                    class="text-[10px] uppercase tracking-wider text-white/60"
-                                >
-                                    Facility
-                                </p>
-                                <p
-                                    class="text-[13px] font-semibold text-white mt-0.5 truncate"
-                                >
-                                    {{ selectedItem.room_name ?? "N/A" }}
-                                </p>
-                            </div>
-                            <div
-                                class="rounded-xl bg-white/10 border border-white/10 px-3 py-2.5"
-                            >
-                                <p
-                                    class="text-[10px] uppercase tracking-wider text-white/60"
-                                >
-                                    Date assigned
-                                </p>
-                                <p
-                                    class="text-[13px] font-semibold text-white mt-0.5"
-                                >
-                                    {{
-                                        formatDate(
-                                            receiptOf(selectedItem)?.par_date,
-                                        )
-                                    }}
-                                </p>
-                            </div>
-                            <div
-                                class="rounded-xl bg-white/10 border border-white/10 px-3 py-2.5"
-                            >
-                                <p
-                                    class="text-[10px] uppercase tracking-wider text-white/60"
-                                >
-                                    Receipt
-                                </p>
-                                <p
-                                    class="text-[13px] font-semibold text-white mt-0.5 truncate"
-                                >
-                                    {{
-                                        receiptOf(selectedItem)?.category ??
-                                        "N/A"
-                                    }}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div
-                        v-if="selectedItem"
-                        class="flex-1 overflow-y-auto px-5 sm:px-6 py-5 space-y-5"
-                    >
+                    <!-- HEADER -->
+                    <div class="relative flex items-start gap-3 border-b border-gray-100 px-5 pb-4 pt-5 sm:px-6">
                         <span
-                            class="sm:hidden inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border"
-                            :class="
-                                approvalBadge(selectedItem.approval_status).cls
-                            "
+                            class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#003d2c] via-[#005740] to-[#0E6021]"
+                        ></span>
+
+                        <span
+                            class="mt-0.5 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#005740]/10 text-[#005740]"
                         >
-                            {{
-                                approvalBadge(selectedItem.approval_status)
-                                    .label
-                            }}
+                            <i class="fa-solid fa-box-open text-lg"></i>
                         </span>
 
-                        <section>
-                            <div class="flex items-center gap-2 mb-3">
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-[#005740]">
+                                Item details
+                            </p>
+                            <h3 class="mt-0.5 truncate text-lg font-bold text-[#1b1b1b]">
+                                {{ selectedItem?.item_name ?? "Untitled item" }}
+                            </h3>
+
+                            <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
                                 <span
-                                    class="w-1 h-4 rounded-full bg-[#005740]"
-                                ></span>
-                                <h4
-                                    class="text-[11px] font-semibold uppercase tracking-wider text-[#005740]"
+                                    class="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-600"
                                 >
-                                    Identification
-                                </h4>
-                            </div>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div
-                                    class="rounded-xl border border-gray-100 bg-gray-50/70 px-4 py-3"
-                                >
-                                    <p
-                                        class="text-[10px] uppercase tracking-wider text-gray-400 font-semibold"
-                                    >
-                                        Item name
-                                    </p>
-                                    <p
-                                        class="text-[13px] font-semibold text-gray-900 mt-1"
-                                    >
-                                        {{ selectedItem.item_name ?? "N/A" }}
-                                    </p>
-                                </div>
+                                    {{ selectedItem?.property_number ?? "No property number" }}
 
-                                <div
-                                    class="rounded-xl border border-gray-100 bg-gray-50/70 px-4 py-3"
-                                >
-                                    <p
-                                        class="text-[10px] uppercase tracking-wider text-gray-400 font-semibold"
-                                    >
-                                        Property number
-                                    </p>
-                                    <div
-                                        class="flex items-center justify-between gap-2 mt-1"
-                                    >
-                                        <p
-                                            class="text-[13px] font-medium text-gray-800 truncate"
-                                        >
-                                            {{
-                                                selectedItem.property_number ??
-                                                "N/A"
-                                            }}
-                                        </p>
-                                        <button
-                                            type="button"
-                                            class="shrink-0 text-[11px] text-[#005740] hover:text-[#0E6021]"
-                                            @click="
-                                                copyText(
-                                                    'property',
-                                                    selectedItem.property_number,
-                                                )
-                                            "
-                                        >
-                                            {{
-                                                copiedField === "property"
-                                                    ? "Copied"
-                                                    : "Copy"
-                                            }}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div
-                                    class="rounded-xl border border-gray-100 bg-gray-50/70 px-4 py-3"
-                                >
-                                    <p
-                                        class="text-[10px] uppercase tracking-wider text-gray-400 font-semibold"
-                                    >
-                                        Serial number
-                                    </p>
-                                    <p
-                                        class="text-[13px] font-medium text-gray-800 mt-1"
-                                    >
-                                        {{
-                                            selectedItem.serial_number ??
-                                            "No Serial Number"
-                                        }}
-                                    </p>
-                                </div>
-
-                                <div
-                                    class="rounded-xl border border-gray-100 bg-gray-50/70 px-4 py-3"
-                                >
-                                    <p
-                                        class="text-[10px] uppercase tracking-wider text-gray-400 font-semibold"
-                                    >
-                                        Date acquired
-                                    </p>
-                                    <p class="text-[13px] text-gray-700 mt-1">
-                                        {{
-                                            formatDate(
-                                                selectedItem.date_acquired,
+                                    <button
+                                        v-if="selectedItem"
+                                        type="button"
+                                        class="text-[#005740] transition-colors hover:text-[#0E6021]"
+                                        :title="copiedField === 'property' ? 'Copied' : 'Copy property number'"
+                                        @click="
+                                            copyText(
+                                                'property',
+                                                selectedItem.property_number,
                                             )
-                                        }}
-                                    </p>
-                                </div>
-                            </div>
-                        </section>
+                                        "
+                                    >
+                                        <i
+                                            class="fa-solid text-[10px]"
+                                            :class="
+                                                copiedField === 'property'
+                                                    ? 'fa-check'
+                                                    : 'fa-copy'
+                                            "
+                                        ></i>
+                                    </button>
+                                </span>
 
-                        <section>
-                            <div class="flex items-center gap-2 mb-3">
                                 <span
-                                    class="w-1 h-4 rounded-full bg-[#005740]"
-                                ></span>
-                                <h4
-                                    class="text-[11px] font-semibold uppercase tracking-wider text-[#005740]"
+                                    class="inline-flex items-center rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] text-gray-500"
                                 >
-                                    Procurement
-                                </h4>
+                                    SN: {{ selectedItem?.serial_number ?? "—" }}
+                                </span>
                             </div>
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                <div
-                                    class="rounded-xl border border-gray-100 px-4 py-3"
-                                >
-                                    <p
-                                        class="text-[10px] uppercase tracking-wider text-gray-400 font-semibold"
-                                    >
-                                        PO number
-                                    </p>
-                                    <p
-                                        class="text-[13px] font-medium text-gray-800 mt-1"
-                                    >
-                                        {{ selectedItem.po_number ?? "N/A" }}
-                                    </p>
-                                </div>
-                                <div
-                                    class="rounded-xl border border-gray-100 px-4 py-3"
-                                >
-                                    <p
-                                        class="text-[10px] uppercase tracking-wider text-gray-400 font-semibold"
-                                    >
-                                        PR number
-                                    </p>
-                                    <p
-                                        class="text-[13px] font-medium text-gray-800 mt-1"
-                                    >
-                                        {{ selectedItem.pr_number ?? "N/A" }}
-                                    </p>
-                                </div>
-                                <div
-                                    class="rounded-xl border border-gray-100 px-4 py-3"
-                                >
-                                    <p
-                                        class="text-[10px] uppercase tracking-wider text-gray-400 font-semibold"
-                                    >
-                                        Invoice
-                                    </p>
-                                    <p
-                                        class="text-[13px] font-medium text-gray-800 mt-1"
-                                    >
-                                        {{ selectedItem.invoice ?? "N/A" }}
-                                    </p>
-                                </div>
-                            </div>
-                        </section>
+                        </div>
 
-                        <section>
-                            <div class="flex items-center gap-2 mb-3">
-                                <span
-                                    class="w-1 h-4 rounded-full bg-[#005740]"
-                                ></span>
-                                <h4
-                                    class="text-[11px] font-semibold uppercase tracking-wider text-[#005740]"
-                                >
-                                    Location
-                                </h4>
-                            </div>
-                            <div
-                                class="rounded-xl border border-gray-100 px-4 py-3.5"
+                        <div class="flex flex-shrink-0 items-center gap-1.5">
+                            <span
+                                v-if="selectedItem"
+                                class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold sm:text-[11px]"
+                                :class="approvalBadge(selectedItem.approval_status).cls"
                             >
-                                <p
-                                    class="text-[14px] font-semibold text-gray-900"
-                                >
-                                    {{ selectedItem.room_name ?? "N/A" }}
-                                </p>
-                                <p
-                                    v-if="selectedItem.building_name"
-                                    class="text-[12px] text-[#005740] font-medium mt-0.5"
-                                >
-                                    {{ selectedItem.building_name }}
-                                </p>
-                                <p
-                                    class="text-[12px] text-gray-500 mt-1 leading-relaxed"
-                                >
-                                    {{
-                                        selectedItem.room_description ??
-                                        "No description available."
-                                    }}
-                                </p>
-                            </div>
-                        </section>
+                                <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+                                {{ approvalBadge(selectedItem.approval_status).label }}
+                            </span>
 
-                        <section>
-                            <div class="flex items-center gap-2 mb-3">
-                                <span
-                                    class="w-1 h-4 rounded-full bg-[#005740]"
-                                ></span>
-                                <h4
-                                    class="text-[11px] font-semibold uppercase tracking-wider text-[#005740]"
-                                >
-                                    Attachments
-                                </h4>
-                            </div>
-
-                            <div
-                                v-if="
-                                    selectedItem.latest_acknowledgement_item
-                                        ?.files?.length
-                                "
-                                class="flex flex-col gap-2"
+                            <button
+                                type="button"
+                                class="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                                @click="closeModal"
                             >
-                                <a
-                                    v-for="(file, index) in selectedItem
-                                        .latest_acknowledgement_item.files"
-                                    :key="file.id ?? index"
-                                    :href="`/storage/${file.file_path}`"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-[#005740] hover:bg-[#005740]/5 transition-colors group"
-                                >
-                                    <span
-                                        class="flex items-center gap-3 min-w-0"
-                                    >
-                                        <span
-                                            class="w-9 h-9 rounded-lg bg-[#005740]/10 text-[#005740] flex items-center justify-center shrink-0"
-                                        >
-                                            <i
-                                                class="fa-solid text-sm"
-                                                :class="fileIcon(file)"
-                                            ></i>
-                                        </span>
-                                        <span class="min-w-0">
-                                            <span
-                                                class="block text-[13px] font-medium text-gray-800 group-hover:text-[#005740] truncate"
-                                            >
-                                                {{ fileLabel(file, index) }}
-                                            </span>
-                                            <span
-                                                class="block text-[11px] text-gray-400"
-                                            >
-                                                Open in new tab
-                                            </span>
-                                        </span>
-                                    </span>
-                                    <i
-                                        class="fa-solid fa-arrow-up-right-from-square text-[11px] text-gray-400 group-hover:text-[#005740]"
-                                    ></i>
-                                </a>
-                            </div>
-
-                            <div
-                                v-else
-                                class="rounded-xl border border-dashed border-gray-200 px-4 py-8 text-center"
-                            >
-                                <i
-                                    class="fa-regular fa-folder-open text-gray-300 text-lg"
-                                ></i>
-                                <p class="text-[12px] text-gray-400 mt-2">
-                                    No files attached to this item.
-                                </p>
-                            </div>
-                        </section>
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
                     </div>
 
+                    <!-- BODY -->
                     <div
-                        class="shrink-0 px-5 sm:px-6 py-4 border-t border-gray-100 bg-white flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2"
+                        v-if="selectedItem"
+                        class="flex-1 overflow-y-auto bg-gray-50/70 px-5 py-5 sm:px-6"
+                    >
+                        <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
+                            <div class="space-y-4">
+                                <!-- IDENTIFICATION -->
+                                <section class="rounded-xl border border-gray-200 bg-white p-4">
+                                    <header class="mb-3 flex items-center gap-2">
+                                        <span
+                                            class="flex h-7 w-7 items-center justify-center rounded-lg bg-[#005740]/10 text-[#005740]"
+                                        >
+                                            <i class="fa-solid fa-fingerprint text-[11px]"></i>
+                                        </span>
+                                        <h4 class="text-[11px] font-bold uppercase tracking-wider text-[#005740]">
+                                            Identification
+                                        </h4>
+                                    </header>
+
+                                    <dl class="grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+                                        <div class="min-w-0">
+                                            <dt class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                                                Item name
+                                            </dt>
+                                            <dd class="mt-0.5 truncate font-semibold text-gray-900">
+                                                {{ selectedItem.item_name ?? "N/A" }}
+                                            </dd>
+                                        </div>
+
+                                        <div class="min-w-0">
+                                            <dt class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                                                Property number
+                                            </dt>
+                                            <dd class="mt-0.5 truncate font-medium text-gray-800">
+                                                {{ selectedItem.property_number ?? "N/A" }}
+                                            </dd>
+                                        </div>
+
+                                        <div class="min-w-0">
+                                            <dt class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                                                Serial number
+                                            </dt>
+                                            <dd class="mt-0.5 truncate font-medium text-gray-800">
+                                                {{ selectedItem.serial_number ?? "No Serial Number" }}
+                                            </dd>
+                                        </div>
+
+                                        <div class="min-w-0">
+                                            <dt class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                                                Date acquired
+                                            </dt>
+                                            <dd class="mt-0.5 font-medium text-gray-700">
+                                                {{ formatDate(selectedItem.date_acquired) }}
+                                            </dd>
+                                        </div>
+                                    </dl>
+                                </section>
+
+                                <!-- PROCUREMENT -->
+                                <section class="rounded-xl border border-gray-200 bg-white p-4">
+                                    <header class="mb-3 flex items-center gap-2">
+                                        <span
+                                            class="flex h-7 w-7 items-center justify-center rounded-lg bg-[#005740]/10 text-[#005740]"
+                                        >
+                                            <i class="fa-solid fa-file-invoice-dollar text-[11px]"></i>
+                                        </span>
+                                        <h4 class="text-[11px] font-bold uppercase tracking-wider text-[#005740]">
+                                            Purchase
+                                        </h4>
+                                    </header>
+
+                                    <dl class="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+                                        <div>
+                                            <dt class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                                                PO number
+                                            </dt>
+                                            <dd class="mt-0.5 truncate font-medium text-gray-800">
+                                                {{ selectedItem.po_number ?? "N/A" }}
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                                                PR number
+                                            </dt>
+                                            <dd class="mt-0.5 truncate font-medium text-gray-800">
+                                                {{ selectedItem.pr_number ?? "N/A" }}
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                                                Invoice
+                                            </dt>
+                                            <dd class="mt-0.5 truncate font-medium text-gray-800">
+                                                {{ selectedItem.invoice ?? "N/A" }}
+                                            </dd>
+                                        </div>
+                                    </dl>
+                                </section>
+
+                                <!-- LOCATION -->
+                                <section class="rounded-xl border border-gray-200 bg-white p-4">
+                                    <header class="mb-3 flex items-center gap-2">
+                                        <span
+                                            class="flex h-7 w-7 items-center justify-center rounded-lg bg-[#005740]/10 text-[#005740]"
+                                        >
+                                            <i class="fa-solid fa-location-dot text-[11px]"></i>
+                                        </span>
+                                        <h4 class="text-[11px] font-bold uppercase tracking-wider text-[#005740]">
+                                            Location
+                                        </h4>
+                                    </header>
+
+                                    <div class="flex items-start gap-3">
+                                        <span
+                                            class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#005740]/10 text-[#005740]"
+                                        >
+                                            <i class="fa-solid fa-building text-sm"></i>
+                                        </span>
+
+                                        <div class="min-w-0">
+                                            <p class="font-semibold text-gray-900">
+                                                {{ selectedItem.room_name ?? "N/A" }}
+                                            </p>
+                                            <p
+                                                v-if="selectedItem.building_name"
+                                                class="mt-0.5 text-[12px] font-medium text-[#005740]"
+                                            >
+                                                {{ selectedItem.building_name }}
+                                            </p>
+                                            <p class="mt-1 text-[12px] leading-relaxed text-gray-500">
+                                                {{
+                                                    selectedItem.room_description ??
+                                                    "No description available."
+                                                }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </section>
+                            </div>
+
+                            <!-- SUMMARY -->
+                            <aside class="space-y-4">
+                                <div
+                                    class="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#005740] to-[#003d2c] p-4 text-white shadow-sm"
+                                >
+                                    <div
+                                        class="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/10"
+                                    ></div>
+
+                                    <p class="text-[10px] uppercase tracking-wider text-white/60">
+                                        Unit cost
+                                    </p>
+                                    <p class="mt-1 text-2xl font-bold">
+                                        {{ formatCurrency(selectedItem.unit_cost) }}
+                                    </p>
+
+                                    <dl class="mt-4 space-y-2.5 text-[12px]">
+                                        <div class="flex items-center justify-between gap-3 border-t border-white/15 pt-2.5">
+                                            <dt class="text-white/60">Facility</dt>
+                                            <dd class="truncate text-right font-semibold">
+                                                {{ selectedItem.room_name ?? "N/A" }}
+                                            </dd>
+                                        </div>
+                                        <div class="flex items-center justify-between gap-3">
+                                            <dt class="text-white/60">Date assigned</dt>
+                                            <dd class="font-semibold">
+                                                {{
+                                                    formatDate(
+                                                        receiptOf(selectedItem)?.par_date,
+                                                    )
+                                                }}
+                                            </dd>
+                                        </div>
+                                        <div class="flex items-center justify-between gap-3">
+                                            <dt class="text-white/60">Receipt</dt>
+                                            <dd class="truncate text-right font-semibold">
+                                                {{
+                                                    receiptOf(selectedItem)?.category ??
+                                                    "N/A"
+                                                }}
+                                            </dd>
+                                        </div>
+                                    </dl>
+                                </div>
+
+                                <div
+                                    class="rounded-xl border border-[#005740]/15 bg-[#005740]/[0.04] p-4"
+                                >
+                                    <p class="text-[10px] font-semibold uppercase tracking-wider text-[#005740]">
+                                        Accountability
+                                    </p>
+                                    <p class="mt-1 text-[12px] leading-relaxed text-gray-600">
+                                        This property sits under your accountability.
+                                        Approving confirms you hold it in the
+                                        condition recorded by the inspection.
+                                    </p>
+                                </div>
+                            </aside>
+                        </div>
+                    </div>
+
+                    <!-- FOOTER -->
+                    <div
+                        class="flex flex-col-reverse items-stretch justify-between gap-2 border-t border-gray-100 bg-white px-5 py-3.5 sm:flex-row sm:items-center sm:px-6"
                     >
                         <button
+                            type="button"
+                            class="rounded-lg px-4 py-2 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100"
                             @click="closeModal"
-                            class="px-4 py-2 text-[12px] font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                             Close
                         </button>
 
-                        <div
-                            v-if="isPending(selectedItem)"
-                            class="flex items-center gap-2"
-                        >
+                        <div v-if="isPending(selectedItem)" class="flex items-center gap-2">
                             <button
-                                @click="rejectItem(selectedItem)"
+                                type="button"
+                                class="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-red-200 px-4 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
                                 :disabled="processingId === selectedItem.id"
-                                class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-semibold bg-red-50 text-red-700 hover:bg-red-600 hover:text-white transition-colors disabled:opacity-50"
+                                @click="rejectItem(selectedItem)"
                             >
-                                <i class="fa-solid fa-xmark text-xs"></i>
+                                <i class="fa-solid fa-xmark text-[11px]"></i>
                                 Reject
                             </button>
+
                             <button
-                                @click="approveItem(selectedItem)"
+                                type="button"
+                                class="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#005740] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#00432f] disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
                                 :disabled="processingId === selectedItem.id"
-                                class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-semibold bg-[#005740] text-white hover:bg-[#0E6021] transition-colors disabled:opacity-50"
+                                @click="approveItem(selectedItem)"
                             >
-                                <i class="fa-solid fa-check text-xs"></i>
+                                <i class="fa-solid fa-check text-[11px]"></i>
                                 Approve
                             </button>
                         </div>
                     </div>
-                </div>
-            </div>
+                </motion.div>
+            </motion.div>
         </Teleport>
     </div>
 </template>

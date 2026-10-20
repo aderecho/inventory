@@ -24,6 +24,8 @@ class InventoryItemFactory extends Factory
         $propertyNumber = "{$code}-{$group}-" . ($count + 1);
 
         return [
+            'item_classification_id' => ItemClassification::factory(),
+            'supplier_id' => Supplier::factory(),
             'fund_source' => strtoupper($this->faker->unique()->bothify('FS-###')),
             'invoice' => strtoupper($this->faker->unique()->bothify('INV-###')),
             'item_name' => $item['item_name'],
@@ -38,7 +40,7 @@ class InventoryItemFactory extends Factory
             'serial_number' => strtoupper($this->faker->unique()->bothify('SER-###')),
             'remarks' => strtoupper($this->faker->unique()->bothify('RM-###')),
             'date_acquired' => $this->faker->date('Y-m-d', 'now'),
-            'status' => $this->faker->numberBetween(0, 1),
+            'status' => InventoryItem::STATUS_AVAILABLE,
         ];
     }
 }

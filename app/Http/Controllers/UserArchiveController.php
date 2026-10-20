@@ -42,4 +42,46 @@ class UserArchiveController extends Controller
             'success' => 'User permanently deleted.',
         ]);
     }
+
+    public function batchRestore(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $users = User::onlyTrashed()->whereIn('id', $data['ids'])->get();
+
+        foreach ($users as $user) {
+            $user->restore();
+        }
+
+        return back()->with(
+            'success',
+            $users->count() === 1
+                ? 'User restored successfully.'
+                : $users->count() . ' users restored successfully.'
+        );
+    }
+
+    public function batchForceDelete(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $users = User::onlyTrashed()->whereIn('id', $data['ids'])->get();
+
+        foreach ($users as $user) {
+            $user->forceDelete();
+        }
+
+        return back()->with(
+            'success',
+            $users->count() === 1
+                ? 'User permanently deleted.'
+                : $users->count() . ' users permanently deleted.'
+        );
+    }
 }

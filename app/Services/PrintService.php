@@ -46,6 +46,65 @@ class PrintService
         );
     }
 
+    /**
+     * "ITR_223-2026-10-900.pdf", "PAR_221-2022-04-261_221-2022-04-262.pdf",
+     * or "ICS_223-2026-10-1_and_4_more.pdf" when many receipts are printed together.
+     */
+    private function receiptFileName(string $type, iterable $receiptNumbers): string
+    {
+        $numbers = collect($receiptNumbers)
+            ->map(fn($number) => trim(preg_replace('/[^A-Za-z0-9._-]+/', '-', (string) $number), '-.'))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($numbers->isEmpty()) {
+            return $type . '_' . now()->format('Y_m_d_His') . '.pdf';
+        }
+
+        $joined = $numbers->implode('_');
+
+        if ($numbers->count() > 3 || strlen($joined) > 120) {
+            $joined = $numbers->first() . '_and_' . ($numbers->count() - 1) . '_more';
+        }
+
+        return "{$type}_{$joined}.pdf";
+    }
+
+    /**
+     * For each latest acknowledgement item, the assignment it replaced (if any),
+     * keyed by the latest acknowledgement item's id.
+     */
+    private function previousAcknowledgementItems($acknowledgementItems)
+    {
+        $history = AcknowledgementItem::with([
+            'accountablePerson',
+            'acknowledgementReceipts',
+        ])
+            ->whereIn('inventory_item_id', $acknowledgementItems->pluck('inventory_item_id'))
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy('inventory_item_id');
+
+        return $acknowledgementItems->mapWithKeys(fn($item) => [
+            $item->id => $history
+                ->get($item->inventory_item_id, collect())
+                ->first(fn($earlier) => $earlier->id < $item->id),
+        ]);
+    }
+
+    /**
+     * An item is being reassigned when someone held it before, or when the
+     * assignment was recorded with the "Reassignment" transfer type.
+     */
+    private function isReassignment($item, $previousAckItems): bool
+    {
+        return $previousAckItems[$item->id] !== null
+            || $item->transferTypes->contains(
+                fn($type) => strtolower(trim($type->name)) === 'reassignment'
+            );
+    }
+
     public function generateReceiptPdf(int|array $ids): array
     {
         if (!is_array($ids)) {
@@ -92,9 +151,12 @@ class PrintService
         $acknowledgementItems = AcknowledgementItem::with([
             'inventoryItems.supplier',
             'inventoryItems.latestHistoryLocation',
+            'inventoryItems.latestInspection.assetCondition',
             'accountablePerson',
             'issuedBy',
+            'approvedBy',
             'acknowledgementReceipts',
+            'transferTypes',
         ])
             ->whereIn('inventory_item_id', $ids)
             ->whereIn('id', function ($query) use ($ids) {
@@ -157,6 +219,35 @@ class PrintService
 
         /*
         |--------------------------------------------------------------------------
+        | Reassignments print as transfer reports: an Inventory Transfer Report (ITR)
+        | below the PAR threshold, a Property Transfer Report (PTR) at or above it.
+        |--------------------------------------------------------------------------
+        */
+
+        $previousAckItems = $this->previousAcknowledgementItems(
+            $acknowledgementItems
+        );
+
+        $reassignedItems = $acknowledgementItems->filter(
+            fn($item) => $this->isReassignment($item, $previousAckItems)
+        );
+
+        $isTransfer = $reassignedItems->count() === $acknowledgementItems->count();
+
+        if (!$isTransfer && $reassignedItems->isNotEmpty()) {
+            $itemList = $reassignedItems
+                ->map(fn($item) => $item->inventoryItems->property_number ?? "ID #{$item->inventory_item_id}")
+                ->implode(', ');
+
+            $report = $isPar ? 'a Property Transfer Report' : 'an Inventory Transfer Report';
+
+            throw new \Exception(
+                "These item(s) were reassigned and print on {$report}, so print them separately from first assignments: {$itemList}"
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
         | Group items
         |--------------------------------------------------------------------------
         */
@@ -177,7 +268,27 @@ class PrintService
         |--------------------------------------------------------------------------
         */
 
-        if ($isPar) {
+        if ($isTransfer) {
+            $view = $isPar ? 'prints.ptr_receipt' : 'prints.itr_receipt';
+
+            // One document per receipt number: reassigning the same receipt can leave
+            // more than one receipt record carrying that number.
+            $groupedTransferItems = $acknowledgementItems->groupBy(
+                fn($item) => $item->acknowledgementReceipts?->category
+                    ?: 'receipt-' . $item->acknowledgement_id
+            );
+
+            $data = [
+                'groupedTransferItems' => $groupedTransferItems,
+                'previousAckItems' => $previousAckItems,
+                'roomNames' => $roomNames,
+                'acknowledgementItems' => $acknowledgementItems,
+                'transferTotal' => $grandTotal,
+                'groupedTotals' => $groupedTotals,
+            ];
+
+            $type = $isPar ? 'PTR' : 'ITR';
+        } elseif ($isPar) {
             $view = 'prints.par_receipt';
 
             $data = [
@@ -217,8 +328,17 @@ class PrintService
         |--------------------------------------------------------------------------
         */
 
-        $pdf = Browsershot::html($html)
-            ->format('A4')
+        $shot = Browsershot::html($html)
+            ->setChromePath('/usr/bin/chromium')
+            ->format('A4');
+
+        // All receipts print on A4; the transfer report forms (ITR/PTR) are laid out landscape,
+        // with top/bottom margins on every page so continued pages do not start at the edge.
+        if ($isTransfer) {
+            $shot = $shot->landscape()->margins(8, 0, 8, 0);
+        }
+
+        $pdf = $shot
             ->showBackground()
             ->emulateMedia('print')
             ->addChromiumArguments([
@@ -230,6 +350,10 @@ class PrintService
         return [
             'pdf' => $pdf,
             'type' => $type,
+            'file_name' => $this->receiptFileName(
+                $type,
+                $groupedItems->map(fn($group) => $group->first()->acknowledgementReceipts?->category)
+            ),
         ];
     }
 
@@ -238,11 +362,11 @@ class PrintService
     {
         $result = $this->generateReceiptPdf($ids);
 
-        $fileName = $result['type']
+        // Stored copies keep a timestamp so printing the same receipt again
+        // does not overwrite an earlier (possibly signed) file.
+        $fileName = pathinfo($result['file_name'], PATHINFO_FILENAME)
             . '_'
             . now()->format('Y_m_d_His')
-            . '_'
-            . uniqid()
             . '.pdf';
 
         $directory = 'receipts';

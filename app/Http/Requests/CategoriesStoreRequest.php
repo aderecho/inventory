@@ -24,6 +24,7 @@ class CategoriesStoreRequest extends FormRequest
         return [
             'classification_name' => 'required|string|max:255',
             'classification_code' => 'required|unique:item_classifications,classification_code',
+            'status' => 'nullable|in:0,1',
         ];
     }
 }

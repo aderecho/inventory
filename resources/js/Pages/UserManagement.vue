@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from "vue";
-import { usePage, router } from "@inertiajs/vue3";
+import { Link, usePage, router } from "@inertiajs/vue3";
 import { Head } from "@inertiajs/vue3";
 import Layout from "@/Layouts/Layout.vue";
 import PageHeader from "@/Components/PageHeader.vue";
@@ -9,23 +9,18 @@ import SearchFilterBar from "@/Components/Filters/SearchFilterBar.vue";
 import PrimaryButton from "@/Components/Buttons/PrimaryButton.vue";
 import UserFormModal from "@/Components/Modals/UserFormModal.vue";
 import ArchiveModal from "@/Components/Modals/ArchiveModal.vue";
-import SuccessModal from "@/Components/Modals/SuccessModal.vue";
-import SuccessDeleteModal from "@/Components/Modals/SuccessDeleteModal.vue";
-import RoleFormModal from "@/Components/Modals/RoleFormModal.vue";
-import PermissionFormModal from "@/Components/Modals/PermissionFormModal.vue";
 import { useLoading } from "@/Composables/useLoading";
 import { usePermissions } from "@/Composables/usePermissions";
+import { useToast } from "primevue/usetoast";
 
 const { stopLoading } = useLoading();
+const toast = useToast();
 
 const page = usePage();
 
 const users = computed(() => page.props.users || {});
 const roles = computed(() => page.props.roles || []);
 const permissions = computed(() => page.props.permissions || []);
-const showRoleModal = ref(false);
-const showPermissionModal = ref(false);
-
 const { roleActions, permissionActions, userActions } = usePermissions();
 
 const canViewUsers = computed(() => userActions.value.includes("view"));
@@ -40,9 +35,7 @@ const search = ref("");
 const columns = [
     { label: "Employee Number", key: "user_profiles.employee_number" },
     { label: "Email", key: "email" },
-    { label: "First Name", key: "user_profiles.first_name" },
-    { label: "Last Name", key: "user_profiles.last_name" },
-    { label: "Middle Name", key: "user_profiles.middle_name" },
+    { label: "Full Name", key: "user_profiles.full_name" },
     { label: "Extension", key: "user_profiles.ext_name" },
     {
         label: "Department",
@@ -79,10 +72,6 @@ const showFormModal = ref(false);
 const currentUser = ref(null);
 
 const showArchiveModal = ref(false);
-const showSuccessModal = ref(false);
-const showDeleteSuccessModal = ref(false);
-
-const successMessage = ref("");
 
 function openAdd() {
     formMode.value = "create";
@@ -92,11 +81,16 @@ function openAdd() {
 
 function handleSubmit() {
     stopLoading();
-    showSuccessModal.value = true;
-    successMessage.value =
-        formMode.value === "edit"
-            ? "User updated successfully!"
-            : "User added successfully!";
+
+    toast.add({
+        severity: "success",
+        summary: formMode.value === "edit" ? "User updated" : "User added",
+        detail:
+            formMode.value === "edit"
+                ? "The user details were saved."
+                : "The new user can now sign in.",
+        life: 3000,
+    });
 
     showFormModal.value = false;
 }
@@ -118,7 +112,14 @@ function confirmArchive() {
         onSuccess: () => {
             stopLoading();
             showArchiveModal.value = false;
-            showDeleteSuccessModal.value = true;
+
+            toast.add({
+                severity: "success",
+                summary: "User archived",
+                detail: "The user was moved to the archive.",
+                life: 3000,
+            });
+
             currentUser.value = null;
         },
     });
@@ -151,22 +152,23 @@ const filterStatus = [
                         <span>Add User</span>
                     </PrimaryButton>
 
-                    <PrimaryButton
+                    <Link
                         v-if="canViewRoles"
-                        @click="showRoleModal = true"
+                        :href="route('roles.index')"
+                        class="flex gap-2 bg-[#0E6021] rounded-md text-white px-3 py-2 text-xs sm:text-sm hover:bg-[#19703a] w-full sm:w-auto items-center mt-2 justify-center"
                     >
                         <i class="fa-solid fa-shield-halved"></i>
                         <span>Manage Roles</span>
-                    </PrimaryButton>
+                    </Link>
 
-                    <button
+                    <Link
                         v-if="canViewPermissions"
-                        @click="showPermissionModal = true"
+                        :href="route('permissions.index')"
                         class="flex gap-2 bg-[#0E6021] rounded-md text-white px-3 py-2 text-xs sm:text-sm hover:bg-[#19703a] w-full sm:w-auto items-center mt-2 justify-center"
                     >
                         <i class="fa-solid fa-key"></i>
                         <span>Manage Permissions</span>
-                    </button>
+                    </Link>
                 </div>
 
                 <div
@@ -183,20 +185,6 @@ const filterStatus = [
                 </div>
             </div>
 
-            <!-- Modals -->
-            <RoleFormModal
-                v-if="showRoleModal"
-                :roles="roles"
-                :permissions="permissions"
-                @close="showRoleModal = false"
-            />
-
-            <PermissionFormModal
-                v-if="showPermissionModal"
-                :permissions="permissions"
-                @close="showPermissionModal = false"
-            />
-
             <UserFormModal
                 v-if="showFormModal"
                 :mode="formMode"
@@ -212,21 +200,6 @@ const filterStatus = [
                 :item="currentUser"
                 @confirm="confirmArchive"
                 @close="showArchiveModal = false"
-            />
-
-            <SuccessModal
-                v-if="showSuccessModal"
-                title="Success"
-                :message="successMessage"
-                @close="showSuccessModal = false"
-            />
-
-            <SuccessDeleteModal
-                v-if="showDeleteSuccessModal"
-                title="Archive Success"
-                message="User archived successfully!"
-                buttonText="Confirm"
-                @close="showDeleteSuccessModal = false"
             />
 
             <InventoryTable

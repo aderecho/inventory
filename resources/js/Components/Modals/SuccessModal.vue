@@ -25,7 +25,7 @@ function closeWithAnimation() {
 </script>
 
 <template>
-  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+  <div class="fixed inset-0 modal-backdrop flex items-center justify-center z-50">
     <div :class="['bg-white rounded-2xl p-6 w-full max-w-[600px] text-center shadow-lg',
       isClosing ? 'animate-pop-out' : 'animate-pop-in']">
       <!-- Dynamic Icon -->

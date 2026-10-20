@@ -3,19 +3,27 @@ import { ref, computed, watch } from "vue";
 import { router } from "@inertiajs/vue3";
 import { Line } from "vue-chartjs";
 import Select from "primevue/select";
-import { LineChart, HelpCircle } from "lucide-vue-next";
+import { LineChart, Info } from "lucide-vue-next";
 import {
     Chart as ChartJS,
-    Title,
     Tooltip,
     Legend,
     LineElement,
     PointElement,
     CategoryScale,
     LinearScale,
+    Filler,
 } from "chart.js";
 
-ChartJS.register(Title, Tooltip, Legend, LineElement, PointElement, CategoryScale, LinearScale);
+ChartJS.register(
+    Tooltip,
+    Legend,
+    LineElement,
+    PointElement,
+    CategoryScale,
+    LinearScale,
+    Filler,
+);
 
 const props = defineProps({
     acquisitionsByClassification: {
@@ -36,66 +44,112 @@ const props = defineProps({
     },
 });
 
-const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const palette = ["#2a78d6", "#1baf7a", "#eda100", "#e34948", "#4a3aa7", "#e87ba4", "#eb6834", "#008300"];
+const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+];
+
+const palette = [
+    "#0E6021",
+    "#1B8A5C",
+    "#2A78D6",
+    "#2346A6",
+    "#EDA100",
+    "#EB6834",
+    "#4A3AA7",
+    "#E34948",
+];
 
 const yearOptions = computed(() =>
-    props.availableYears.map((y) => ({ value: y, label: String(y) })),
+    props.availableYears.map((year) => ({ value: year, label: String(year) })),
 );
 
 const selectedYearModel = ref(props.selectedYear);
 
-const legendData = computed(() =>
-    props.acquisitionsByClassification.map((c, i) => ({
-        name: c.classification_name,
-        color: palette[i % palette.length],
-        total: c.monthly_totals.reduce((sum, n) => sum + n, 0),
+const series = computed(() =>
+    props.acquisitionsByClassification.map((row, index) => ({
+        name: row.classification_name,
+        color: palette[index % palette.length],
+        totals: row.monthly_totals ?? [],
+        sum: (row.monthly_totals ?? []).reduce(
+            (total, value) => total + Number(value || 0),
+            0,
+        ),
     })),
+);
+
+const totalForYear = computed(() =>
+    series.value.reduce((total, row) => total + row.sum, 0),
 );
 
 const chartData = computed(() => ({
     labels: months,
-    datasets: props.acquisitionsByClassification.map((c, i) => ({
-        label: c.classification_name,
-        data: c.monthly_totals,
-        borderColor: palette[i % palette.length],
-        backgroundColor: "transparent",
-        borderWidth: 2.5,
-        tension: 0.3,
-        pointRadius: 3,
-        pointHoverRadius: 6,
-        pointBackgroundColor: palette[i % palette.length],
-        pointBorderColor: "#fff",
-        pointBorderWidth: 1.5,
+    datasets: series.value.map((row) => ({
+        label: row.name,
+        data: row.totals,
+        borderColor: row.color,
+        // Soft area under the line: reads as a trend without hiding the others.
+        backgroundColor: row.color + "1A",
+        fill: true,
+        borderWidth: 2,
+        tension: 0.35,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointBackgroundColor: row.color,
+        pointBorderColor: "#ffffff",
+        pointBorderWidth: 2,
     })),
 }));
 
 const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    interaction: { mode: "index", intersect: false },
     plugins: {
         legend: { display: false },
-        title: { display: false },
         tooltip: {
-            backgroundColor: '#1e293b',
+            backgroundColor: "#0f172a",
             padding: 12,
-            bodyFont: { size: 13 },
-            titleFont: { size: 13, weight: 'bold' },
-            mode: "index",
-            intersect: false,
+            displayColors: true,
+            boxPadding: 4,
+            callbacks: {
+                label: (ctx) =>
+                    " " + ctx.dataset.label + ": " + ctx.parsed.y + " item(s)",
+            },
         },
     },
-    interaction: { mode: "index", intersect: false },
     scales: {
         x: {
             grid: { display: false },
-            ticks: { color: '#64748b', font: { size: 11 } }
+            border: { display: false },
+            ticks: {
+                color: "#94a3b8",
+                font: { size: 11 },
+                autoSkip: true,
+                maxRotation: 0,
+                minRotation: 0,
+            },
         },
-        y: { 
-            beginAtZero: true, 
-            border: { dash: [4, 4] },
-            grid: { color: '#f1f5f9' },
-            ticks: { precision: 0, color: '#64748b', font: { size: 11 } } 
+        y: {
+            beginAtZero: true,
+            grid: { color: "#f1f5f9" },
+            border: { display: false },
+            ticks: {
+                precision: 0,
+                color: "#94a3b8",
+                font: { size: 11 },
+                maxTicksLimit: 5,
+            },
         },
     },
 };
@@ -114,81 +168,112 @@ watch(selectedYearModel, (year) => {
 </script>
 
 <template>
-  <div class="rounded-xl border border-gray-100 shadow-sm w-full bg-white h-full flex flex-col overflow-hidden">
-    <div class="relative px-6 py-5 overflow-hidden flex-shrink-0 bg-gradient-to-br from-[#005740] via-[#004d38] to-[#003d2d] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div class="absolute -right-4 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
-      
-      <div class="relative flex items-center gap-3">
-        <div class="p-2.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-white shadow-inner">
-          <LineChart class="w-5 h-5" />
-        </div>
-        <div>
-          <h3 class="text-base font-semibold text-white tracking-tight">Acquisitions Over Time</h3>
-          <p class="text-xs text-white/70">Monthly breakdown metrics aggregated by asset classification</p>
-        </div>
-      </div>
-
-      <div class="relative flex items-center gap-2 z-10" v-if="availableYears.length">
-        <Select
-          v-model="selectedYearModel"
-          :options="yearOptions"
-          optionValue="value"
-          optionLabel="label"
-          placeholder="Select Year"
-          class="w-full sm:w-36 text-sm year-select-custom"
-          pt:root:class="bg-white/10 backdrop-blur-md border-white/20 text-white shadow-sm"
-          pt:label:class="text-white font-medium"
-          pt:dropdown:class="text-white/70"
-        />
-      </div>
-    </div>
-
-    <div class="p-6 flex-1 min-h-0 flex flex-col justify-between gap-6">
-      <div v-if="acquisitionsByClassification.length" class="flex flex-col flex-1 min-h-0 gap-6">
-        <div class="relative w-full flex-1 min-h-[260px]">
-          <Line :data="chartData" :options="chartOptions" />
-        </div>
-
-        <div class="border-t border-gray-100 pt-4 flex-shrink-0">
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+    <div
+        class="flex h-full w-full flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm"
+    >
+        <!-- HEADER -->
+        <div
+            class="relative flex flex-shrink-0 flex-col gap-3 overflow-hidden bg-gradient-to-br from-[#005740] via-[#004d38] to-[#003d2d] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+        >
             <div
-              v-for="item in legendData"
-              :key="item.name"
-              class="flex items-center justify-between p-2.5 rounded-lg border border-gray-100 bg-white hover:shadow-sm transition-all duration-200"
-            >
-              <div class="flex items-center gap-2.5 min-w-0">
-                <span
-                  class="w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-offset-1"
-                  :style="{ backgroundColor: item.color, '--tw-ring-color': item.color + '33' }"
-                ></span>
-                <span class="text-xs font-medium text-gray-600 truncate">{{ item.name }}</span>
-              </div>
-              <span class="text-xs font-bold text-gray-900 bg-gray-50 px-2 py-0.5 rounded-md ml-2 border border-gray-100">
-                {{ item.total.toLocaleString() }}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+                class="absolute -right-6 -top-10 h-28 w-28 rounded-full bg-white/10 blur-2xl"
+            ></div>
 
-      <div v-else class="flex flex-col items-center justify-center flex-1 py-12 text-center">
-        <div class="p-3 rounded-full bg-red-50 text-red-600 mb-3">
-          <HelpCircle class="w-6 h-6" />
+            <div class="relative flex items-center gap-3">
+                <span
+                    class="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white"
+                >
+                    <LineChart class="h-5 w-5" />
+                </span>
+
+                <div class="min-w-0">
+                    <h3 class="truncate text-sm font-semibold text-white">
+                        Acquisitions Over Time
+                    </h3>
+                    <p class="truncate text-xs text-white/70">
+                        {{ totalForYear.toLocaleString() }} item(s) recorded in
+                        {{ selectedYear ?? "this period" }}
+                    </p>
+                </div>
+            </div>
+
+            <div
+                v-if="availableYears.length"
+                class="relative z-10 flex items-center"
+            >
+                <Select
+                    v-model="selectedYearModel"
+                    :options="yearOptions"
+                    optionValue="value"
+                    optionLabel="label"
+                    placeholder="Select Year"
+                    class="year-select-custom w-full text-sm sm:w-32"
+                    pt:root:class="bg-white/10 backdrop-blur-md border-white/20 text-white shadow-sm"
+                    pt:label:class="text-white font-medium"
+                    pt:dropdown:class="text-white/70"
+                />
+            </div>
         </div>
-        <p class="text-sm font-semibold text-gray-900">No Acquisitions Found</p>
-        <p class="text-xs text-gray-500 max-w-xs mt-1">
-          No records or asset values were safely logged during the operational tracking window of {{ selectedYear }}.
-        </p>
-      </div>
+
+        <!-- BODY -->
+        <div class="flex min-h-0 flex-1 flex-col gap-4 p-4 sm:gap-5 sm:p-5">
+            <template v-if="series.length">
+                <div
+                    class="relative w-full flex-1"
+                    :style="{ minHeight: '260px' }"
+                >
+                    <Line :data="chartData" :options="chartOptions" />
+                </div>
+
+                <div class="flex-shrink-0 border-t border-gray-100 pt-4">
+                    <div
+                        class="flex max-h-[92px] flex-wrap gap-2 overflow-y-auto pr-1"
+                    >
+                        <span
+                            v-for="row in series"
+                            :key="row.name"
+                            class="flex items-center gap-2 rounded-full border border-gray-100 bg-gray-50 px-3 py-1.5"
+                        >
+                            <span
+                                class="h-2.5 w-2.5 flex-shrink-0 rounded-full"
+                                :style="{ backgroundColor: row.color }"
+                            ></span>
+                            <span class="max-w-[160px] truncate text-xs font-medium text-gray-600">
+                                {{ row.name }}
+                            </span>
+                            <span class="text-xs font-bold text-gray-900">
+                                {{ row.sum.toLocaleString() }}
+                            </span>
+                        </span>
+                    </div>
+                </div>
+            </template>
+
+            <!-- EMPTY -->
+            <div
+                v-else
+                class="flex flex-1 flex-col items-center justify-center py-10 text-center"
+            >
+                <span class="mb-3 rounded-full bg-gray-50 p-3 text-gray-400">
+                    <Info class="h-5 w-5" />
+                </span>
+                <p class="text-sm font-semibold text-gray-800">
+                    No Acquisitions Found
+                </p>
+                <p class="mt-1 max-w-xs text-xs text-gray-500">
+                    No items were recorded with a date acquired in
+                    {{ selectedYear ?? "the selected year" }}.
+                </p>
+            </div>
+        </div>
     </div>
-  </div>
 </template>
 
 <style scoped>
-/* Scoped brand color design overrides for PrimeVue select component in glass header context */
 .year-select-custom :deep(.p-select-overlay) {
-  background-color: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
 }
 </style>
+

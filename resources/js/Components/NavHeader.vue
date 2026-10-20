@@ -1,8 +1,18 @@
 <script setup>
-import { usePage, Link } from "@inertiajs/vue3";
+import { usePage, Link, router } from "@inertiajs/vue3";
 import { computed, ref, onMounted, onUnmounted } from "vue";
-import { User, LayoutGrid, ChevronRight, Bell } from "lucide-vue-next";
+import {
+    ArrowLeftRight,
+    ClipboardCheck,
+    HandCoins,
+    UserPlus,
+    User,
+    LayoutGrid,
+    ChevronRight,
+    Bell,
+} from "lucide-vue-next";
 import EditProfileModal from "@/Components/Modals/EditProfileModal.vue";
+import UserNotificationModal from "@/Components/UserComponents/UserNotificationModal.vue";
 import axios from "axios";
 
 defineProps({ isSidebarOpen: { type: Boolean, default: true } });
@@ -22,6 +32,17 @@ const dropdownOpen = ref(false);
 const dropdownRef = ref(null);
 
 const toggleDropdown = () => (dropdownOpen.value = !dropdownOpen.value);
+
+// Only accounts that can actually reach more than one dashboard see this.
+const canSwitchWorkspace = computed(
+    () => (page.props.workspaceOptions?.length ?? 0) > 1,
+);
+
+function switchWorkspace() {
+    dropdownOpen.value = false;
+    showQuickLinks.value = false;
+    router.post(route("auth.switch-dashboard"));
+}
 
 const handleClickOutside = (e) => {
     if (dropdownRef.value && !dropdownRef.value.contains(e.target)) {
@@ -94,6 +115,8 @@ const apps = ref([
 const notifications = ref([]);
 const isNotifOpen = ref(false);
 const notifRef = ref(null);
+const notifTab = ref("all");
+const notifLoading = ref(true);
 
 const unreadCount = computed(
     () => notifications.value.filter((n) => !n.read_at).length,
@@ -110,6 +133,8 @@ function mapNotification(n) {
         status: data.status ?? n.status ?? null,
         approved_by: data.approved_by ?? n.approved_by ?? null,
         category: data.category ?? n.category ?? null,
+        document_type: data.document_type ?? n.document_type ?? null,
+        reference_code: data.reference_code ?? n.reference_code ?? null,
         items: data.items ?? n.items ?? [],
         read_at: n.read_at ?? null,
         created_at: n.created_at ?? data.created_at ?? new Date().toISOString(),
@@ -143,8 +168,54 @@ async function fetchNotifications() {
         notifications.value = data.notifications.map(mapNotification);
     } catch (e) {
         console.error("Failed to load notifications", e);
+    } finally {
+        notifLoading.value = false;
     }
 }
+
+const NOTIFICATION_TYPES = {
+    items_pending_approval: {
+        icon: ClipboardCheck,
+        tile: "bg-[#005740]/10 text-[#005740]",
+        label: "Approval",
+    },
+    borrowing_created: {
+        icon: HandCoins,
+        tile: "bg-[#1d4ed8]/10 text-[#1d4ed8]",
+        label: "Borrowing",
+    },
+    user_created: {
+        icon: UserPlus,
+        tile: "bg-[#850038]/10 text-[#850038]",
+        label: "Account",
+    },
+};
+
+function notificationMeta(notification) {
+    return (
+        NOTIFICATION_TYPES[notification.notification_type] ?? {
+            icon: Bell,
+            tile: "bg-gray-100 text-gray-500",
+            label: "Notice",
+        }
+    );
+}
+
+function notificationReference(notification) {
+    return (
+        notification.reference_code ||
+        [notification.document_type, notification.category]
+            .filter(Boolean)
+            .join(" · ") ||
+        ""
+    );
+}
+
+const visibleNotifications = computed(() =>
+    notifTab.value === "unread"
+        ? notifications.value.filter((notification) => !notification.read_at)
+        : notifications.value,
+);
 
 const toggleNotif = () => {
     isNotifOpen.value = !isNotifOpen.value;
@@ -161,11 +232,9 @@ const timeAgo = (dateStr) => {
 };
 
 // ---------------- Items modal ----------------
-const showItemsModal = ref(false);
 const selectedNotification = ref(null);
 
 function closeItemsModal() {
-    showItemsModal.value = false;
     selectedNotification.value = null;
 }
 
@@ -186,7 +255,8 @@ async function markAsRead(notification) {
 
     if (notification.items?.length) {
         selectedNotification.value = notification;
-        showItemsModal.value = true;
+    } else if (notification.url) {
+        router.visit(notification.url);
     }
 }
 
@@ -292,82 +362,154 @@ onUnmounted(() => {
                         >
                             <div
                                 v-if="isNotifOpen"
-                                class="absolute right-0 mt-3 w-80 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50"
+                                class="absolute right-0 z-50 mt-3 w-[22rem] overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl sm:w-96"
                             >
-                                <!-- Header -->
+                                <!-- HEADER -->
                                 <div
-                                    class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[#005740] via-[#006B4F] to-[#0E6021]"
+                                    class="bg-gradient-to-r from-[#003d2c] via-[#005740] to-[#0E6021] px-4 pb-3 pt-3.5"
                                 >
-                                    <p
-                                        class="text-[13px] font-semibold text-white"
-                                    >
-                                        Notifications
-                                    </p>
-                                    <button
-                                        v-if="unreadCount > 0"
-                                        @click="markAllAsRead"
-                                        class="text-[11px] font-medium text-white/80 hover:text-white transition-colors"
-                                    >
-                                        Mark all as read
-                                    </button>
-                                </div>
-
-                                <!-- List -->
-                                <div
-                                    class="max-h-80 overflow-y-auto divide-y divide-gray-50"
-                                >
-                                    <button
-                                        v-for="notification in notifications"
-                                        :key="notification.id"
-                                        @click="markAsRead(notification)"
-                                        class="w-full text-left px-4 py-3 flex gap-3 hover:bg-gray-50 transition-colors"
-                                    >
-                                        <span
-                                            class="mt-1.5 w-2 h-2 rounded-full shrink-0"
-                                            :class="
-                                                notification.read_at
-                                                    ? 'bg-transparent'
-                                                    : 'bg-[#D32F2F]'
-                                            "
-                                        ></span>
-
-                                        <div class="min-w-0">
-                                            <p
-                                                class="text-[12.5px] leading-snug truncate"
-                                                :class="
-                                                    notification.read_at
-                                                        ? 'text-gray-500 font-medium'
-                                                        : 'text-gray-900 font-semibold'
-                                                "
-                                            >
-                                                {{ notification.title }}
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div>
+                                            <p class="text-sm font-bold text-white">
+                                                Notifications
                                             </p>
-                                            <p
-                                                class="text-[11.5px] text-gray-400 leading-snug mt-0.5 line-clamp-2"
-                                            >
-                                                {{ notification.message }}
-                                            </p>
-                                            <p
-                                                class="text-[10.5px] text-gray-300 mt-1"
-                                            >
+                                            <p class="text-[11px] text-white/70">
                                                 {{
-                                                    timeAgo(
-                                                        notification.created_at,
-                                                    )
+                                                    unreadCount
+                                                        ? unreadCount + " unread"
+                                                        : "You're all caught up"
                                                 }}
                                             </p>
                                         </div>
-                                    </button>
 
-                                    <div
-                                        v-if="!notifications.length"
-                                        class="px-4 py-10 text-center"
-                                    >
-                                        <i
-                                            class="fa-regular fa-bell-slash text-gray-300 text-xl mb-2"
-                                        ></i>
-                                        <p class="text-[12px] text-gray-400">
-                                            You're all caught up.
+                                        <button
+                                            v-if="unreadCount"
+                                            type="button"
+                                            class="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-white/85 transition-colors hover:bg-white/15 hover:text-white"
+                                            @click="markAllAsRead"
+                                        >
+                                            <i class="fa-solid fa-check-double text-[10px]"></i>
+                                            Mark all read
+                                        </button>
+                                    </div>
+
+                                    <div class="mt-3 flex gap-1 rounded-lg bg-white/10 p-1">
+                                        <button
+                                            v-for="option in [
+                                                { key: 'all', label: 'All' },
+                                                { key: 'unread', label: 'Unread' },
+                                            ]"
+                                            :key="option.key"
+                                            type="button"
+                                            class="flex-1 rounded-md px-3 py-1.5 text-[11px] font-semibold transition-colors"
+                                            :class="
+                                                notifTab === option.key
+                                                    ? 'bg-white text-[#005740] shadow-sm'
+                                                    : 'text-white/75 hover:bg-white/10 hover:text-white'
+                                            "
+                                            @click="notifTab = option.key"
+                                        >
+                                            {{ option.label }}
+                                            <span
+                                                v-if="option.key === 'unread' && unreadCount"
+                                                class="ml-1 rounded-full bg-[#850038] px-1.5 py-0.5 text-[9px] font-bold text-white"
+                                            >
+                                                {{ unreadCount }}
+                                            </span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- LIST -->
+                                <div class="max-h-80 overflow-y-auto">
+                                    <div v-if="notifLoading" class="space-y-3 px-4 py-4">
+                                        <div
+                                            v-for="n in 3"
+                                            :key="n"
+                                            class="flex animate-pulse gap-3"
+                                        >
+                                            <div class="h-9 w-9 flex-shrink-0 rounded-lg bg-gray-100"></div>
+                                            <div class="flex-1 space-y-2 py-1">
+                                                <div class="h-2.5 w-1/2 rounded bg-gray-100"></div>
+                                                <div class="h-2 w-3/4 rounded bg-gray-100"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <ul v-else-if="visibleNotifications.length" class="divide-y divide-gray-100">
+                                        <li v-for="notification in visibleNotifications" :key="notification.id">
+                                            <button
+                                                type="button"
+                                                class="flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-[#005740]/[0.04]"
+                                                @click="markAsRead(notification)"
+                                            >
+                                                <span
+                                                    class="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg"
+                                                    :class="notificationMeta(notification).tile"
+                                                >
+                                                    <component
+                                                        :is="notificationMeta(notification).icon"
+                                                        class="h-4 w-4"
+                                                    />
+                                                </span>
+
+                                                <span class="min-w-0 flex-1">
+                                                    <span class="flex items-center gap-2">
+                                                        <span
+                                                            class="rounded-full bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-gray-500"
+                                                        >
+                                                            {{ notificationMeta(notification).label }}
+                                                        </span>
+
+                                                        <span
+                                                            v-if="notificationReference(notification)"
+                                                            class="truncate text-[10px] font-semibold text-[#005740]"
+                                                        >
+                                                            {{ notificationReference(notification) }}
+                                                        </span>
+
+                                                        <span
+                                                            v-if="!notification.read_at"
+                                                            class="ml-auto h-2 w-2 flex-shrink-0 rounded-full bg-[#850038]"
+                                                        ></span>
+                                                    </span>
+
+                                                    <span
+                                                        class="mt-1 block text-[12.5px] font-semibold leading-snug"
+                                                        :class="
+                                                            notification.read_at
+                                                                ? 'text-gray-600'
+                                                                : 'text-[#1b1b1b]'
+                                                        "
+                                                    >
+                                                        {{ notification.title }}
+                                                    </span>
+
+                                                    <span class="mt-0.5 block text-[11.5px] leading-snug text-gray-500 line-clamp-2">
+                                                        {{ notification.message }}
+                                                    </span>
+
+                                                    <span class="mt-1 flex items-center gap-1 text-[10px] text-gray-400">
+                                                        <i class="fa-regular fa-clock text-[9px]"></i>
+                                                        {{ timeAgo(notification.created_at) }}
+                                                    </span>
+                                                </span>
+                                            </button>
+                                        </li>
+                                    </ul>
+
+                                    <div v-else class="px-4 py-10 text-center">
+                                        <span
+                                            class="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-gray-400"
+                                        >
+                                            <Bell class="h-5 w-5" />
+                                        </span>
+                                        <p class="mt-2 text-xs text-gray-500">
+                                            {{
+                                                notifTab === "unread"
+                                                    ? "No unread notifications."
+                                                    : "You're all caught up."
+                                            }}
                                         </p>
                                     </div>
                                 </div>
@@ -454,6 +596,20 @@ onUnmounted(() => {
                                         <User class="w-4 h-4 text-[#005740]" />
 
                                         My Profile
+                                    </button>
+
+                                    <!-- Switch Workspace -->
+                                    <button
+                                        v-if="canSwitchWorkspace"
+                                        type="button"
+                                        class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-[#005740]/10 hover:text-[#005740] transition-colors duration-200"
+                                        @click="switchWorkspace"
+                                    >
+                                        <ArrowLeftRight
+                                            class="w-4 h-4 text-[#005740]"
+                                        />
+
+                                        Switch workspace
                                     </button>
 
                                     <!-- Switch System -->
@@ -567,63 +723,10 @@ onUnmounted(() => {
             :user="page.props.auth.user"
             @close="closeProfileModal"
         />
-        <Teleport to="body">
-            <div
-                v-if="showItemsModal"
-                class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4"
-                @click.self="closeItemsModal"
-            >
-                <div
-                    class="w-full max-w-md bg-white rounded-xl shadow-xl overflow-hidden"
-                >
-                    <div
-                        class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[#005740] via-[#006B4F] to-[#0E6021]"
-                    >
-                        <p class="text-[13px] font-semibold text-white">
-                            {{ selectedNotification?.title ?? "Items" }}
-                        </p>
-                        <button
-                            @click="closeItemsModal"
-                            class="text-white/80 hover:text-white text-sm"
-                        >
-                            ✕
-                        </button>
-                    </div>
-
-                    <div class="px-4 py-3">
-                        <p class="text-[12px] text-gray-500 mb-3">
-                            {{ selectedNotification?.message }}
-                        </p>
-
-                        <div
-                            class="max-h-64 overflow-y-auto divide-y divide-gray-100 border border-gray-100 rounded-lg"
-                        >
-                            <div
-                                v-for="item in selectedNotification?.items ??
-                                []"
-                                :key="item.id"
-                                class="px-3 py-2"
-                            >
-                                <p
-                                    class="text-[12.5px] font-medium text-gray-800"
-                                >
-                                    {{ item.item_name }}
-                                </p>
-                                <p class="text-[11px] text-gray-400">
-                                    {{ item.property_number }}
-                                </p>
-                            </div>
-
-                            <div
-                                v-if="!selectedNotification?.items?.length"
-                                class="px-3 py-6 text-center text-[12px] text-gray-400"
-                            >
-                                No item details available.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </Teleport>
+        <UserNotificationModal
+            :notification="selectedNotification"
+            :allow-actions="false"
+            @close="closeItemsModal"
+        />
     </div>
 </template>

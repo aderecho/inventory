@@ -32,6 +32,12 @@ class InventoryAcknowledgementStoreRequest extends FormRequest
             'created_by' => 'required|exists:users,id',
             'par_date' => 'required|date',
             'remarks' => 'nullable|string',
+            'reason_for_transfer' => 'nullable|string|max:1000',
+
+            'transfer_type' => 'nullable|array',
+            'transfer_type.*' => 'integer|exists:transfer_types,id',
+            'transfer_type_other' => 'nullable|string|max:255',
+            'approved_by' => 'nullable|integer|exists:user_profiles,id',
         ];
     }
 }

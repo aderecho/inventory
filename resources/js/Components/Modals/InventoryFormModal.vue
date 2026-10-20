@@ -6,7 +6,6 @@ import { useToast } from "primevue/usetoast";
 import Multiselect from "@vueform/multiselect";
 import "/node_modules/@vueform/multiselect/themes/default.css";
 import draggable from "vuedraggable";
-import SessionTimeoutWarning from "@/Components/SessionTimeoutWarning.vue";
 
 const props = defineProps({
     mode: { type: String, default: "create" },
@@ -574,9 +573,8 @@ function fieldByModel(fields, model) {
 </script>
 
 <template>
-    <SessionTimeoutWarning />
     <div
-        class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+        class="fixed inset-0 modal-backdrop flex items-center justify-center p-4 z-50"
     >
         <div
             :class="[

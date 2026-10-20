@@ -59,6 +59,9 @@ class InspectionService
                     $query->whereDoesntHave('latestAcknowledgementItem');
                 }
             })
+            // Disposed property leaves the inspection list, exactly as it
+            // leaves the inventory item list; it lives in the Disposal module.
+            ->where('status', '!=', InventoryItem::STATUS_DISPOSED)
             ->when($roomId, function ($query, $roomId) {
                 $query->whereHas('latestHistoryLocation', function ($q) use ($roomId) {
                     $q->where('room_id', $roomId);

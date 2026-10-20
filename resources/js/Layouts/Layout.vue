@@ -3,7 +3,6 @@ import { useSidebar } from "@/Composables/useSidebar";
 import { useLoading } from "@/Composables/useLoading";
 import SideBar from "@/Components/SideBar.vue";
 import NavHeader from "@/Components/NavHeader.vue";
-import SessionTimeoutWarning from "@/Components/SessionTimeoutWarning.vue";
 import LoadingOverlay from "@/Components/LoadingOverlay.vue";
 import Toast from "primevue/toast";
 
@@ -12,7 +11,6 @@ const { isLoading, loadingTitle, loadingMessage } = useLoading();
 </script>
 
 <template>
-    <SessionTimeoutWarning />
     <Toast />
     <LoadingOverlay
         :show="isLoading"
