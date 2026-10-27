@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Services\RoomApiService;
 use App\Services\DisposalService;
+use App\Models\AssetCondition;
 
 class DisposalController extends Controller
 {
@@ -35,13 +36,13 @@ class DisposalController extends Controller
 
         $search = $request->input('search');
         $costRange = $request->input('cost_range');
-        $status = $request->input('status');
+        $assetConditionId = $request->input('asset_condition_id');
         $acknowledgementStatus = $request->input('acknowledgement_status');
 
         $items = $this->disposalService->filterAndPaginateDisposal(
             $search,
             $costRange,
-            $status,
+            $assetConditionId,
             $acknowledgementStatus,
         );
 
@@ -61,6 +62,7 @@ class DisposalController extends Controller
         return inertia('Disposal/Index', [
             'rooms' => $rooms,
             'items' => $items,
+            'assetConditions' => AssetCondition::all(),
         ]);
     }
 }

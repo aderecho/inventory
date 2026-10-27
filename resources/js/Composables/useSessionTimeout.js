@@ -1,273 +1,292 @@
-import { ref, computed, onMounted, onUnmounted } from "vue";
-import { router, usePage } from "@inertiajs/vue3";
+import { computed, ref } from "vue";
+import { router } from "@inertiajs/vue3";
 import axios from "axios";
 
+/**
+ * One session watcher for the whole application.
+ *
+ * The state lives at module scope, so every component that calls this shares a
+ * single set of deadlines. Rendering the modal in more than one place can no
+ * longer race itself into signing the user out after they chose to stay.
+ *
+ * Deadlines are recomputed from the wall clock on every tick instead of being
+ * counted down with stacked timeouts: browsers throttle timers in background
+ * tabs, and a frozen tab would otherwise drift out of step with the server.
+ */
+
+const DEFAULTS = {
+    idleTimeout: 900 * 1000,
+    warningTime: 30 * 1000,
+    absoluteTimeout: 0,
+    absoluteWarning: 120 * 1000,
+    startedAt: null,
+};
+
+const config = { ...DEFAULTS };
+
+const idleModal = ref(false);
+const absoluteModal = ref(false);
+const secondsLeft = ref(0);
+const refreshing = ref(false);
+const notice = ref("");
+const watching = ref(false);
+
+let ticker = null;
+let idleDeadline = 0;
+let absoluteDeadline = 0;
+let lastServerTouch = 0;
+let lastActivityHandled = 0;
+let absoluteDismissedUntil = 0;
+let eventsBound = false;
+let signingOut = false;
+
+/** How often activity is allowed to refresh the server's own idle clock. */
+function serverTouchInterval() {
+    return Math.max(10_000, Math.min(60_000, Math.round(config.idleTimeout / 2)));
+}
+
+function idleCopy() {
+    const seconds = Math.round(config.idleTimeout / 1000);
+
+    if (seconds < 60) {
+        return `${seconds} seconds`;
+    }
+
+    const minutes = Math.round(seconds / 60);
+
+    return minutes === 1 ? "1 minute" : `${minutes} minutes`;
+}
+
+function absoluteCopy() {
+    const seconds = Math.round(config.absoluteTimeout / 1000);
+
+    if (seconds < 60) {
+        return `${seconds} seconds`;
+    }
+
+    const minutes = Math.round(seconds / 60);
+
+    if (minutes < 60) {
+        return minutes === 1 ? "1 minute" : `${minutes} minutes`;
+    }
+
+    const hours = Math.round(minutes / 60);
+
+    return hours === 1 ? "1 hour" : `${hours} hours`;
+}
+
+function clearTicker() {
+    if (ticker) {
+        clearInterval(ticker);
+        ticker = null;
+    }
+}
+
+function touchServer() {
+    const now = Date.now();
+
+    if (now - lastServerTouch < serverTouchInterval()) {
+        return;
+    }
+
+    lastServerTouch = now;
+
+    axios
+        .get("/session/ping", { headers: { Accept: "application/json" } })
+        .catch(() => {
+            // An expired session surfaces on the next real request.
+        });
+}
+
+function armIdle() {
+    idleDeadline = Date.now() + config.idleTimeout;
+    idleModal.value = false;
+    notice.value = "";
+}
+
+function signOut() {
+    if (signingOut) {
+        return;
+    }
+
+    signingOut = true;
+    clearTicker();
+    watching.value = false;
+    idleModal.value = false;
+    absoluteModal.value = false;
+
+    router.post("/logout");
+}
+
+function tick() {
+    if (!watching.value) {
+        return;
+    }
+
+    const now = Date.now();
+
+    if (absoluteDeadline && now >= absoluteDeadline) {
+        signOut();
+
+        return;
+    }
+
+    if (idleDeadline && now >= idleDeadline) {
+        signOut();
+
+        return;
+    }
+
+    const absoluteDue =
+        absoluteDeadline &&
+        absoluteDeadline - now <= config.absoluteWarning &&
+        now >= absoluteDismissedUntil;
+
+    absoluteModal.value = Boolean(absoluteDue);
+
+    const idleDue = idleDeadline && idleDeadline - now <= config.warningTime;
+
+    idleModal.value = Boolean(idleDue) && !absoluteModal.value;
+
+    const deadline = absoluteModal.value ? absoluteDeadline : idleDeadline;
+
+    secondsLeft.value = Math.max(0, Math.ceil((deadline - now) / 1000));
+}
+
+function start() {
+    clearTicker();
+    ticker = setInterval(tick, 1000);
+    tick();
+}
+
+function onActivity() {
+    const now = Date.now();
+
+    // Scroll fires in bursts; one reset per second is plenty.
+    if (now - lastActivityHandled < 1000) {
+        return;
+    }
+
+    lastActivityHandled = now;
+
+    if (!watching.value || idleModal.value || absoluteModal.value) {
+        // While a warning is on screen the clock keeps running until the user
+        // answers it, otherwise a stray mouse move would silently dismiss it.
+        return;
+    }
+
+    armIdle();
+    touchServer();
+}
+
+function bindEvents() {
+    if (eventsBound) {
+        return;
+    }
+
+    eventsBound = true;
+
+    document.addEventListener("pointerdown", onActivity, true);
+    document.addEventListener("keydown", onActivity, true);
+    document.addEventListener("scroll", onActivity, true);
+    document.addEventListener("visibilitychange", tick);
+    window.addEventListener("focus", tick);
+}
+
+async function stayLoggedIn() {
+    if (refreshing.value) {
+        return;
+    }
+
+    refreshing.value = true;
+    notice.value = "";
+
+    try {
+        const { data } = await axios.get("/session/ping", {
+            headers: { Accept: "application/json" },
+        });
+
+        if (data?.success !== true) {
+            throw new Error("Session is no longer valid.");
+        }
+
+        lastServerTouch = Date.now();
+        armIdle();
+        tick();
+    } catch (error) {
+        notice.value = "Your session already ended. Sending you to the login page...";
+
+        setTimeout(() => {
+            window.location.href = "/login";
+        }, 1200);
+    } finally {
+        refreshing.value = false;
+    }
+}
+
+function signOutNow() {
+    signOut();
+}
+
+function dismissAbsoluteWarning() {
+    // Comes back a minute later (or when the cap is due) so the user gets a
+    // second reminder instead of losing it for good.
+    absoluteDismissedUntil = Math.min(
+        absoluteDeadline || Date.now() + 60_000,
+        Date.now() + 60_000,
+    );
+
+    absoluteModal.value = false;
+    tick();
+}
+
+function stop() {
+    clearTicker();
+    watching.value = false;
+    idleModal.value = false;
+    absoluteModal.value = false;
+}
+
+/**
+ * Push the server's numbers in. Called from the component on every Inertia
+ * visit, which is also the moment the server refreshed its own idle clock.
+ */
+function applySessionConfig(next, authenticated) {
+    if (next) {
+        Object.assign(config, next);
+    }
+
+    bindEvents();
+
+    if (!authenticated) {
+        stop();
+
+        return;
+    }
+
+    signingOut = false;
+    watching.value = true;
+
+    absoluteDeadline = config.startedAt
+        ? config.startedAt + config.absoluteTimeout
+        : 0;
+
+    armIdle();
+    start();
+}
+
 export function useSessionTimeout() {
-    const page = usePage();
-
-    // =========================================================
-    // SESSION CONFIG
-    // =========================================================
-
-    const IDLE_TIMEOUT =
-        page.props.sessionConfig?.idleTimeout ?? 15 * 60 * 1000;
-
-    const WARNING_TIME = page.props.sessionConfig?.warningTime ?? 30 * 1000;
-
-    const IDLE_SECONDS = IDLE_TIMEOUT / 1000;
-
-    // =========================================================
-    // SESSION STATE
-    // =========================================================
-
-    const timeoutWarning = ref(false);
-    const timeRemaining = ref(WARNING_TIME / 1000);
-
-    let inactivityTimer = null;
-    let warningTimer = null;
-    let countdownInterval = null;
-    let debugInterval = null;
-
-    // =========================================================
-    // DEBUG STATE
-    // =========================================================
-
-    const idleSeconds = ref(0);
-    const idlePercentage = ref(0);
-
-    const lastActivity = ref(null);
-    const lastPing = ref(null);
-
-    const pingStatus = ref("Not tested");
-
-    const stayLoggedInCount = ref(0);
-    const timerResetCount = ref(0);
-
-    // =========================================================
-    // FORMAT TIME
-    // =========================================================
-
-    const formatSeconds = (seconds) => {
-        seconds = Math.max(0, Math.floor(seconds));
-
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = seconds % 60;
-
-        return `${String(minutes).padStart(2, "0")}:${String(
-            remainingSeconds,
-        ).padStart(2, "0")}`;
-    };
-
-    const formatTime = computed(() => {
-        return formatSeconds(timeRemaining.value);
-    });
-
-    // =========================================================
-    // UPDATE DEBUG IDLE TIME
-    // =========================================================
-
-    const updateDebugIdle = () => {
-        if (!lastActivity.value) {
-            idleSeconds.value = 0;
-            idlePercentage.value = 0;
-            return;
-        }
-
-        const elapsed = Math.floor((Date.now() - lastActivity.value) / 1000);
-
-        idleSeconds.value = Math.min(elapsed, IDLE_SECONDS);
-
-        idlePercentage.value = Math.min(
-            100,
-            (idleSeconds.value / IDLE_SECONDS) * 100,
-        );
-    };
-
-    // =========================================================
-    // RESET TIMERS
-    // =========================================================
-
-    const resetTimers = () => {
-        clearTimeout(inactivityTimer);
-        clearTimeout(warningTimer);
-        clearInterval(countdownInterval);
-
-        timeoutWarning.value = false;
-
-        // Record latest activity
-        lastActivity.value = Date.now();
-
-        // Debug
-        timerResetCount.value++;
-
-        updateDebugIdle();
-
-        // =====================================================
-        // WARNING TIMER
-        // =====================================================
-
-        warningTimer = setTimeout(() => {
-            timeoutWarning.value = true;
-
-            startCountdown();
-        }, IDLE_TIMEOUT - WARNING_TIME);
-
-        // =====================================================
-        // LOGOUT TIMER
-        // =====================================================
-
-        inactivityTimer = setTimeout(() => {
-            logout();
-        }, IDLE_TIMEOUT);
-    };
-
-    // =========================================================
-    // WARNING COUNTDOWN
-    // =========================================================
-
-    const startCountdown = () => {
-        clearInterval(countdownInterval);
-
-        let timeLeft = Math.floor(WARNING_TIME / 1000);
-
-        timeRemaining.value = timeLeft;
-
-        countdownInterval = setInterval(() => {
-            timeLeft--;
-
-            timeRemaining.value = Math.max(0, timeLeft);
-
-            if (timeLeft <= 0) {
-                clearInterval(countdownInterval);
-            }
-        }, 1000);
-    };
-
-    // =========================================================
-    // LOGOUT
-    // =========================================================
-
-    const logout = () => {
-        clearTimeout(inactivityTimer);
-        clearTimeout(warningTimer);
-        clearInterval(countdownInterval);
-
-        timeoutWarning.value = false;
-
-        router.post("/logout");
-    };
-
-    // =========================================================
-    // STAY LOGGED IN
-    // =========================================================
-
-    const dismissWarning = async () => {
-        clearInterval(countdownInterval);
-
-        pingStatus.value = "Pinging server...";
-
-        try {
-            const response = await axios.get("/session/ping");
-
-            lastPing.value = new Date();
-
-            if (response.data?.success === true) {
-                pingStatus.value = "SUCCESS";
-            } else {
-                pingStatus.value = "SUCCESS";
-            }
-
-            stayLoggedInCount.value++;
-
-            // Hide warning
-            timeoutWarning.value = false;
-
-            // Reset frontend timeout
-            resetTimers();
-
-        } catch (error) {
-            console.error("[Session] Stay Logged In failed:", error);
-
-            pingStatus.value = "FAILED";
-
-            // Do NOT reset the timer if server ping failed.
-            // The existing timeout will continue.
-        }
-    };
-
-    const events = ["pointerdown", "scroll", "click"];
-
-    let lastScrollActivity = 0;
-
-    const handleScroll = () => {
-        const now = Date.now();
-
-        // Only reset once every second while scrolling
-        if (now - lastScrollActivity < 1000) {
-            return;
-        }
-
-        lastScrollActivity = now;
-
-        resetTimers();
-    };
-
-    const setupEventListeners = () => {
-        document.addEventListener("pointerdown", resetTimers, true);
-        document.addEventListener("keydown", resetTimers, true);
-
-        // Throttled scroll
-        document.addEventListener("scroll", handleScroll, true);
-
-        resetTimers();
-
-        debugInterval = setInterval(() => {
-            updateDebugIdle();
-        }, 1000);
-    };
-
-    const removeEventListeners = () => {
-        document.removeEventListener("pointerdown", resetTimers, true);
-        document.removeEventListener("keydown", resetTimers, true);
-
-        document.removeEventListener("scroll", handleScroll, true);
-
-        clearTimeout(inactivityTimer);
-        clearTimeout(warningTimer);
-        clearInterval(countdownInterval);
-        clearInterval(debugInterval);
-    };
-
-    // =========================================================
-    // LIFECYCLE
-    // =========================================================
-
-    onMounted(setupEventListeners);
-
-    onUnmounted(removeEventListeners);
-
-    // =========================================================
-    // RETURN
-    // =========================================================
-
     return {
-        // Session
-        timeoutWarning,
-        timeRemaining,
-        formatTime,
-
-        logout,
-        dismissWarning,
-
-        // Debug
-        idleSeconds,
-        idlePercentage,
-        lastActivity,
-        lastPing,
-        pingStatus,
-        stayLoggedInCount,
-        timerResetCount,
-
-        idleTimeoutSeconds: IDLE_SECONDS,
+        idleModal,
+        absoluteModal,
+        secondsLeft,
+        refreshing,
+        notice,
+        applySessionConfig,
+        stayLoggedIn,
+        signOutNow,
+        dismissAbsoluteWarning,
+        idleWindow: computed(() => idleCopy()),
+        absoluteWindow: computed(() => absoluteCopy()),
     };
 }

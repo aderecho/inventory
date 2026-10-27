@@ -26,6 +26,7 @@ class SupplierUpdateRequest extends FormRequest
             'contact_no'    => 'required|string|max:20',
             'email'         => 'nullable|email|max:255',
             'address'       => 'required|string|max:500',
+            'status'        => 'nullable|in:0,1',
         ];
     }
 }

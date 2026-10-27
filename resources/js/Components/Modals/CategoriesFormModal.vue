@@ -18,6 +18,7 @@ const form = useForm({
     id: null,
     classification_name: "",
     classification_code: "",
+    status: 1,
 });
 
 // populate form when editing
@@ -93,7 +94,7 @@ function submitForm() {
 </script>
 
 <template>
-    <div class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" @click="closeWithAnimation">
+    <div class="fixed inset-0 modal-backdrop flex items-center justify-center p-4 z-50" @click="closeWithAnimation">
         <div
             :class="[
                 'bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[92vh]',
@@ -146,6 +147,35 @@ function submitForm() {
                             class="text-red-500 text-xs mt-1"
                         >
                             {{ form.errors[catF.model] }}
+                        </p>
+                    </div>
+
+                    <!-- STATUS -->
+                    <div>
+                        <label
+                            class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+                        >
+                            Status
+                        </label>
+
+                        <select
+                            v-model="form.status"
+                            :class="[
+                                'w-full rounded-md px-3 py-3 text-[#3B3B3B] bg-[#F8F8F8] text-sm focus:ring-1 focus:outline-none border',
+                                form.errors.status
+                                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                                    : 'border-gray-300 focus:ring-[#005740] focus:border-[#005740]',
+                            ]"
+                        >
+                            <option :value="1">Active</option>
+                            <option :value="0">Inactive</option>
+                        </select>
+
+                        <p
+                            v-if="form.errors.status"
+                            class="text-red-500 text-xs mt-1"
+                        >
+                            {{ form.errors.status }}
                         </p>
                     </div>
                 </div>

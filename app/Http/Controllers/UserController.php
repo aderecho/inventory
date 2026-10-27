@@ -77,6 +77,7 @@ class UserController extends Controller
             'user' => $this->userService->getAuthenticatedUser(),
             'items' => $items,
             'stats' => $this->userService->getDashboardStats($userId),
+            'borrowedItems' => $this->userService->getBorrowedItems($userId),
             'filters' => [
                 'search' => $request->search,
                 'sort' => $request->sort,

@@ -8,16 +8,18 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\ItemArchivingController;
 use App\Http\Controllers\CategoriesArchiveController;
+use App\Http\Controllers\BorrowingController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SupplierArchiveController;
 use App\Http\Controllers\EmbedDashboardController;
-use App\Http\Controllers\AcknowledgementController;
+use App\Http\Controllers\ItemApprovalController;
 use App\Http\Controllers\ApiClientController;
 use App\Http\Controllers\ItemLocationHistoryController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\PropertyCardController;
 use App\Http\Controllers\SamlMetadataController;
 use App\Http\Controllers\SamlSpController;
 use App\Http\Controllers\AuditLogsController;
@@ -35,6 +37,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/saml2/metadata', SamlMetadataController::class)->name('saml.metadata');
+
 Route::get('/saml2/login', [SamlSpController::class, 'redirectToIdp'])->name('saml.login');
 Route::get('/saml2/acs', fn() => redirect()->route('saml.login'))->name('saml.acs.start');
 Route::post('/saml2/acs', [SamlSpController::class, 'acs'])->name('saml.acs');
@@ -77,6 +80,9 @@ Route::post('/select-dashboard', [DashboardSelectionController::class, 'choose']
 // All authenticated routes with session timeout check
 Route::middleware(['auth', 'check.session.timeout'])->group(function () {
 
+    // "Switch workspace" from the settings menu.
+    Route::post('/switch-dashboard', [DashboardSelectionController::class, 'switch'])
+        ->name('auth.switch-dashboard');
 
     Route::get('/dashboard-test', [EmbedTestController::class, 'index'])
         ->name('dashboard.test');
@@ -88,6 +94,21 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
     })->name('session.ping');
     // User Dashboard
     Route::get('/user/dashboard', [UserController::class, 'index'])->name('user.dashboard');
+
+    // Property Cards: one ledger per article, built from its recorded history.
+    Route::prefix('property-cards')->group(function () {
+        Route::get('/', [PropertyCardController::class, 'index'])
+            ->middleware('can:view property cards')
+            ->name('property-cards.index');
+
+        Route::get('/{item}/pdf', [PropertyCardController::class, 'pdf'])
+            ->middleware('can:view property cards')
+            ->name('property-cards.pdf');
+
+        Route::get('/{item}', [PropertyCardController::class, 'show'])
+            ->middleware('can:view property cards')
+            ->name('property-cards.show');
+    });
 
     // Logout
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -133,6 +154,8 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
 
     // Item Archives
     Route::middleware('can:view archive_item')->get('/inventory/items/archive', [ItemArchivingController::class, 'index'])->name('items.archive.index');
+    Route::patch('/inventory/items/batch-restore', [ItemArchivingController::class, 'batchRestore'])->middleware('can:restore archive_item')->name('items.batch-restore');
+    Route::delete('/inventory/items/batch-force-delete', [ItemArchivingController::class, 'batchForceDelete'])->middleware('can:force delete archive_item')->name('items.batch-force-delete');
     Route::patch('/inventory/items/{id}/restore', [ItemArchivingController::class, 'restore'])->middleware('can:restore archive_item')->name('items.restore');
     Route::delete('/inventory/items/{id}/force-delete', [ItemArchivingController::class, 'forceDelete'])->middleware('can:force delete archive_item')->name('items.forceDelete');
 
@@ -148,15 +171,22 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
     });
     Route::post('/items/store', [InventoryController::class, 'store'])->middleware('can:create inventory')->name('items.store');
     Route::delete('/items/{id}', [InventoryController::class, 'destroy'])->middleware('can:delete inventory')->name('items.destroy');
+    Route::delete('/inventory/items/batch-archive', [InventoryController::class, 'batchArchive'])->middleware('can:delete inventory')->name('items.batch-archive');
+    Route::patch('/inventory/items/dispose', [InventoryController::class, 'disposeItems'])->name('items.dispose');
     Route::middleware('can:print inventory')->group(function () {
         Route::post('/inventory/qr-pngs', [InventoryController::class, 'downloadQrPngs'])->name('inventory.qr.pngs');
         Route::post('/inventory/qr-pdfs', [InventoryController::class, 'downloadQrPdfs'])->name('inventory.qr.pdfs');
+        Route::post('/inventory/qr-pngs/stream', [InventoryController::class, 'streamQrPngs'])->name('inventory.qr.pngs.stream');
+        Route::post('/inventory/qr-pdfs/stream', [InventoryController::class, 'streamQrPdfs'])->name('inventory.qr.pdfs.stream');
         Route::post('/print/receipt', [PrintController::class, 'printReceipt'])->name('print.receipt');
         Route::post('/print/receipt/sign', [PrintController::class, 'signReceipt'])->name('print.receipt.sign');
     });
     Route::middleware('can:import inventory')->group(function () {
         Route::post('/convert-excel-to-csv', [InventoryController::class, 'convert']);
         Route::post('/import-csv', [InventoryController::class, 'importCsv']);
+        Route::post('/inventory/import', [InventoryController::class, 'import'])->name('inventory.import');
+        Route::get('/inventory/export/sample', [InventoryController::class, 'exportSample'])->name('inventory.export.sample');
+        Route::get('/inventory/export', [InventoryController::class, 'exportExcel'])->name('inventory.export');
     });
     Route::get('/export-csv', [InventoryController::class, 'exportCsv'])->middleware('can:export inventory');
 
@@ -165,6 +195,12 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
         Route::get('/', [SupplierController::class, 'suppliers'])->middleware('can:view suppliers')->name('suppliers.index');
         Route::post('/', [SupplierController::class, 'store'])->middleware('can:create suppliers')->name('suppliers.store');
         Route::put('/{id}', [SupplierController::class, 'update'])->middleware('can:edit suppliers')->name('suppliers.update');
+        Route::delete('/batch-archive', [SupplierController::class, 'batchArchive'])->middleware('can:delete suppliers')->name('suppliers.batch-archive');
+        Route::patch('/batch-restore', [SupplierArchiveController::class, 'batchRestore'])->middleware('can:restore archive_supplier')->name('suppliers.batch-restore');
+        Route::delete('/batch-force-delete', [SupplierArchiveController::class, 'batchForceDelete'])->middleware('can:force delete archive_supplier')->name('suppliers.batch-force-delete');
+        Route::post('/batch-add', [SupplierController::class, 'import'])->middleware('can:create suppliers')->name('suppliers.batch-add');
+        Route::get('/batch-add/sample', [SupplierController::class, 'exportSample'])->middleware('can:create suppliers')->name('suppliers.batch-add.sample');
+        Route::get('/export', [SupplierController::class, 'exportExcel'])->middleware('can:view suppliers')->name('suppliers.export');
         Route::delete('/{id}', [SupplierController::class, 'destroy'])->middleware('can:delete suppliers')->name('suppliers.destroy');
 
         // Suppliers Archive
@@ -177,6 +213,12 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
     Route::prefix('categories')->group(function () {
         Route::get('/', [Categories::class, 'categories'])->middleware('can:view categories')->name('categories.index');
         Route::post('/', [Categories::class, 'store'])->middleware('can:create categories')->name('categories.store');
+        Route::delete('/batch-delete', [Categories::class, 'batchDelete'])->middleware('can:delete categories')->name('categories.batch-delete');
+        Route::patch('/batch-restore', [CategoriesArchiveController::class, 'batchRestore'])->name('categories.batch-restore');
+        Route::delete('/batch-force-delete', [CategoriesArchiveController::class, 'batchForceDelete'])->name('categories.batch-force-delete');
+        Route::post('/batch-add', [Categories::class, 'import'])->middleware('can:create categories')->name('categories.batch-add');
+        Route::get('/batch-add/sample', [Categories::class, 'exportSample'])->middleware('can:create categories')->name('categories.batch-add.sample');
+        Route::get('/export', [Categories::class, 'exportExcel'])->middleware('can:view categories')->name('categories.export');
         Route::put('/{id}', [Categories::class, 'update'])->middleware('can:edit categories')->name('categories.update');
         Route::delete('/{id}', [Categories::class, 'destroy'])->middleware('can:delete categories')->name('categories.destroy');
 
@@ -191,8 +233,19 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
         Route::get('/', [DisposalController::class, 'index'])->name('disposal.index');
 
         Route::post('/print/iirup', [DisposalPrintController::class, 'printIirup'])
-
             ->name('disposal.print.iirup');
+
+        Route::post('/print/iirup/below', [DisposalPrintController::class, 'printIirupBelow'])
+            ->name('disposal.print.iirup.below');
+
+        Route::post('/print/iirup/stream', [DisposalPrintController::class, 'streamIirup'])
+            ->name('disposal.print.iirup.stream');
+
+        Route::post('/print/iirup/below/stream', [DisposalPrintController::class, 'streamIirupBelow'])
+            ->name('disposal.print.iirup.below.stream');
+
+        Route::post('/print/iirup/combined/stream', [DisposalPrintController::class, 'streamCombinedIirup'])
+            ->name('disposal.print.iirup.combined.stream');
     });
 
     // Inspection Items
@@ -207,21 +260,52 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
     Route::prefix('asset-conditions')->group(function () {
         Route::get('/', [InspectionController::class, 'getConditions'])->name('asset-conditions.index');
         Route::post('/', [InspectionController::class, 'storeCondition'])->name('asset-conditions.store');
+        Route::put('/asset-conditions/{assetCondition}', [InspectionController::class, 'updateCondition'])
+            ->name('asset-conditions.update');
         Route::delete('/asset-conditions/{assetCondition}', [InspectionController::class, 'destroyCondition'])
             ->name('asset-conditions.destroy');
     });
 
-    // Acknowledgements
-    Route::prefix('acknowledgements')->group(function () {
-        Route::get('/', [AcknowledgementController::class, 'index'])->middleware('can:view acknowledgements')->name('acknowledgements.index');
-        Route::get('/{id}', [AcknowledgementController::class, 'show'])->middleware('can:show acknowledgements')->name('acknowledgements.show');
-        Route::post('/upload-file', [AcknowledgementController::class, 'uploadFile'])->middleware('can:upload acknowledgements')->name('acknowledgements.upload-file');
-    });
+    // Item Approvals: a read-only view of inventory_items.approval_status.
+    Route::get('/item-approvals', [ItemApprovalController::class, 'index'])
+        ->middleware('can:view item approvals')
+        ->name('item-approvals.index');
 
     // Item Location Histories
     Route::prefix('item-histories')->group(function () {
         Route::get('/', [ItemLocationHistoryController::class, 'index'])->name('item-histories.index');
         Route::get('/{id}', [ItemLocationHistoryController::class, 'show'])->middleware('can:show item histories')->name('item-histories.show');
+    });
+
+    // Borrowings
+    Route::prefix('borrowings')->group(function () {
+        Route::get('/', [BorrowingController::class, 'index'])
+            ->middleware('can:view borrowings')
+            ->name('borrowings.index');
+
+        Route::post('/', [BorrowingController::class, 'store'])
+            ->middleware('can:borrow items')
+            ->name('borrowings.store');
+
+        Route::patch('/return-items', [BorrowingController::class, 'returnAny'])
+            ->middleware('can:return items')
+            ->name('borrowings.return-items');
+
+        Route::patch('/{borrowing}/return', [BorrowingController::class, 'returnItems'])
+            ->middleware('can:return items')
+            ->name('borrowings.return');
+
+        Route::get('/history', [BorrowingController::class, 'history'])
+            ->middleware('can:view borrowings')
+            ->name('borrowings.history');
+
+        Route::get('/borrow-items', [BorrowingController::class, 'borrowableItems'])
+            ->middleware('can:view borrowings')
+            ->name('borrowings.borrow-items');
+
+        Route::get('/staff', [BorrowingController::class, 'staff'])
+            ->middleware('can:borrow items')
+            ->name('borrowings.staff');
     });
 
     // Reports
@@ -232,6 +316,8 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
         Route::get('/', [UserManagementController::class, 'UserManagement'])->middleware('can:view users')->name('user_management.index');
         Route::post('/', [UserManagementController::class, 'store'])->middleware('can:create users')->name('user_management.store');
         Route::put('/{user}', [UserManagementController::class, 'update'])->middleware('can:edit users')->name('user_management.update');
+        Route::patch('/batch-restore', [UserArchiveController::class, 'batchRestore'])->middleware('can:restore archive_users')->name('user_management.batch-restore');
+        Route::delete('/batch-force-delete', [UserArchiveController::class, 'batchForceDelete'])->middleware('can:force delete archive_users')->name('user_management.batch-force-delete');
         Route::delete('/{user}', [UserManagementController::class, 'destroy'])->middleware('can:delete users')->name('user_management.destroy');
 
         // User Archive
@@ -242,6 +328,14 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
     Route::put('/users/{user}/permissions', [RolePermissionController::class, 'updateUserPermissions'])->name('user_management.permissions');
 
     // Roles & Permissions
+    Route::get('/roles', [RolePermissionController::class, 'rolesIndex'])
+        ->middleware('can:view roles')
+        ->name('roles.index');
+
+    Route::get('/permissions', [RolePermissionController::class, 'permissionsIndex'])
+        ->middleware('can:view permissions')
+        ->name('permissions.index');
+
     Route::middleware('can:create roles')->group(function () {
         Route::post('/roles', [RolePermissionController::class, 'storeRole'])->name('roles.store');
         Route::post('/permissions', [RolePermissionController::class, 'storePermission'])->name('permissions.store');

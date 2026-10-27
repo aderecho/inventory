@@ -12,6 +12,12 @@ use Spatie\Activitylog\Models\Activity;
 class InventoryItem extends Model
 {
     use HasFactory, softDeletes, LogsActivity;
+
+    /** Where the item is: on the shelf, out on loan, or disposed of. */
+    public const STATUS_AVAILABLE = 'available';
+    public const STATUS_BORROWED = 'borrowed';
+    public const STATUS_DISPOSED = 'disposed';
+
     protected $fillable = [
         'item_classification_id',
         'fund_source',
@@ -34,6 +40,7 @@ class InventoryItem extends Model
         'remarks',
         'date_acquired',
         'approval_status',
+        'status',
         'lifespan',
         'is_private',
     ];
@@ -137,6 +144,20 @@ class InventoryItem extends Model
         return $this->hasOne(AssetInspection::class)->latestOfMany();
     }
 
+    /** Every borrow line this item has ever appeared on. */
+    public function borrowingItems()
+    {
+        return $this->hasMany(ItemBorrowingItem::class, 'inventory_item_id');
+    }
+
+    /** The borrow line that is still open, if the item is out on loan. */
+    public function activeBorrowingItem()
+    {
+        return $this->hasOne(ItemBorrowingItem::class, 'inventory_item_id')
+            ->whereNull('returned_at')
+            ->latestOfMany();
+    }
+
     public function scopeWithInspectionCondition($query, int $conditionId)
     {
         return $query->whereHas('inspections', function ($q) use ($conditionId) {
@@ -171,6 +192,11 @@ class InventoryItem extends Model
                         'like',
                         "%{$term}%"
                     );
+                })
+
+                // Acknowledgement receipt (Category, e.g. PAR/ICS/ITR number)
+                ->orWhereHas('latestAcknowledgementItem.acknowledgementReceipts', function ($receipt) use ($term) {
+                    $receipt->where('category', 'like', "%{$term}%");
                 })
 
                 // Accountable Person

@@ -13,12 +13,12 @@ class ItemLocationHistoryService
         int $perPage = 10
     ) {
         return InventoryItem::with([
-            'itemClassification',
-            'supplier',
             'latestHistoryLocation',
-            'historyLocations',
             'latestAcknowledgementItem.accountablePerson',
         ])
+            // Only the number of moves is shown in the list; the modal fetches
+            // the rows themselves.
+            ->withCount('historyLocations')
             ->when(
                 $search,
                 fn($query, $search) => $query->searchItemHistory($search)
@@ -47,12 +47,9 @@ class ItemLocationHistoryService
     {
         return InventoryItem::with([
             'itemClassification',
-            'supplier',
             'latestHistoryLocation',
             'historyLocations',
             'latestAcknowledgementItem.accountablePerson',
-            'acknowledgementHistory.accountablePerson',
-            'acknowledgementHistory.acknowledgementReceipts',
         ])
             ->findOrFail($id);
     }

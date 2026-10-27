@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { usePage, router } from "@inertiajs/vue3";
 import { Head } from "@inertiajs/vue3";
 import Layout from "@/Layouts/Layout.vue";
@@ -8,20 +8,33 @@ import PageHeader from "@/Components/PageHeader.vue";
 import InventoryFormModal from "@/Components/Modals/InventoryFormModal.vue";
 import SearchFilterBar from "@/Components/Filters/SearchFilterBar.vue";
 import ArchiveModal from "@/Components/Modals/ArchiveModal.vue";
+import BatchArchiveModal from "@/Components/Modals/BatchArchiveModal.vue";
 import SuccessDeleteModal from "@/Components/Modals/SuccessDeleteModal.vue";
 import AcknowledgementFormModal from "@/Components/Modals/AcknowledgementFormModal.vue";
+import ImportResultModal from "@/Components/Modals/ImportResultModal.vue";
+import ImportItemsModal from "@/Components/Modals/ImportItemsModal.vue";
+import ExportFormatModal from "@/Components/Modals/ExportFormatModal.vue";
+import AssetConditionFormModal from "@/Components/Modals/AssetConditionFormModal.vue";
+import DisposeItemsModal from "@/Components/Modals/DisposeItemsModal.vue";
 import { useToast } from "primevue/usetoast";
 import { usePermissions } from "@/Composables/usePermissions";
 import { useLoading } from "@/Composables/useLoading";
+import { usePrintDownload } from "@/Composables/usePrintDownload";
+import { buildIirupPayload } from "@/lib/iirupPayload";
+import DownloadProgressCard from "@/Components/DownloadProgressCard.vue";
 import { Button } from "@/Components/ui/button";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/Components/ui/dropdown-menu";
-import { ChevronDown, UserPlus, QrCode, Printer, X } from "lucide-vue-next";
+    Archive,
+    ChevronDown,
+    UserPlus,
+    QrCode,
+    Printer,
+    X,
+    FileUp,
+    FileDown,
+    ListChecks,
+    PackageX,
+} from "lucide-vue-next";
 import { Plus } from "lucide-vue-next";
 
 defineProps({
@@ -29,6 +42,13 @@ defineProps({
 });
 
 const { startLoading, stopLoading } = useLoading();
+const showConditionModal = ref(false);
+const showDisposeModal = ref(false);
+
+const { job: stickerJob, download: runStickerDownload, dismiss: dismissStickerJob } =
+    usePrintDownload();
+const { job: disposeJob, download: runDisposePrint, dismiss: dismissDisposeJob } =
+    usePrintDownload();
 
 const {
     inventoryActions,
@@ -73,6 +93,13 @@ const columns = [
         },
     },
     {
+        label: "Acknoweldgement Receipt",
+        key: "latest_acknowledgement_item.acknowledgement_receipts",
+        format: (val) =>
+            val?.category ??
+            `<span class="text-gray-400 italic">No Receipt</span>`,
+    },
+    {
         label: "Condition",
         key: "latest_inspection",
         format: (val) => {
@@ -81,6 +108,21 @@ const columns = [
                 return `<span class="text-gray-400 italic">Not Inspected</span>`;
             }
             return `<span class="text-black font-semibold py-1 px-2">${condition}</span>`;
+        },
+    },
+    {
+        label: "Borrow Status",
+        key: "status",
+        format: (value) => {
+            if (value === "borrowed") {
+                return '<span class="text-[11px] font-semibold text-amber-700">Borrowed</span>';
+            }
+
+            if (value === "retired") {
+                return '<span class="text-[11px] font-semibold text-gray-600">Retired</span>';
+            }
+
+            return '<span class="text-[11px] font-semibold text-[#2E7D32]">Available</span>';
         },
     },
     { label: "Action", key: "action" },
@@ -402,21 +444,204 @@ const itemClassifications = computed(
 const suppliers = computed(() => page.props.suppliers || []);
 const assetConditions = computed(() => page.props.assetConditions || []);
 
+// Disposing needs a condition flagged as Disposed; the modal guides the user
+// to add one when this comes back empty.
+const disposedCondition = computed(
+    () => assetConditions.value.find((condition) => condition.disposition === "disposed") ?? null,
+);
+const transferTypes = computed(() => page.props.transferTypes || []);
+const biggestCategories = computed(() => page.props.biggestCategories || {});
+
 // INVENTORY FILTER
 const search = ref("");
 const cost_range = ref(null);
+const asset_condition_id = ref("");
 const acknowledgement_status = ref("");
 const room_id = ref("");
+
+// The table header pins itself right below the sticky toolbar, so the
+// toolbar's height is published as a CSS variable that the table reads.
+const toolbarRef = ref(null);
+let toolbarObserver = null;
+
+function publishToolbarHeight() {
+    if (!toolbarRef.value) return;
+
+    document.documentElement.style.setProperty(
+        "--table-sticky-top",
+        toolbarRef.value.offsetHeight + "px",
+    );
+}
+
+onMounted(() => {
+    publishToolbarHeight();
+
+    if (typeof ResizeObserver !== "undefined" && toolbarRef.value) {
+        toolbarObserver = new ResizeObserver(publishToolbarHeight);
+        toolbarObserver.observe(toolbarRef.value);
+    }
+
+    window.addEventListener("resize", publishToolbarHeight);
+});
+
+onBeforeUnmount(() => {
+    toolbarObserver?.disconnect();
+    window.removeEventListener("resize", publishToolbarHeight);
+    document.documentElement.style.removeProperty("--table-sticky-top");
+});
 
 // MODAL STATE
 const formMode = ref("create");
 const showFormModal = ref(false);
 const showArchiveModal = ref(false);
+const showBatchArchiveModal = ref(false);
+const archiveSuccessMessage = ref("Item archived successfully.");
 const showAssignModal = ref(false);
 const currentItem = ref({});
 
 const showDeleteSuccessModal = ref(false);
 const toast = useToast();
+
+// IMPORT (CSV / Excel)
+const showImportModal = ref(false);
+const importResult = ref(null);
+
+// The file shown in a review, kept so it can be imported after.
+const pendingImportFile = ref(null);
+
+// Saves a receipt PDF under the name the server chose, e.g. "ITR_223-2026-10-900.pdf".
+function downloadReceipt(response) {
+    const disposition = response.headers["content-disposition"] || "";
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const fileName = match ? match[1] : `receipt_${Date.now()}.pdf`;
+
+    const url = window.URL.createObjectURL(
+        new Blob([response.data], { type: "application/pdf" }),
+    );
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", fileName);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+}
+
+function openImportModal() {
+    showImportModal.value = true;
+}
+
+// Downloads the fixed three-row sample (used inside the Batch Add window).
+function downloadExportSample() {
+    window.location.href = route("inventory.export.sample");
+}
+
+// Export opens a small modal so the format can be picked first.
+const showExportModal = ref(false);
+
+function confirmExport(format) {
+    showExportModal.value = false;
+
+    window.location.href = route("inventory.export", { format });
+}
+
+// Review runs the whole import without saving, so the report can be checked
+// before anything is written to the database.
+async function handleReviewFile(file) {
+    if (!file) return;
+
+    showImportModal.value = false;
+    pendingImportFile.value = file;
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("dry_run", 1);
+
+    startLoading(
+        "Reviewing Items...",
+        "Checking every row. Nothing is saved until you import.",
+    );
+
+    try {
+        const { data } = await axios.post(route("inventory.import"), formData);
+        importResult.value = data;
+    } catch (error) {
+        // Keep the real cause in the console; the user gets a short message.
+        console.error("Review request failed:", error);
+
+        const response = error.response;
+        let message = "The file could not be reviewed. Please try again.";
+
+        if (response?.status === 403) {
+            message = "You do not have permission to import items.";
+        } else if (response?.status === 413) {
+            message = "The file is too large to upload.";
+        } else if (response?.data?.message) {
+            message = response.data.message;
+        } else if (response?.status) {
+            message =
+                "The server returned " +
+                response.status +
+                ". Please try again.";
+        }
+
+        importResult.value = { fatal: message };
+    } finally {
+        stopLoading();
+    }
+}
+
+// "Import now" on the review report saves the file for real.
+function importPendingFile() {
+    const file = pendingImportFile.value;
+
+    importResult.value = null;
+
+    if (file) {
+        handleImportFile(file);
+    }
+}
+
+async function handleImportFile(file) {
+    if (!file) return;
+
+    showImportModal.value = false;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    startLoading(
+        "Importing Items...",
+        "Reading the spreadsheet and checking every row. This can take a minute.",
+    );
+
+    try {
+        const { data } = await axios.post(route("inventory.import"), formData);
+        importResult.value = data;
+        pendingImportFile.value = null;
+
+        if (data.imported_rows > 0) {
+            router.reload({ only: ["items", "biggestCategories"] });
+        }
+    } catch (error) {
+        const response = error.response;
+        let message = "The import could not be completed. Please try again.";
+
+        if (response?.status === 403) {
+            message = "You do not have permission to import items.";
+        } else if (response?.status === 413) {
+            message = "The file is too large to upload.";
+        } else if (response?.data?.errors?.file?.[0]) {
+            message = response.data.errors.file[0];
+        } else if (response?.data?.message) {
+            message = response.data.message;
+        }
+
+        importResult.value = { fatal: message };
+    } finally {
+        stopLoading();
+    }
+}
 
 function openAdd(item) {
     formMode.value = "create";
@@ -525,9 +750,66 @@ function confirmArchive(item) {
         onSuccess: () => {
             stopLoading();
             showArchiveModal.value = false;
+            archiveSuccessMessage.value = "Item archived successfully.";
             showDeleteSuccessModal.value = true;
             removeFromSelection(item.id);
             refreshItems();
+        },
+    });
+}
+
+function openBatchArchive() {
+    if (!tempSelectedIds.value.length) {
+        toast.add({
+            severity: "error",
+            summary: "No Items Selected",
+            detail: "Please select at least one item to archive.",
+            life: 3000,
+        });
+        return;
+    }
+
+    if (!canDeleteInventory.value) {
+        toast.add({
+            severity: "error",
+            summary: "Not Allowed",
+            detail: "You do not have permission to archive items.",
+            life: 3000,
+        });
+        return;
+    }
+
+    showBatchArchiveModal.value = true;
+}
+
+function confirmBatchArchive() {
+    const count = tempSelectedIds.value.length;
+    const label = count === 1 ? "Item" : count + " items";
+
+    startLoading(
+        "Archiving Items...",
+        "Please wait while we archive the selected items.",
+    );
+
+    router.delete(route("items.batch-archive"), {
+        data: { ids: tempSelectedIds.value },
+        preserveScroll: true,
+        onSuccess: () => {
+            stopLoading();
+            showBatchArchiveModal.value = false;
+            archiveSuccessMessage.value = label + " archived successfully.";
+            showDeleteSuccessModal.value = true;
+            clearSelection();
+            refreshItems();
+        },
+        onError: () => {
+            stopLoading();
+            toast.add({
+                severity: "error",
+                summary: "Archive Failed",
+                detail: "The selected items could not be archived.",
+                life: 5000,
+            });
         },
     });
 }
@@ -572,23 +854,15 @@ const printSelected = async (idsOverride) => {
             { responseType: "blob" },
         );
 
-        const url = window.URL.createObjectURL(
-            new Blob([response.data], { type: "application/pdf" }),
-        );
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", `receipt_${Date.now()}.pdf`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
+        downloadReceipt(response);
     } catch (error) {
-        const text = await error.response.data.text();
-        const json = JSON.parse(text);
         toast.add({
             severity: "error",
             summary: "Error",
-            detail: json.message,
+            detail: await responseErrorMessage(
+                error,
+                "Something went wrong while downloading the receipt.",
+            ),
             life: 10000,
         });
     } finally {
@@ -609,23 +883,15 @@ const handlePrint = async (id) => {
             { responseType: "blob" },
         );
 
-        const url = window.URL.createObjectURL(
-            new Blob([response.data], { type: "application/pdf" }),
-        );
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", `receipt_${Date.now()}.pdf`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
+        downloadReceipt(response);
     } catch (error) {
-        const text = await error.response.data.text();
-        const json = JSON.parse(text);
         toast.add({
             severity: "error",
             summary: "Error",
-            detail: json.message,
+            detail: await responseErrorMessage(
+                error,
+                "Something went wrong while downloading the receipt.",
+            ),
             life: 10000,
         });
         toast.add({
@@ -666,74 +932,61 @@ async function proceedPrint() {
     }
 }
 
-async function printQrCodesAsPng() {
-    startLoading(
-        "Generating QR Codes...",
-        "Please wait while we prepare your files.",
-    );
-    try {
-        const response = await axios.post(
-            route("inventory.qr.pngs"),
-            { ids: tempSelectedIds.value },
-            { responseType: "blob" },
-        );
+// A blob response hides the server's message, so read it back for the toast
+// instead of always reporting a generic failure.
+const responseErrorMessage = async (error, fallback) => {
+    const data = error?.response?.data;
 
-        const isSingle = tempSelectedIds.value.length === 1;
-        const filename = isSingle ? "qr-code.png" : "qr-codes.zip";
+    if (data instanceof Blob) {
+        try {
+            const parsed = JSON.parse(await data.text());
 
-        const url = window.URL.createObjectURL(new Blob([response.data]));
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", filename);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-    } catch (error) {
-        toast.add({
-            severity: "error",
-            summary: "Error",
-            detail: "Something went wrong while generating PNGs.",
-            life: 5000,
-        });
-    } finally {
-        stopLoading();
+            if (parsed?.message) {
+                return parsed.message;
+            }
+        } catch (parseError) {
+            // Not JSON: an HTML error page, so fall through to the fallback.
+        }
     }
+
+    return data?.message ?? fallback;
+};
+
+// Disposing is followed by the IIRUP for the same items.
+async function onItemsDisposed(items) {
+    clearSelection();
+
+    await runDisposePrint({
+        url: route("disposal.print.iirup.combined.stream"),
+        payload: buildIirupPayload(items),
+        title: "Generating IIRUP",
+        successTitle: "IIRUP downloaded",
+        errorTitle: "IIRUP was not generated",
+        errorMessage:
+            "The items were disposed, but the IIRUP could not be generated.",
+    });
+}
+
+async function printQrCodesAsPng() {
+    await runStickerDownload({
+        url: route("inventory.qr.pngs.stream"),
+        payload: { ids: tempSelectedIds.value },
+        title: "Generating stickers",
+        successTitle: "Stickers downloaded",
+        errorTitle: "Stickers were not generated",
+        errorMessage: "Something went wrong while generating the PNG stickers.",
+    });
 }
 
 async function printQrCodesAsPdf() {
-    startLoading(
-        "Generating QR PDF...",
-        "Please wait while we prepare your document.",
-    );
-    try {
-        const response = await axios.post(
-            route("inventory.qr.pdfs"),
-            { ids: tempSelectedIds.value },
-            { responseType: "blob" },
-        );
-
-        const isSingle = tempSelectedIds.value.length === 1;
-        const filename = isSingle ? "qr-code.pdf" : "qr-codes.pdf";
-
-        const url = window.URL.createObjectURL(
-            new Blob([response.data], { type: "application/pdf" }),
-        );
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", filename);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-    } catch (error) {
-        toast.add({
-            severity: "error",
-            summary: "Error",
-            detail: "Something went wrong while generating PDF.",
-            life: 5000,
-        });
-    } finally {
-        stopLoading();
-    }
+    await runStickerDownload({
+        url: route("inventory.qr.pdfs.stream"),
+        payload: { ids: tempSelectedIds.value },
+        title: "Generating sticker PDF",
+        successTitle: "Sticker PDF downloaded",
+        errorTitle: "Sticker PDF was not generated",
+        errorMessage: "Something went wrong while generating the sticker PDF.",
+    });
 }
 
 const formatName = (name) => {
@@ -781,6 +1034,10 @@ const adminProfiles = computed(() => {
         }))
         .sort((a, b) => a.full_name.localeCompare(b.full_name));
 });
+
+const canDeleteInventory = computed(() =>
+    inventoryActions.value.includes("delete"),
+);
 
 const defaultIssuedBy = computed(() => {
     const targetNames = ["grace", "lenarez", "mendez"];
@@ -856,167 +1113,321 @@ function handleAssignSubmit(ids) {
     <Head title="UP | Inventory/Items" />
 
     <Layout>
+        <DownloadProgressCard :job="stickerJob" @dismiss="dismissStickerJob" />
+        <DownloadProgressCard :job="disposeJob" @dismiss="dismissDisposeJob" />
+
         <PageHeader title="Items" />
         <div class="w-full h-full">
-            <div class="flex flex-col md:flex-row gap-2 justify-between mt-6">
-                <div class="flex flex-col sm:flex-row gap-2 mt-2">
-                    <Button
-                        v-if="canCreateInventory"
-                        @click="openAdd"
-                        class="bg-[#0E6021] hover:bg-[#19703a] text-white text-xs sm:text-sm"
-                    >
-                        Add Item
-                        <Plus class="w-4 h-4 mr-2" />
-                    </Button>
-
-                    <DropdownMenu>
-                        <DropdownMenuTrigger as-child>
-                            <Button
-                                class="bg-[#0E6021] hover:bg-[#19703a] text-white text-xs sm:text-sm"
-                            >
-                                Actions
-                                <ChevronDown class="w-4 h-4 ml-2" />
-                            </Button>
-                        </DropdownMenuTrigger>
-
-                        <DropdownMenuSeparator />
-
-                        <DropdownMenuContent
-                            class="w-48 rounded-lg shadow-lg border border-[#f5c6d8]"
-                        >
-                            <DropdownMenuItem
-                                @click="openAss"
-                                class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
-                            >
-                                <UserPlus class="w-4 h-4 mr-2 text-[#850038]" />
-                                Assign
-                            </DropdownMenuItem>
-
-                            <DropdownMenuSeparator />
-
-                            <DropdownMenuItem
-                                @click="openPrintModal"
-                                class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
-                            >
-                                <QrCode class="w-4 h-4 mr-2 text-[#850038]" />
-                                Sticker
-                            </DropdownMenuItem>
-
-                            <DropdownMenuSeparator />
-
-                            <DropdownMenuItem
-                                @click="printSelected"
-                                :disabled="isPrintingSelected"
-                                class="text-xs font-medium hover:bg-[#fff0f6] hover:text-[#850038] cursor-pointer"
-                            >
-                                <Printer class="w-4 h-4 mr-2 text-[#850038]" />
-                                {{
-                                    isPrintingSelected ? "Printing..." : "Print"
-                                }}
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </div>
-
+            <!-- TOOLBAR (sticks to the top while scrolling) -->
             <div
-                class="flex flex-col md:flex-row md:items-center justify-between gap-3 mt-5"
+                ref="toolbarRef"
+                class="sticky top-0 z-30 mt-6 rounded-xl border border-gray-200 bg-white/95 p-3 shadow-sm backdrop-blur"
             >
-                <SearchFilterBar
-                    :search="search"
-                    :cost_range="cost_range"
-                    :room_id="room_id"
-                    :rooms="rooms"
-                    :unitCostOptions="unitCostOptions"
-                    :filterCondition="filterCondition"
-                    :acknowledgementFilter="acknowledgementFilter"
-                    @update:search="search = $event"
-                    @update:asset_condition_id="status = $event"
-                    @update:cost_range="cost_range = $event"
-                    @update:acknowledgement_status="
-                        acknowledgement_status = $event
-                    "
-                    :mode="'inventory'"
-                />
+                <div
+                    class="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between"
+                >
+                    <!-- Buttons sit in two aligned rows: the batch actions on
+                         top, Add Item and Export lined up underneath. -->
+                    <div
+                        class="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto"
+                    >
+                        <Button
+                            v-if="canImportInventory"
+                            @click="openImportModal"
+                            class="w-full justify-center bg-[#0E6021] text-xs text-white hover:bg-[#19703a] sm:text-sm"
+                        >
+                            <FileUp class="w-4 h-4 mr-2" />
+                            Batch Add
+                        </Button>
 
-                <div class="relative flex-shrink-0 self-start md:self-auto">
-                    <button
-                        type="button"
-                        @click="toggleSelectedPanel"
-                        class="flex items-center gap-2 bg-white border border-gray-300 rounded-full pl-1 pr-3 py-1 shadow-sm hover:bg-gray-50 transition-colors"
+                        <Button
+                            v-if="canDeleteInventory"
+                            @click="openBatchArchive"
+                            :disabled="!tempSelectedIds.length"
+                            class="w-full justify-center bg-[#D71D1D] text-xs text-white hover:bg-[#b81616] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-[#D71D1D] sm:text-sm"
+                        >
+                            <Archive class="w-4 h-4 mr-2" />
+                            Batch Archive
+                            <span
+                                class="ml-1 inline-flex h-5 w-7 shrink-0 items-center justify-center rounded-full bg-white/25 text-[11px] tabular-nums leading-5"
+                            >
+                                {{ tempSelectedIds.length }}
+                            </span>
+                        </Button>
+
+                        <Button
+                            v-if="canCreateInventory"
+                            @click="openAdd"
+                            class="w-full justify-center bg-[#0E6021] text-xs text-white hover:bg-[#19703a] sm:text-sm"
+                        >
+                            <Plus class="w-4 h-4 mr-2" />
+                            Add Item
+                        </Button>
+
+                        <Button
+                            v-if="canExportInventory"
+                            @click="showExportModal = true"
+                            variant="outline"
+                            class="w-full justify-center border-[#0E6021] text-xs text-[#0E6021] hover:bg-[#0E6021]/5 sm:text-sm"
+                        >
+                            <FileDown class="w-4 h-4 mr-2" />
+                            Export
+                        </Button>
+
+                    </div>
+
+                    <!-- filters and search -->
+                    <div class="flex w-full flex-col gap-2 xl:max-w-3xl">
+                        <div class="flex justify-end">
+                            <Button
+                                type="button"
+                                @click="showConditionModal = true"
+                                variant="outline"
+                                class="justify-center border-gray-300 text-xs text-gray-600 hover:bg-gray-50 sm:text-sm"
+                            >
+                                <ListChecks class="w-4 h-4 mr-2" />
+                                Manage Conditions
+                            </Button>
+                        </div>
+
+                        <SearchFilterBar
+                            :search="search"
+                            :cost_range="cost_range"
+                            :asset_condition_id="asset_condition_id"
+                            :room_id="room_id"
+                            :rooms="rooms"
+                            :unitCostOptions="unitCostOptions"
+                            :filterCondition="filterCondition"
+                            :acknowledgementFilter="acknowledgementFilter"
+                            @update:search="search = $event"
+                            @update:asset_condition_id="
+                                asset_condition_id = $event
+                            "
+                            @update:cost_range="cost_range = $event"
+                            @update:acknowledgement_status="
+                                acknowledgement_status = $event
+                            "
+                            :mode="'inventory'"
+                            :collapsible-filters="true"
+                        />
+                    </div>
+                </div>
+
+                <!-- SELECTION ACTIONS (always visible, enabled once rows are ticked) -->
+                <div
+                    class="mt-3 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 transition-colors"
+                    :class="
+                        tempSelectedIds.length
+                            ? 'border-[#005740]/20 bg-[#005740]/[0.06]'
+                            : 'border-gray-200 bg-gray-50'
+                    "
+                >
+                    <span
+                        class="flex items-center gap-2 text-xs font-semibold transition-colors"
+                        :class="
+                            tempSelectedIds.length
+                                ? 'text-[#005740]'
+                                : 'text-gray-500'
+                        "
                     >
                         <span
-                            class="flex items-center justify-center w-7 h-7 rounded-full bg-[#0E6021] text-white text-xs font-bold flex-shrink-0"
+                            class="flex h-6 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold tabular-nums text-white transition-colors"
+                            :class="
+                                tempSelectedIds.length
+                                    ? 'bg-[#005740]'
+                                    : 'bg-gray-400'
+                            "
                         >
                             {{ tempSelectedIds.length }}
                         </span>
-                        <span
-                            class="text-xs font-medium text-gray-600 whitespace-nowrap"
-                            >Selected</span
-                        >
-                        <ChevronDown
-                            class="w-4 h-4 text-gray-500 transition-transform duration-200"
-                            :class="{ 'rotate-180': showSelectedPanel }"
-                        />
+                        selected
+                    </span>
+
+                    <span
+                        class="hidden h-5 w-px sm:block"
+                        :class="
+                            tempSelectedIds.length
+                                ? 'bg-[#005740]/20'
+                                : 'bg-gray-200'
+                        "
+                    ></span>
+
+                    <button
+                        type="button"
+                        @click="openAss"
+                        :disabled="!tempSelectedIds.length"
+                        class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-[#005740] transition-colors hover:bg-[#005740]/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                    >
+                        <UserPlus class="h-3.5 w-3.5" />
+                        Assign
                     </button>
 
-                    <div
-                        v-if="showSelectedPanel"
-                        class="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-30 max-h-80 overflow-y-auto"
+                    <button
+                        type="button"
+                        @click="openPrintModal"
+                        :disabled="!tempSelectedIds.length"
+                        class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-[#005740] transition-colors hover:bg-[#005740]/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                     >
-                        <div
-                            class="px-4 py-2 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white"
+                        <QrCode class="h-3.5 w-3.5" />
+                        Sticker
+                    </button>
+
+                    <button
+                        type="button"
+                        @click="printSelected"
+                        :disabled="!tempSelectedIds.length || isPrintingSelected"
+                        class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-[#005740] transition-colors hover:bg-[#005740]/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                    >
+                        <Printer class="h-3.5 w-3.5" />
+                        {{ isPrintingSelected ? "Printing…" : "Print" }}
+                    </button>
+
+                    <button
+                        type="button"
+                        :disabled="!tempSelectedIds.length"
+                        @click="showDisposeModal = true"
+                        class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-[#D71D1D] transition-colors hover:bg-[#D71D1D]/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                    >
+                        <PackageX class="h-3.5 w-3.5" />
+                        Dispose
+                        <span
+                            class="rounded-full bg-[#D71D1D]/10 px-1.5 text-[10px] font-bold tabular-nums"
                         >
-                            <p
-                                class="text-xs font-semibold text-gray-500 uppercase tracking-wide"
-                            >
-                                Selected ({{ tempSelectedIds.length }})
-                            </p>
+                            {{ tempSelectedIds.length }}
+                        </span>
+                    </button>
+
+                    <div class="ml-auto flex items-center gap-1">
+                        <div class="relative">
                             <button
-                                v-if="tempSelectedIds.length"
                                 type="button"
-                                @click="clearSelection"
-                                class="text-xs text-[#850038] hover:underline"
+                                @click="toggleSelectedPanel"
+                                :disabled="!tempSelectedIds.length"
+                                class="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                             >
-                                Clear all
+                                Review
+                                <ChevronDown
+                                    class="h-3.5 w-3.5 transition-transform duration-200"
+                                    :class="{
+                                        'rotate-180': showSelectedPanel,
+                                    }"
+                                />
                             </button>
+
+                            <div
+                                v-if="showSelectedPanel"
+                                class="absolute right-0 z-40 mt-2 max-h-80 w-72 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg"
+                            >
+                                <div
+                                    class="sticky top-0 flex items-center justify-between border-b border-gray-100 bg-white px-4 py-2"
+                                >
+                                    <p
+                                        class="text-xs font-semibold uppercase tracking-wide text-gray-500"
+                                    >
+                                        Selected ({{ tempSelectedIds.length }})
+                                    </p>
+                                    <button
+                                        type="button"
+                                        @click="clearSelection"
+                                        class="text-xs font-medium text-[#005740] hover:underline"
+                                    >
+                                        Clear all
+                                    </button>
+                                </div>
+
+                                <ul
+                                    v-if="selectedItemsDetails.length"
+                                    class="divide-y divide-gray-100"
+                                >
+                                    <li
+                                        v-for="item in selectedItemsDetails"
+                                        :key="item.id"
+                                        class="flex items-center gap-2 px-4 py-2 text-sm"
+                                    >
+                                        <button
+                                            type="button"
+                                            @click="removeFromSelection(item.id)"
+                                            class="flex-shrink-0 text-gray-400 transition-colors hover:text-[#D71D1D]"
+                                            title="Remove from selection"
+                                        >
+                                            <X class="w-3.5 h-3.5" />
+                                        </button>
+                                        <span class="truncate text-gray-700">
+                                            {{ item.item_name }}
+                                            <template
+                                                v-if="item.property_number"
+                                                >-
+                                                {{
+                                                    item.property_number
+                                                }}</template
+                                            >
+                                        </span>
+                                    </li>
+                                </ul>
+
+                                <p
+                                    v-else
+                                    class="px-4 py-6 text-center text-xs text-gray-400"
+                                >
+                                    No items selected yet.
+                                </p>
+                            </div>
                         </div>
 
-                        <ul
-                            v-if="selectedItemsDetails.length"
-                            class="divide-y divide-gray-100"
+                        <button
+                            type="button"
+                            @click="clearSelection"
+                            :disabled="!tempSelectedIds.length"
+                            class="rounded-md px-2 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:text-[#D71D1D] hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-gray-500 disabled:hover:no-underline"
                         >
-                            <li
-                                v-for="item in selectedItemsDetails"
-                                :key="item.id"
-                                class="px-4 py-2 flex items-center gap-2 text-sm"
-                            >
-                                <button
-                                    type="button"
-                                    @click="removeFromSelection(item.id)"
-                                    class="text-gray-400 hover:text-[#D71D1D] flex-shrink-0"
-                                    title="Remove from selection"
-                                >
-                                    <X class="w-3.5 h-3.5" />
-                                </button>
-                                <span class="text-gray-700 truncate">
-                                    {{ item.item_name }}
-                                    <template v-if="item.property_number"
-                                        >- {{ item.property_number }}</template
-                                    >
-                                </span>
-                            </li>
-                        </ul>
-
-                        <p
-                            v-else
-                            class="px-4 py-6 text-center text-xs text-gray-400"
-                        >
-                            No items selected yet.
-                        </p>
+                            Clear
+                        </button>
                     </div>
                 </div>
             </div>
+
+            <AssetConditionFormModal
+                v-if="showConditionModal"
+                :conditions="assetConditions"
+                @close="showConditionModal = false"
+            />
+
+            <DisposeItemsModal
+                v-if="showDisposeModal"
+                :items="selectedItemsDetails"
+                :disposed-condition="disposedCondition"
+                @close="showDisposeModal = false"
+                @add-condition="
+                    showDisposeModal = false;
+                    showConditionModal = true;
+                "
+                @disposed="onItemsDisposed"
+            />
+
+            <ImportItemsModal
+                v-if="showImportModal"
+                :canDownloadSample="canImportInventory"
+                @close="showImportModal = false"
+                @download-sample="downloadExportSample"
+                @import="handleImportFile"
+                @review="handleReviewFile"
+            />
+
+            <ImportResultModal
+                v-if="importResult"
+                :result="importResult"
+                :canImport="Boolean(pendingImportFile)"
+                @import="importPendingFile"
+                @close="importResult = null"
+            />
+
+            <ExportFormatModal
+                :show="showExportModal"
+                title="Export Items"
+                subtitle="Download every item in the database. Pick the file format you want."
+                @confirm="confirmExport"
+                @close="showExportModal = false"
+            />
 
             <AcknowledgementFormModal
                 v-if="showAssignModal"
@@ -1029,6 +1440,8 @@ function handleAssignSubmit(ids) {
                 :rooms="rooms"
                 :userProfiles="users"
                 :defaultIssuedBy="defaultIssuedBy"
+                :transferTypes="transferTypes"
+                :biggestCategories="biggestCategories"
                 @close="() => (showAssignModal = false)"
                 @assigned="handleAssignSubmit"
             />
@@ -1063,9 +1476,16 @@ function handleAssignSubmit(ids) {
                 v-if="showDeleteSuccessModal"
                 :icon="iconDelete"
                 title="Archive Success"
-                message="Item archived successfully!"
+                :message="archiveSuccessMessage"
                 buttonText="Confirm"
                 @close="showDeleteSuccessModal = false"
+            />
+
+            <BatchArchiveModal
+                v-if="showBatchArchiveModal"
+                :items="selectedItemsDetails"
+                @confirm="confirmBatchArchive"
+                @close="showBatchArchiveModal = false"
             />
 
             <ArchiveModal
@@ -1093,7 +1513,7 @@ function handleAssignSubmit(ids) {
         <!-- Print Format Modal -->
         <div
             v-if="showPrintModal"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop"
         >
             <div class="bg-white rounded-lg w-full max-w-md overflow-hidden">
                 <div

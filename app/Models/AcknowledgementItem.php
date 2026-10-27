@@ -16,7 +16,9 @@ class AcknowledgementItem extends Model
         'inventory_item_id',
         'accountable_person_id',
         'issued_by_id',
-        'status'
+        'approved_by',
+        'status',
+        'transfer_type_other',
     ];
 
     public $timestamps = true;
@@ -70,6 +72,12 @@ class AcknowledgementItem extends Model
         return $this->belongsTo(UserProfile::class, 'issued_by_id');
     }
 
+    /** Set only on reassignments. */
+    public function approvedBy()
+    {
+        return $this->belongsTo(UserProfile::class, 'approved_by');
+    }
+
     public function acknowledgementReceipts()
     {
         return $this->belongsTo(AcknowledgementReceipt::class, 'acknowledgement_id');
@@ -80,14 +88,14 @@ class AcknowledgementItem extends Model
         return $this->belongsTo(InventoryItem::class, 'inventory_item_id');
     }
 
-    public function file()
+    public function transferTypes()
     {
-        return $this->hasOne(InventoryItemFile::class, 'acknowledgement_item_id');
-    }
-
-    public function files()
-    {
-        return $this->hasMany(InventoryItemFile::class, 'acknowledgement_item_id');
+        return $this->belongsToMany(
+            TransferType::class,
+            'acknowledgement_item_transfer_type',
+            'acknowledgement_item_id',
+            'transfer_type_id'
+        )->withTimestamps();
     }
 
     public function scopeSearch($query, $term)

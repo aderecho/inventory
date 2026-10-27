@@ -58,49 +58,60 @@ function onBlur() {
 </script>
 
 <template>
-    <div class="flex flex-col w-full sm:w-auto relative">
-        <label class="text-xs text-[#3B3B3B] font-bold mb-1 sm:mb-0">
+    <div class="relative flex w-full flex-col sm:w-56">
+        <label
+            class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500"
+        >
             {{ label }}
         </label>
 
         <div class="relative">
+            <span
+                class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400"
+            >
+                <i class="fa-solid fa-location-dot text-xs"></i>
+            </span>
+
             <input
                 v-model="query"
                 type="text"
                 :placeholder="selectedRoom ? selectedRoom.room_name : placeholder"
                 @focus="onFocus"
                 @blur="onBlur"
-                class="h-8 sm:h-9 w-full sm:w-48 text-xs rounded-md text-gray-600 border focus:ring-[#850038] focus:outline-none focus:border-[#850038] px-2"
+                class="h-10 w-full rounded-lg border border-gray-300 bg-white pl-8 pr-8 text-xs text-gray-600 transition-colors focus:border-[#005740] focus:outline-none focus:ring-1 focus:ring-[#005740]"
             />
 
             <button
                 v-if="selectedRoom"
                 type="button"
                 @mousedown.prevent="clearSelection"
-                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
+                class="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                title="Clear room"
             >
-                ✕
+                <i class="fa-solid fa-xmark text-xs"></i>
             </button>
         </div>
 
         <ul
             v-if="isOpen && filteredRooms.length"
-            class="absolute top-full mt-1 z-10 w-full sm:w-48 max-h-48 overflow-y-auto bg-white border rounded-md shadow-sm text-xs"
+            class="absolute top-full z-20 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white text-xs shadow-lg"
         >
             <li
                 v-for="room in filteredRooms"
                 :key="room.id"
                 @mousedown.prevent="selectRoom(room)"
-                class="px-2 py-1.5 hover:bg-gray-100 cursor-pointer"
+                class="cursor-pointer px-3 py-2 transition-colors hover:bg-[#005740]/5"
             >
-                <div class="font-medium text-gray-700">{{ room.room_name }}</div>
+                <div class="font-medium text-gray-700">
+                    {{ room.room_name }}
+                </div>
                 <div class="text-gray-400">{{ room.description }}</div>
             </li>
         </ul>
 
         <div
             v-else-if="isOpen && query"
-            class="absolute top-full mt-1 z-10 w-full sm:w-48 bg-white border rounded-md shadow-sm text-xs px-2 py-1.5 text-gray-400"
+            class="absolute top-full z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-400 shadow-lg"
         >
             No rooms found
         </div>

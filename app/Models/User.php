@@ -87,10 +87,11 @@ class User extends Authenticatable
         return $query->where(function ($q) use ($term) {
             $q->where('email', 'like', "%{$term}%")
                 ->orWhereHas('userProfiles', function ($profile) use ($term) {
-                    $profile->where('first_name', 'like', "%{$term}%")
-                        ->orWhere('last_name', 'like', "%{$term}%")
-                        ->orWhere('middle_name', 'like', "%{$term}%")
-                        ->orWhere('contact_number', 'like', "%{$term}%");
+                $profile->where('first_name', 'like', "%{$term}%")
+                    ->orWhere('last_name', 'like', "%{$term}%")
+                    ->orWhere('middle_name', 'like', "%{$term}%")
+                    ->orWhere('contact_number', 'like', "%{$term}%")
+                    ->orWhere('primary_unit_division_department', 'like', "%{$term}%");
                 });
         });
     }

@@ -58,7 +58,11 @@ class ItemLocationHistoryController extends Controller
         ]);
     }
 
-    public function show(Request $request, int $id)
+    /**
+     * Location history for one item. The list opens this in a modal, so it
+     * answers with JSON instead of an Inertia page.
+     */
+    public function show(int $id)
     {
         $roomResult = $this->roomsApi->fetchRooms();
 
@@ -81,7 +85,7 @@ class ItemLocationHistoryController extends Controller
             $history->description   = $room['description']   ?? 'N/A';
         });
 
-        return inertia('ItemHistory/Show', [
+        return response()->json([
             'item' => $item,
         ]);
     }

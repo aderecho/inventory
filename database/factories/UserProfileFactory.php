@@ -14,7 +14,6 @@ class UserProfileFactory extends Factory
             'middle_name' => $this->faker->name(),
             'last_name' => $this->faker->name(),
             'contact_number' => $this->faker->phoneNumber(),
-            'status' => $this->faker->boolean ? 1 : 0,
         ];
     }
 }

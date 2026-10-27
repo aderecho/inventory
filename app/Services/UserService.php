@@ -7,6 +7,8 @@ use App\Models\InventoryItem;
 use App\Models\UserProfile;
 use App\Models\AcknowledgementItem;
 use App\Models\AcknowledgementReceipt;
+use App\Models\ItemBorrowingItem;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 
@@ -55,7 +57,6 @@ class UserService
             ->with([
                 'supplier',
                 'latestAcknowledgementItem.acknowledgementReceipts:id,par_date,category',
-                'latestAcknowledgementItem.files',
                 'latestHistoryLocation',
             ])
             ->whereHas('latestAcknowledgementItem', function ($q) use ($userId) {
@@ -117,18 +118,55 @@ class UserService
 
     public function getDashboardStats(int $userId): array
     {
-        $assignedItems = AcknowledgementItem::where('accountable_person_id', $userId)
-            ->distinct('inventory_item_id')
-            ->count('inventory_item_id');
+        // Matches the "Assigned to me" table: the property whose latest
+        // acknowledgement is still held by this account.
+        $assignedItems = InventoryItem::whereHas(
+            'latestAcknowledgementItem',
+            fn ($query) => $query->where('accountable_person_id', $userId)
+        )->count();
 
         $receipts = AcknowledgementItem::where('accountable_person_id', $userId)
             ->distinct('acknowledgement_id')
             ->count('acknowledgement_id');
 
+        $borrowed = $this->getBorrowedItems($userId);
+
         return [
             'assigned_items' => $assignedItems,
             'receipts' => $receipts,
+            'borrowed_items' => $borrowed->count(),
+            'overdue_borrowings' => $borrowed->where('is_overdue', true)->count(),
         ];
+    }
+
+    /**
+     * The lines this account still has out on loan, newest first.
+     */
+    public function getBorrowedItems(int $userId): Collection
+    {
+        return ItemBorrowingItem::query()
+            ->with(['inventoryItem', 'borrowing'])
+            ->whereNull('returned_at')
+            ->whereHas(
+                'borrowing',
+                fn ($query) => $query->where('borrower_user_id', $userId)
+            )
+            ->latest('id')
+            ->get()
+            ->map(function (ItemBorrowingItem $line) {
+                $borrowing = $line->borrowing;
+
+                return [
+                    'id'              => $line->id,
+                    'reference_code'  => $borrowing?->reference_code,
+                    'item_name'       => $line->inventoryItem?->item_name ?? 'Item',
+                    'property_number' => $line->inventoryItem?->property_number ?? '—',
+                    'serial_number'   => $line->inventoryItem?->serial_number,
+                    'borrowed_at'     => $borrowing?->borrowed_at?->format('M j, Y'),
+                    'due_at'          => $borrowing?->due_at?->format('M j, Y'),
+                    'is_overdue'      => (bool) $borrowing?->is_overdue,
+                ];
+            });
     }
 
     public function createUser(array $data): User

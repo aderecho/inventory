@@ -247,7 +247,7 @@
                                             <!-- QR Code Column -->
                                             <td class="qr-cell">
                                                 <img class="qr-img"
-                                                    src="data:image/png;base64,{{ base64_encode(QrCode::format('png')->size(260)->margin(0)->generate($item->property_number)) }}"
+                                                    src="{{ $qrImages[$item->id] ?? '' }}"
                                                     alt="QR">
                                             </td>
                                         </tr>

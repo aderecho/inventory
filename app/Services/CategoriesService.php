@@ -48,7 +48,7 @@ class CategoriesService
         return ItemClassification::create([
             'classification_name' => $data['classification_name'],
             'classification_code' => $data['classification_code'] ?? null,
-            'status' => 1,
+            'status' => $data['status'] ?? 1,
         ]);
     }
 
@@ -59,7 +59,7 @@ class CategoriesService
         $itemClassification->update([
             'classification_name' => $data['classification_name'],
             'classification_code' => $data['classification_code'] ?? null,
-            // 'status' => 1,
+            'status' => $data['status'] ?? $itemClassification->status,
         ]);
     }
 

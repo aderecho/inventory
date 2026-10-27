@@ -8,11 +8,16 @@ use App\Models\InventoryItem;
 use App\Models\ItemClassification;
 use App\Models\Supplier;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
 class DashboardService
 {
     protected int $parThreshold = 50000;
+
+    public function __construct(
+        protected BorrowingService $borrowings,
+    ) {}
 
     public function filterAndPaginateInventory(
         ?string $search = null,
@@ -51,7 +56,39 @@ class DashboardService
             'availableYears' => $availableYears,
             'selectedYear' => (int) $selectedYear,
 
+            'highlights' => $this->getHighlights(),
+
             'searchItem' => $search,
+        ];
+    }
+
+    /**
+     * The numbers people actually act on: what the inventory is worth, and
+     * where the gaps are (items nobody is accountable for, items marked for
+     * disposal, and receipts still waiting for approval).
+     */
+    public function getHighlights(): array
+    {
+        $borrowCounts = $this->borrowings->counts();
+
+        return [
+            'asset_value' => (float) InventoryItem::sum(
+                DB::raw('COALESCE(total_amount, COALESCE(unit_cost, 0) * COALESCE(quantity, 1))')
+            ),
+
+            'borrowed_items' => $borrowCounts['borrowed'],
+            'overdue_borrowings' => $borrowCounts['overdue'],
+
+            'unassigned_items' => InventoryItem::whereDoesntHave('latestAcknowledgementItem')
+                ->count(),
+
+            // Disposed property carries the status itself, so nothing has to
+            // match a condition name (or keep it spelled a certain way).
+            'disposal_items' => InventoryItem::where('status', InventoryItem::STATUS_DISPOSED)->count(),
+
+            // Approval status lives on the item itself, not on the receipt line.
+            'pending_approvals' => InventoryItem::where('approval_status', 'pending')
+                ->count(),
         ];
     }
 
@@ -157,22 +194,45 @@ class DashboardService
     {
         return [
             'item_classifications' => ItemClassification::count(),
-            'items' => InventoryItem::count(),
+            'items' => InventoryItem::where('status', '!=', InventoryItem::STATUS_DISPOSED)->count(),
             'receipts' => AcknowledgementReceipt::count(),
             'suppliers' => Supplier::count(),
             'users' => User::count(),
 
-            'items_per_month' => InventoryItem::selectRaw('MONTH(created_at) as month, COUNT(*) as total')
+            // Supporting counts for the summary cards: what sits behind each
+            // headline number without opening the module.
+            'suppliers_archived' => Supplier::onlyTrashed()->count(),
+
+            // SPMO staff are identified by the department on their profile.
+            'users_spmo' => User::whereHas(
+                'userProfiles',
+                fn ($query) => $query->where(
+                    'primary_unit_division_department',
+                    'UPC SUPPLY AND PROPERTY MANAGEMENT OFFICE'
+                )
+            )->count(),
+
+            'items_per_month' => InventoryItem::selectRaw($this->monthExpression() . ' as month, COUNT(*) as total')
                 ->whereYear('created_at', now()->year)
                 ->groupBy('month')
                 ->orderBy('month')
                 ->pluck('total', 'month'),
 
-            'receipts_per_month' => AcknowledgementReceipt::selectRaw('MONTH(created_at) as month, COUNT(*) as total')
+            'receipts_per_month' => AcknowledgementReceipt::selectRaw($this->monthExpression() . ' as month, COUNT(*) as total')
                 ->whereYear('created_at', now()->year)
                 ->groupBy('month')
                 ->orderBy('month')
                 ->pluck('total', 'month'),
         ];
+    }
+
+    /**
+     * MONTH() is MySQL-only; the test suite runs on SQLite.
+     */
+    private function monthExpression(): string
+    {
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "CAST(strftime('%m', created_at) AS INTEGER)"
+            : 'MONTH(created_at)';
     }
 }

@@ -24,6 +24,7 @@ class CategoriesUpdateRequest extends FormRequest
         return [
             'classification_name' => 'required|string|max:255',
             'classification_code' => 'required|max:100',
+            'status' => 'nullable|in:0,1',
         ];
     }
 }

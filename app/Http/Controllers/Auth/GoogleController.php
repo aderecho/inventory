@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\DashboardAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -14,12 +15,10 @@ use Laravel\Socialite\Two\InvalidStateException;
 class GoogleController extends Controller
 {
     private const SESSION_KEY = 'google_auth_client';
-    private const ROLE_DASHBOARDS = [
-        'admin' => 'dashboard.index',
-        'super-admin' => 'dashboard.index',
-        'staff' => 'dashboard.index',
-        'user'  => 'user.dashboard',
-    ];
+
+    public function __construct(
+        private readonly DashboardAccessService $dashboardAccess,
+    ) {}
 
     public function redirect(Request $request)
     {
@@ -84,14 +83,8 @@ class GoogleController extends Controller
 
     private function resolveWebRedirect(User $user)
     {
-        $roleNames = $user->getRoleNames()->map(fn($role) => strtolower($role));
-
         // Only roles that actually map to a distinct dashboard matter for the choice
-        $availableDashboards = $roleNames
-            ->filter(fn($role) => isset(self::ROLE_DASHBOARDS[$role]))
-            ->map(fn($role) => self::ROLE_DASHBOARDS[$role])
-            ->unique()
-            ->values();
+        $availableDashboards = $this->dashboardAccess->optionsFor($user);
 
         if ($availableDashboards->count() > 1) {
             // Multiple distinct dashboards available — let the user choose
@@ -101,19 +94,17 @@ class GoogleController extends Controller
         }
 
         try {
-            $hasDashboardAccess = $user->can('view dashboard');
+            $fallback = $this->dashboardAccess->defaultRouteFor($user);
         } catch (\Throwable $e) {
             Log::error('Permission check failed during Google login: ' . $e->getMessage(), [
                 'user_id' => $user->id,
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            $hasDashboardAccess = false;
+            $fallback = 'user.dashboard';
         }
 
-        return $hasDashboardAccess
-            ? redirect()->route('dashboard.index')
-            : redirect()->route('user.dashboard');
+        return redirect()->route($fallback);
     }
 
     private function fail(bool $isMobile, string $message)

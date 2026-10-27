@@ -12,14 +12,14 @@ defineEmits(["update:modelValue"]);
 
 <template>
     <div class="flex flex-col w-full sm:w-auto">
-        <label class="text-xs text-[#3B3B3B] font-bold mb-1 sm:mb-0">
+        <label class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
             {{ label }}
         </label>
         <select
             :value="modelValue"
             @change="$emit('update:modelValue', $event.target.value)"
             :class="widthClass"
-            class="h-8 sm:h-9 w-full text-xs rounded-md text-gray-600 border focus:ring-[#850038] focus:outline-none focus:border-[#850038]"
+            class="h-10 w-full rounded-lg border border-gray-300 bg-white text-xs text-gray-600 transition-colors focus:border-[#005740] focus:outline-none focus:ring-1 focus:ring-[#005740]"
         >
             <option v-if="includeSelectAll" value="">Select All</option>
             <option v-for="(option, i) in options" :key="i" :value="option.value">

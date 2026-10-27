@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Http\Requests\StoreAssetInspectionRequest;
 use App\Http\Requests\StoreAssetConditionRequest;
+use App\Http\Requests\UpdateAssetConditionRequest;
 use App\Services\RoomApiService;
 use App\Services\InspectionService;
 use App\Services\AssetConditionService;
@@ -154,9 +155,8 @@ class InspectionController extends Controller
         try {
             $this->assetConditionService->deleteCondition($assetCondition->id);
 
-            return redirect()
-                ->route('inspection.index')
-                ->with('success', 'Asset condition deleted successfully.');
+            // Conditions are managed from several pages; stay where the user is.
+            return back()->with('success', 'Asset condition deleted successfully.');
         } catch (\Throwable $e) {
             report($e);
 
@@ -178,17 +178,44 @@ class InspectionController extends Controller
             $this->assetConditionService->createCondition(
                 conditionName: $validated['condition_name'],
                 description: $validated['description'] ?? null,
+                disposition: $validated['disposition'],
             );
 
-            return redirect()
-                ->route('inspection.index')
-                ->with('success', 'Asset condition created successfully.');
+            // The condition form opens from the item list, disposal and
+            // inspection pages; return to the page that submitted it.
+            return back()->with('success', 'Asset condition created successfully.');
         } catch (\Throwable $e) {
             report($e);
 
             return back()
                 ->withInput()
                 ->with('error', 'Failed to create asset condition.');
+        }
+    }
+
+    /**
+     * Rename a condition or change what it means.
+     */
+    public function updateCondition(
+        UpdateAssetConditionRequest $request,
+        AssetCondition $assetCondition,
+    ) {
+        $validated = $request->validated();
+
+        try {
+            $this->assetConditionService->updateCondition($assetCondition->id, [
+                'condition_name' => $validated['condition_name'],
+                'description'    => $validated['description'] ?? null,
+                'disposition'    => $validated['disposition'],
+            ]);
+
+            return back()->with('success', 'Asset condition updated successfully.');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()
+                ->withInput()
+                ->with('error', 'Failed to update asset condition.');
         }
     }
 

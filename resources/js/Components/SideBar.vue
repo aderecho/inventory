@@ -29,14 +29,19 @@ const menuItems = [
                 permission: "view inventory",
             },
             {
-                name: "Item Evidence",
-                route: "acknowledgements.index",
-                permission: "view acknowledgements",
+                name: "Item Approval",
+                route: "item-approvals.index",
+                permission: "view item approvals",
             },
             {
                 name: "Location History",
                 route: "item-histories.index",
                 permission: "view inventory",
+            },
+            {
+                name: "Property Cards",
+                route: "property-cards.index",
+                permission: "view property cards",
             },
         ],
     },
@@ -71,12 +76,34 @@ const menuItems = [
         ],
     },
     {
+        name: "Borrowings",
+        description: "Lending, returns & history",
+        icon: "fa-solid fa-hand-holding",
+        children: [
+            {
+                name: "Borrow Items",
+                route: "borrowings.borrow-items",
+                permission: "view borrowings",
+            },
+            {
+                name: "Borrowings",
+                route: "borrowings.index",
+                permission: "view borrowings",
+            },
+            {
+                name: "Borrowing History",
+                route: "borrowings.history",
+                permission: "view borrowings",
+            },
+        ],
+    },
+    {
         name: "Disposal",
         description: "Disposed Items",
         icon: "fa-solid fa-box-archive",
         children: [
             {
-                name: "Disposal Table",
+                name: "Disposed Table",
                 icon: "fa-solid fa-recycle",
                 route: "disposal.index",
                 permission: "view disposal",
@@ -104,7 +131,7 @@ const menuItems = [
                 name: "Categories Archive",
                 icon: "fa-solid fa-recycle",
                 route: "categories.archive.index",
-                permission: "view archive_supplier",
+                permission: "view categories",
             },
             {
                 name: "User Archive",
@@ -123,7 +150,19 @@ const menuItems = [
                 name: "User Management",
                 icon: "fa-solid fa-users-gear",
                 route: "user_management.index",
-                permission: "view users",
+              
+            },
+            {
+                name: "Roles & Permissions",
+                icon: "fa-solid fa-shield-halved",
+                route: "roles.index",
+                permission: "view roles",
+            },
+            {
+                name: "Permissions",
+                icon: "fa-solid fa-key",
+                route: "permissions.index",
+                permission: "view permissions",
             },
             {
                 name: "API Clients",

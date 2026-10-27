@@ -20,7 +20,7 @@ function confirmDelete() {
 </script>
 
 <template>
-    <div class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+    <div class="fixed inset-0 modal-backdrop flex items-center justify-center p-4 z-50">
         <div :class="[
             'bg-white rounded-lg p-6 max-w-[600px] w-full flex flex-col items-center text-center',
             isClosing ? 'animate-pop-out' : 'animate-pop-in'
