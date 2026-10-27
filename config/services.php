@@ -26,6 +26,21 @@ return [
         'token' => env('INVENTORY_API_TRIGGER_TOKEN'),
     ],
 
+    // Bearer token other systems send to the inventory API.
+    'inventory_api' => [
+        'token' => env('INVENTORY_API_TOKEN'),
+    ],
+
+    // System B: the room list used for item locations.
+    'rooms_api' => [
+        'url' => env('SYSTEM_B_API_URL'),
+        'token' => env('SYSTEM_B_API_TOKEN'),
+    ],
+
+    'up_sso' => [
+        'client_pem_path' => env('UP_SSO_CLIENT_PEM_PATH'),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),

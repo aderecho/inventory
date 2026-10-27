@@ -8,11 +8,16 @@
     <style>
         @page {
             size: A4 portrait;
-            margin: 0;
+            margin: 14mm 18mm 15mm 18mm;
         }
 
         * {
             box-sizing: border-box;
+        }
+
+        /* The html element keeps the @page margins, so the reset starts at body. */
+        body,
+        body * {
             margin: 0;
             padding: 0;
         }
@@ -24,14 +29,8 @@
             background: #fff;
         }
 
-        .a4-page {
-            width: 210mm;
-            min-height: 297mm;
-            margin: 0 auto;
-            padding: 14mm 18mm 15mm 18mm;
-            position: relative;
-            background: #fff;
-            overflow: hidden;
+        .a4-page + .a4-page {
+            page-break-before: always;
         }
 
         /* =========================================================
@@ -374,30 +373,6 @@
             text-align: center;
             font-size: 7pt;
             margin-top: 1mm;
-        }
-
-        /* =========================================================
-           PRINT
-        ========================================================= */
-
-        @media print {
-
-            html,
-            body {
-                width: 210mm;
-                height: 297mm;
-                margin: 0;
-                padding: 0;
-            }
-
-            .a4-page {
-                margin: 0;
-                page-break-after: always;
-            }
-
-            .a4-page:last-child {
-                page-break-after: auto;
-            }
         }
     </style>
 </head>

@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\UserProfile;
 use Illuminate\Support\Collection;
 use setasign\Fpdi\Tcpdf\Fpdi;
-use Spatie\Browsershot\Browsershot;
 
 class DisposalPrintService
 {
@@ -221,7 +220,7 @@ class DisposalPrintService
         |--------------------------------------------------------------------------
         */
 
-        $html = view($view, [
+        $data = [
             'entityName'         => $payload['entity_name'] ?? '',
             'fundCluster'        => $payload['fund_cluster'] ?? '',
             'asAt'               => ($payload['as_at'] ?? '') ?: now()->format('F d, Y'),
@@ -238,29 +237,19 @@ class DisposalPrintService
             'inspectionOfficerName'   => $payload['inspection_officer_name'] ?? '',
             'witnessName'             => $payload['witness_name'] ?? '',
             'witnessDate'             => ($payload['witness_date'] ?? '') ?: now()->format('F d, Y'),
-        ])->render();
+        ];
 
         $report(16, 'Built the report layout');
 
         /*
         |--------------------------------------------------------------------------
-        | Generate landscape PDF using Chromium
+        | Generate the landscape PDF
         |--------------------------------------------------------------------------
         */
 
         $report(20, 'Rendering the PDF');
 
-        $pdf = Browsershot::html($html)
-            ->setChromePath('/usr/bin/chromium')
-            ->format('A4')
-            ->landscape()
-            ->showBackground()
-            ->emulateMedia('print')
-            ->addChromiumArguments([
-                'no-sandbox',
-                'disable-setuid-sandbox',
-            ])
-            ->pdf();
+        $pdf = app(PdfRenderService::class)->render($view, $data);
 
         $report(97, 'PDF rendered');
 

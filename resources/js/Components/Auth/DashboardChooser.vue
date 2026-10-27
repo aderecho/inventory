@@ -4,6 +4,7 @@ import { motion } from "motion-v";
 import {
     ArrowRight,
     ClipboardList,
+    GraduationCap,
     LayoutDashboard,
     LoaderCircle,
     ShieldCheck,
@@ -50,6 +51,17 @@ const WORKSPACES = {
         accent: "bg-[#005740]",
         hoverBorder: "hover:border-[#005740]/35",
         glow: "rgba(0, 87, 64, 0.10)",
+    },
+    "student.dashboard": {
+        eyebrow: "Student",
+        title: "Student Dashboard",
+        description:
+            "The items you have borrowed, their due dates and what you have returned.",
+        icon: GraduationCap,
+        tile: "bg-[#0E6021] text-white",
+        accent: "bg-[#0E6021]",
+        hoverBorder: "hover:border-[#0E6021]/35",
+        glow: "rgba(14, 96, 33, 0.10)",
     },
 };
 

@@ -8,14 +8,13 @@
     <style>
         @page {
             size: A4 landscape;
-            margin: 0;
+            margin: 8mm 14mm;
         }
 
         * {
             box-sizing: border-box;
         }
 
-        html,
         body {
             margin: 0;
             padding: 0;
@@ -28,16 +27,8 @@
             font-size: 10pt;
         }
 
-        .page {
-            width: 297mm;
-            /* Top/bottom page margins come from the PDF settings so continued pages get them too. */
-            padding: 0 14mm;
-            margin: 0 auto;
-            page-break-after: always;
-        }
-
-        .page:last-child {
-            page-break-after: auto;
+        .page + .page {
+            page-break-before: always;
         }
 
         /* ========================= HEADER ========================= */
@@ -355,6 +346,13 @@
             font-weight: bold;
             text-decoration: underline;
         }
+
+        /* DomPDF ignores <col> widths and sizes a fixed table from its first row instead. */
+        tr.col-widths td {
+            height: 0;
+            padding: 0;
+            border: 0;
+        }
     </style>
 </head>
 
@@ -459,15 +457,15 @@
             <!-- ================= TRANSFER DETAILS AND ITEMS ================= -->
 
             <table class="itr-table">
-                <colgroup>
-                    <col class="col-date">
-                    <col class="col-property">
-                    <col class="col-qty">
-                    <col class="col-description">
-                    <col class="col-amount">
-                    <col class="col-condition">
-                    <col class="col-remarks">
-                </colgroup>
+                <tr class="col-widths">
+                    <td class="col-date"></td>
+                    <td class="col-property"></td>
+                    <td class="col-qty"></td>
+                    <td class="col-description"></td>
+                    <td class="col-amount"></td>
+                    <td class="col-condition"></td>
+                    <td class="col-remarks"></td>
+                </tr>
 
                 <tr>
                     <td colspan="3">From Accountable Officer/Agency/Fund Cluster:</td>

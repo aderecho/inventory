@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\UPSSOController;
+use App\Http\Controllers\API\AmisController;
 use App\Http\Controllers\API\ApiEmbedController;
 use App\Http\Controllers\API\QrScanController;
 use App\Http\Controllers\mobileAPI\AuthController;
@@ -19,6 +20,11 @@ Route::prefix('v1')
 
         Route::post('/access-token', [AccessTokenController::class, 'store'])
             ->middleware('throttle:10,1');
+
+        // Temporary stand-in for the AMIS enrolled students feed.
+        Route::get('/amis', [AmisController::class, 'index'])
+            ->middleware('throttle:60,1')
+            ->name('amis.index');
 
         Route::middleware('api.token')->group(function () {
             Route::get('/inventory', [InventoryController::class, 'apiIndex']);

@@ -29,7 +29,7 @@ const TYPES = [
         icon: UserRoundSearch,
         hint: "Search the PUSO staff list",
     },
-    { value: "student", label: "Student", icon: GraduationCap, hint: "Name and student number" },
+    { value: "student", label: "Student", icon: GraduationCap, hint: "Student account or name" },
     { value: "outsider", label: "Outsider", icon: Building2, hint: "Name and organisation" },
 ];
 
@@ -152,6 +152,20 @@ function pickBorrowerStaff(row) {
     form.value.employee_number = row.employee_number ?? "";
     form.value.organization = row.department ?? "";
 }
+
+function pickBorrowerStudent(row) {
+    form.value.borrower_user_id = row.id;
+    form.value.borrower_name = row.name;
+    form.value.student_number = row.employee_number ?? form.value.student_number;
+}
+
+function unlinkStudent() {
+    form.value.borrower_user_id = null;
+}
+
+const studentLinked = computed(
+    () => form.value.borrower_type === "student" && Boolean(form.value.borrower_user_id),
+);
 
 function setType(type) {
     form.value.borrower_type = type;
@@ -291,8 +305,37 @@ function submit() {
                     </p>
                 </div>
 
+                <!-- STUDENT: OPTIONAL ACCOUNT LINK -->
+                <div v-if="form.borrower_type === 'student'">
+                    <label class="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Student account <span class="normal-case text-gray-400">(optional)</span>
+                    </label>
+
+                    <StaffPicker
+                        :model-value="studentLinked ? form.borrower_name : ''"
+                        search-route="borrowings.students"
+                        placeholder="Search student accounts by name or student number..."
+                        @picked="pickBorrowerStudent"
+                    />
+
+                    <p v-if="studentLinked" class="mt-1.5 text-[11px] text-[#005740]">
+                        Linked to {{ form.borrower_name }}. This loan will show on their Student Portal.
+                        <button
+                            type="button"
+                            class="ml-1 font-semibold underline hover:text-[#00432f]"
+                            @click="unlinkStudent"
+                        >
+                            Unlink
+                        </button>
+                    </p>
+                    <p v-else class="mt-1.5 text-[11px] text-gray-400">
+                        Link the student's account so the loan shows on their Student Portal,
+                        or type their name below.
+                    </p>
+                </div>
+
                 <!-- STUDENT / OUTSIDER -->
-                <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div v-if="form.borrower_type !== 'staff'" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                         <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
                             Name <span class="text-red-500">*</span>
@@ -301,7 +344,8 @@ function submit() {
                             v-model="form.borrower_name"
                             type="text"
                             placeholder="Full name"
-                            class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-[#005740] focus:outline-none focus:ring-1 focus:ring-[#005740]"
+                            :readonly="studentLinked"
+                            class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm read-only:bg-gray-50 read-only:text-gray-500 focus:border-[#005740] focus:outline-none focus:ring-1 focus:ring-[#005740]"
                         />
                     </div>
 

@@ -15,7 +15,6 @@
             box-sizing: border-box;
         }
 
-        html,
         body {
             margin: 0;
             padding: 0;
@@ -191,11 +190,26 @@
         }
 
         .foot-note {
+            width: 100%;
+            border-collapse: collapse;
             margin-top: 2mm;
             font-size: 7pt;
             color: #333;
-            display: flex;
-            justify-content: space-between;
+        }
+
+        .foot-note td {
+            padding: 0;
+        }
+
+        .foot-note td + td {
+            text-align: right;
+        }
+
+        /* DomPDF ignores <col> widths and sizes a fixed table from its first row instead. */
+        tr.col-widths td {
+            height: 0;
+            padding: 0;
+            border: 0;
         }
     </style>
 </head>
@@ -278,18 +292,18 @@
     </table>
 
     <table class="main">
-        <colgroup>
-            <col style="width: 10%;">
-            <col style="width: 14%;">
-            <col style="width: 6%;">
-            <col style="width: 6%;">
-            <col style="width: 22%;">
-            <col style="width: 7%;">
-            <col style="width: 10%;">
-            <col style="width: 25%;">
-        </colgroup>
-
         <thead>
+
+            <tr class="col-widths">
+            <td style="width: 10%;"></td>
+            <td style="width: 14%;"></td>
+            <td style="width: 6%;"></td>
+            <td style="width: 6%;"></td>
+            <td style="width: 22%;"></td>
+            <td style="width: 7%;"></td>
+            <td style="width: 10%;"></td>
+            <td style="width: 25%;"></td>
+        </tr>
             <tr class="group">
                 <th rowspan="2">Date</th>
                 <th rowspan="2">Reference / PAR No.</th>
@@ -338,10 +352,12 @@
         </tfoot>
     </table>
 
-    <div class="foot-note">
-        <span>Generated {{ now()->format('F j, Y g:i A') }}</span>
-        <span>{{ $card['item']['condition'] ? 'Current condition: ' . $card['item']['condition'] : '' }}</span>
-    </div>
+    <table class="foot-note">
+        <tr>
+            <td>Generated {{ now()->format('F j, Y g:i A') }}</td>
+            <td>{{ $card['item']['condition'] ? 'Current condition: ' . $card['item']['condition'] : '' }}</td>
+        </tr>
+    </table>
 </body>
 
 </html>

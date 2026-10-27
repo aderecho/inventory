@@ -11,6 +11,10 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthService
 {
+    public function __construct(
+        private readonly DashboardAccessService $dashboards,
+    ) {}
+
     public function authenticate(Request $request)
     {
         $credentials = $request->validate([
@@ -41,9 +45,7 @@ class AuthService
 
             $request->session()->forget('url.intended');
 
-            return $user->can('view dashboard')
-                ? redirect()->route('dashboard.index')
-                : redirect()->route('user.dashboard');
+            return redirect()->route($this->dashboards->defaultRouteFor($user));
         } catch (\Throwable $e) {
             \Log::error('Login/authorization error: ' . $e->getMessage(), [
                 'email' => $credentials['email'] ?? null,

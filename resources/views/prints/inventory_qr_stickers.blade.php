@@ -12,20 +12,23 @@
 
         * {
             box-sizing: border-box;
+        }
+
+        /* The html element keeps the @page margins, so the reset starts at body. */
+        body,
+        body * {
             margin: 0;
             padding: 0;
         }
 
         body {
-            font-family: Arial, Helvetica, sans-serif;
+            font-family: Helvetica, Arial, sans-serif;
             color: #000000;
             background: #ffffff;
         }
 
-        .page {
-            width: 100%;
-            page-break-after: always;
-            page-break-inside: avoid;
+        .page + .page {
+            page-break-before: always;
         }
 
         .sticker-grid {
@@ -42,9 +45,10 @@
             padding: 0;
         }
 
+        /* DomPDF adds the vertical padding to the height: 46mm + 2 x 3mm = a 52mm sticker. */
         .sticker-box {
             width: 100%;
-            height: 52mm;
+            height: 46mm;
             border: 1px dashed #555555;
             padding: 3mm 1mm;
             background: #ffffff;
@@ -159,15 +163,16 @@
 
         .details-table td.code-lbl {
             font-size: 7pt;
-            font-weight: 800;
+            font-weight: bold;
             color: #000000;
             vertical-align: middle;
             padding-right: 1mm;
         }
 
+        /* Sized to keep the code on one line so all eight details fit the sticker. */
         .details-table td.code-val {
-            font-size: 14pt;
-            font-weight: 800;
+            font-size: 12pt;
+            font-weight: bold;
             color: #000000;
             text-decoration: underline;
             letter-spacing: 0.3px;

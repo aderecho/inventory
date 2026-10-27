@@ -8,19 +8,16 @@
     <style>
         @page {
             size: A4 portrait;
-            margin: 0;
+            margin: 12mm 10mm;
         }
 
         * {
             box-sizing: border-box;
         }
 
-        html,
         body {
             margin: 0;
             padding: 0;
-            width: 210mm;
-            min-height: 297mm;
             background: #fff;
         }
 
@@ -30,11 +27,8 @@
             font-size: 10pt;
         }
 
-        .page {
-            width: 210mm;
-            min-height: 297mm;
-            padding: 12mm 10mm;
-            margin: 0 auto;
+        .page + .page {
+            page-break-before: always;
         }
 
         /* =========================
@@ -417,21 +411,11 @@
             margin-top: 1mm;
         }
 
-        /* =========================
-           PRINT
-        ========================= */
-
-        @media print {
-
-            html,
-            body {
-                width: 210mm;
-                height: 297mm;
-            }
-
-            .page {
-                page-break-after: always;
-            }
+        /* DomPDF ignores <col> widths and sizes a fixed table from its first row instead. */
+        tr.col-widths td {
+            height: 0;
+            padding: 0;
+            border: 0;
         }
     </style>
 </head>
@@ -509,18 +493,18 @@
 
             <table class="inventory-table">
 
-                <colgroup>
-                    <col class="col-quantity">
-                    <col class="col-unit">
-                    <col class="col-unit-cost">
-                    <col class="col-total-cost">
-                    <col class="col-description">
-                    <col class="col-item-no">
-                    <col class="col-property">
-                    <col class="col-life">
-                </colgroup>
-
                 <thead>
+
+                    <tr class="col-widths">
+                    <td class="col-quantity"></td>
+                    <td class="col-unit"></td>
+                    <td class="col-unit-cost"></td>
+                    <td class="col-total-cost"></td>
+                    <td class="col-description"></td>
+                    <td class="col-item-no"></td>
+                    <td class="col-property"></td>
+                    <td class="col-life"></td>
+                </tr>
 
                     <tr class="header-row-1">
 

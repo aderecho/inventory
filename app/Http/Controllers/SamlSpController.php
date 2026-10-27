@@ -6,6 +6,7 @@ use App\Models\SamlAuditEvent;
 use App\Models\SamlConfiguration;
 use App\Models\SamlReplayRecord;
 use App\Models\User;
+use App\Services\DashboardAccessService;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Http\RedirectResponse;
@@ -43,7 +44,7 @@ class SamlSpController extends Controller
         return redirect()->away($provider->sso_url.(str_contains($provider->sso_url, '?') ? '&' : '?').$query);
     }
 
-    public function acs(Request $request): RedirectResponse
+    public function acs(Request $request, DashboardAccessService $dashboards): RedirectResponse
     {
         $provider = SamlConfiguration::where('mode', 'idp')->where('is_active', true)->where('status', 'active')->first();
         if (! $provider) {
@@ -89,7 +90,7 @@ class SamlSpController extends Controller
             return redirect($relayState);
         }
 
-        return $user->can('view dashboard') ? to_route('dashboard.index') : to_route('user.dashboard');
+        return to_route($dashboards->defaultRouteFor($user));
     }
 
     public function logout(Request $request): RedirectResponse

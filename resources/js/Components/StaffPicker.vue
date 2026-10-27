@@ -13,6 +13,8 @@ const props = defineProps({
         type: String,
         default: "Search PUSO staff by name, employee number or department...",
     },
+    // Any endpoint answering in the borrowings.staff shape.
+    searchRoute: { type: String, default: "borrowings.staff" },
 });
 
 const emit = defineEmits(["picked"]);
@@ -38,7 +40,7 @@ watch(query, () => {
         loading.value = true;
 
         try {
-            const { data } = await axios.get(route("borrowings.staff"), {
+            const { data } = await axios.get(route(props.searchRoute), {
                 params: { search: query.value || undefined },
             });
 
