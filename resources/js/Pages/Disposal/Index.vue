@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, ref } from "vue";
 import { usePage } from "@inertiajs/vue3";
 import { Head } from "@inertiajs/vue3";
 import Layout from "@/Layouts/Layout.vue";
@@ -12,6 +12,7 @@ import { usePermissions } from "@/Composables/usePermissions";
 import DownloadProgressCard from "@/Components/DownloadProgressCard.vue";
 import { usePrintDownload } from "@/Composables/usePrintDownload";
 import { buildIirupPayload } from "@/lib/iirupPayload";
+import { useStickyToolbar } from "@/Composables/useStickyToolbar";
 import { useToast } from "primevue/usetoast";
 import { ChevronDown, Printer, X } from "lucide-vue-next";
 import { Button } from "@/Components/ui/button";
@@ -439,40 +440,13 @@ async function printIirup() {
 // The toolbar sticks to the top while scrolling, exactly like the item list, so
 // its height is published as a CSS variable that the table header reads to pin
 // itself right underneath instead of sliding under it.
-const toolbarRef = ref(null);
-let toolbarObserver = null;
-
-function publishToolbarHeight() {
-    if (!toolbarRef.value) return;
-
-    document.documentElement.style.setProperty(
-        "--table-sticky-top",
-        toolbarRef.value.offsetHeight + "px",
-    );
-}
-
-onMounted(() => {
-    publishToolbarHeight();
-
-    if (typeof ResizeObserver !== "undefined" && toolbarRef.value) {
-        toolbarObserver = new ResizeObserver(publishToolbarHeight);
-        toolbarObserver.observe(toolbarRef.value);
-    }
-
-    window.addEventListener("resize", publishToolbarHeight);
-});
+const toolbarRef = useStickyToolbar();
 
 // The IIRUP download no longer blanks the screen with the loading overlay: the
 // PDF streams back from the print endpoint while this card follows the stages
 // the server reports, so the user can keep working while it is built.
 const { job: iirupJob, download: runIirupPrint, dismiss: dismissIirupJob } =
     usePrintDownload();
-
-onBeforeUnmount(() => {
-    toolbarObserver?.disconnect();
-    window.removeEventListener("resize", publishToolbarHeight);
-    document.documentElement.style.removeProperty("--table-sticky-top");
-});
 
 async function printIirupForm(printRoute) {
     if (tempSelectedIds.value.length === 0) {

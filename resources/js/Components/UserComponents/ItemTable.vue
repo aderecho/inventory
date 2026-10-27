@@ -1,7 +1,8 @@
 <script setup>
-import { ref, watch, onUnmounted } from "vue";
+import { computed, ref, watch, onUnmounted } from "vue";
 import { router } from "@inertiajs/vue3";
 import { motion } from "motion-v";
+import TableCheckbox from "@/Components/TableCheckbox.vue";
 
 const props = defineProps({
     items: {
@@ -19,6 +20,71 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["sort"]);
+
+// ------------------------------------------------------------------
+// COLUMN VISIBILITY (remembered in this browser)
+// ------------------------------------------------------------------
+// Item and Actions always show, so a row can still be found and acted on.
+// The dates and the ICS/PAR number start hidden; the picker brings them back.
+const HIDEABLE_COLUMNS = [
+    { key: "description", label: "Description" },
+    { key: "property_number", label: "Property Number" },
+    { key: "unit_cost", label: "Unit Cost" },
+    { key: "facility", label: "Facility" },
+    { key: "date_assigned", label: "Date Assigned" },
+    { key: "date_acquired", label: "Date Acquired" },
+    { key: "receipt", label: "ICS/PAR" },
+    { key: "approval", label: "Approval" },
+];
+
+const DEFAULT_HIDDEN_COLUMNS = ["date_assigned", "date_acquired", "receipt"];
+
+const COLUMN_STORAGE_KEY = "table-columns:user-items";
+
+function readHiddenColumns() {
+    try {
+        const saved = JSON.parse(window.localStorage.getItem(COLUMN_STORAGE_KEY));
+
+        if (Array.isArray(saved)) {
+            return saved.filter((key) => HIDEABLE_COLUMNS.some((col) => col.key === key));
+        }
+    } catch (error) {
+        // Unreadable storage: fall back to the defaults below.
+    }
+
+    return [...DEFAULT_HIDDEN_COLUMNS];
+}
+
+const hiddenColumns = ref(readHiddenColumns());
+const showColumnPicker = ref(false);
+
+const isVisible = (key) => !hiddenColumns.value.includes(key);
+
+// Item and Actions plus whatever is still shown.
+const visibleColumnCount = computed(
+    () => 2 + HIDEABLE_COLUMNS.length - hiddenColumns.value.length,
+);
+
+function persistColumns() {
+    try {
+        window.localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(hiddenColumns.value));
+    } catch (error) {
+        // Storage is optional; the picker still works for this page view.
+    }
+}
+
+function toggleColumn(key) {
+    hiddenColumns.value = isVisible(key)
+        ? [...hiddenColumns.value, key]
+        : hiddenColumns.value.filter((hidden) => hidden !== key);
+
+    persistColumns();
+}
+
+function showAllColumns() {
+    hiddenColumns.value = [];
+    persistColumns();
+}
 
 const goToPage = (url) => {
     if (!url) return;
@@ -57,6 +123,38 @@ function hideActionTooltip() {
     actionTooltip.value = { ...actionTooltip.value, visible: false };
 }
 
+// ------------------------------------------------------------------
+// TABLE LOOK
+// ------------------------------------------------------------------
+const headCell =
+    "border-b border-gray-200 bg-gray-50 px-4 py-3 font-semibold first:pl-5 last:pr-5";
+// Cells read the row's hover so the pinned Actions cell follows it too.
+const bodyCell =
+    "border-b border-gray-100 bg-white px-4 py-3.5 align-middle transition-colors first:pl-5 last:pr-5 group-hover:bg-gray-50 group-last:border-b-0";
+
+function sortIcon(key) {
+    if (props.sortKey !== key) return "fa-sort text-gray-400";
+
+    return props.sortDirection === "asc" ? "fa-arrow-up" : "fa-arrow-down";
+}
+
+// Two letters for the row's tile: "Desktop Computer" -> "DC".
+function initials(name) {
+    const words = String(name ?? "").trim().split(/\s+/).filter(Boolean);
+
+    return (words[0]?.[0] ?? "?").toUpperCase() + (words[1]?.[0] ?? "").toUpperCase();
+}
+
+// The paginator's numbered links without its own Previous/Next entries.
+const pageLinks = computed(() =>
+    (props.items?.links ?? []).slice(1, -1).map((link, index) => ({
+        key: index,
+        url: link.url,
+        label: link.label,
+        active: link.active,
+    })),
+);
+
 const openModal = (item) => {
     selectedItem.value = item;
     isModalOpen.value = true;
@@ -68,9 +166,15 @@ const closeModal = () => {
     copiedField.value = null;
 };
 
-const formatDate = (dateStr) => {
-    return dateStr ? new Date(dateStr).toLocaleDateString() : "N/A";
-};
+// "Oct 9, 2026"
+const formatDate = (dateStr) =>
+    dateStr
+        ? new Date(dateStr).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+          })
+        : "—";
 
 const formatCurrency = (value) =>
     `₱${Number(value || 0).toLocaleString()}`;
@@ -174,335 +278,360 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="overflow-x-auto">
-        <table class="w-full">
-            <thead>
-                <tr class="border-b border-[#00432f] bg-[#005740]">
-                    <th
-                        @click="toggleSort('item_name')"
-                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/90 font-['Poppins'] cursor-pointer select-none hover:text-white transition-colors"
-                    >
-                        <span class="inline-flex items-center gap-1">
-                            Item
-                            <i
-                                class="fa-solid text-[9px]"
-                                :class="
-                                    sortKey === 'item_name'
-                                        ? sortDirection === 'asc'
-                                            ? 'fa-arrow-up text-white'
-                                            : 'fa-arrow-down text-white'
-                                        : 'fa-sort text-white/40'
-                                "
-                            ></i>
-                        </span>
-                    </th>
+    <div class="font-['Poppins']">
+        <!-- TOP BAR: what is shown, and which columns -->
+        <div
+            class="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 sm:px-5"
+        >
+            <p class="text-xs text-gray-500">
+                <template v-if="items.total">
+                    Showing
+                    <span class="font-semibold text-gray-900 tabular-nums">{{ items.from }}–{{ items.to }}</span>
+                    of
+                    <span class="font-semibold text-gray-900 tabular-nums">{{ items.total }}</span>
+                    · click a row for details
+                </template>
+                <template v-else>No items to show</template>
+            </p>
 
-                    <th
-                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/90 font-['Poppins']"
-                    >
-                        Property Number
-                    </th>
-
-                    <th
-                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/90 font-['Poppins']"
-                    >
-                        Unit Cost
-                    </th>
-
-                    <th
-                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/90 font-['Poppins']"
-                    >
-                        Facility
-                    </th>
-
-                    <th
-                        @click="toggleSort('date_assigned')"
-                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/90 font-['Poppins'] cursor-pointer select-none hover:text-white transition-colors"
-                    >
-                        <span class="inline-flex items-center gap-1">
-                            Date Assigned
-                            <i
-                                class="fa-solid text-[9px]"
-                                :class="
-                                    sortKey === 'date_assigned'
-                                        ? sortDirection === 'asc'
-                                            ? 'fa-arrow-up text-white'
-                                            : 'fa-arrow-down text-white'
-                                        : 'fa-sort text-white/40'
-                                "
-                            ></i>
-                        </span>
-                    </th>
-
-                    <th
-                        @click="toggleSort('date_acquired')"
-                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/90 font-['Poppins'] cursor-pointer select-none hover:text-white transition-colors"
-                    >
-                        <span class="inline-flex items-center gap-1">
-                            Date Acquired
-                            <i
-                                class="fa-solid text-[9px]"
-                                :class="
-                                    sortKey === 'date_acquired'
-                                        ? sortDirection === 'asc'
-                                            ? 'fa-arrow-up text-white'
-                                            : 'fa-arrow-down text-white'
-                                        : 'fa-sort text-white/40'
-                                "
-                            ></i>
-                        </span>
-                    </th>
-
-                    <th
-                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/90 font-['Poppins']"
-                    >
-                        Receipt
-                    </th>
-
-                    <th
-                        class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/90 font-['Poppins']"
-                    >
-                        Approval
-                    </th>
-
-                    <th
-                        class="px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider text-white/90 font-['Poppins']"
-                    >
-                        Actions
-                    </th>
-                </tr>
-            </thead>
-
-            <tbody>
-                <tr
-                    v-for="item in items.data"
-                    :key="item.id"
-                    class="cursor-pointer border-b border-gray-100 transition-colors odd:bg-white even:bg-[#005740]/[0.02] hover:bg-[#005740]/[0.05]"
-                    @click="openModal(item)"
+            <div class="relative">
+                <button
+                    type="button"
+                    @click="showColumnPicker = !showColumnPicker"
+                    :class="[
+                        'flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors',
+                        showColumnPicker
+                            ? 'border-gray-900 bg-gray-900 text-white'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900',
+                    ]"
                 >
-                    <td class="px-6 py-4 font-['Poppins']">
-                        <div class="flex items-center gap-3">
-                            <span
-                                class="hidden h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#005740]/10 text-[#005740] sm:flex"
+                    <i class="fa-solid fa-sliders text-[11px]"></i>
+                    Columns
+                    <span
+                        v-if="hiddenColumns.length"
+                        :class="[
+                            'rounded-full px-1.5 text-[10px] font-semibold',
+                            showColumnPicker ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600',
+                        ]"
+                    >
+                        {{ hiddenColumns.length }} hidden
+                    </span>
+                </button>
+
+                <!-- click-away layer -->
+                <div
+                    v-if="showColumnPicker"
+                    class="fixed inset-0 z-20"
+                    @click="showColumnPicker = false"
+                ></div>
+
+                <div
+                    v-if="showColumnPicker"
+                    class="absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl"
+                >
+                    <div
+                        class="flex items-center justify-between border-b border-gray-100 px-4 py-2.5"
+                    >
+                        <p
+                            class="text-[11px] font-semibold uppercase tracking-wider text-gray-500"
+                        >
+                            Show columns
+                        </p>
+                        <button
+                            type="button"
+                            @click="showAllColumns"
+                            class="text-[11px] font-semibold text-[#005740] hover:underline"
+                        >
+                            Show all
+                        </button>
+                    </div>
+
+                    <ul class="max-h-72 overflow-y-auto py-1">
+                        <li
+                            v-for="col in HIDEABLE_COLUMNS"
+                            :key="col.key"
+                            class="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-gray-50"
+                        >
+                            <TableCheckbox
+                                :checked="isVisible(col.key)"
+                                tone="brand"
+                                size="sm"
+                                :title="'Show ' + col.label"
+                                @toggle="toggleColumn(col.key)"
+                            />
+                            <button
+                                type="button"
+                                class="flex-1 text-left text-sm text-gray-700"
+                                @click="toggleColumn(col.key)"
                             >
-                                <i class="fa-solid fa-box text-[11px]"></i>
-                            </span>
+                                {{ col.label }}
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
 
-                            <div class="min-w-0">
-                                <p class="truncate text-[13px] font-semibold text-gray-900">
-                                    {{ item.item_name }}
-                                </p>
-                                <p class="mt-0.5 truncate text-[12px] text-gray-400">
-                                    {{ item.serial_number ?? "No Serial Number" }}
-                                </p>
+        <!-- TABLE -->
+        <div class="overflow-x-auto">
+            <table class="w-full border-separate border-spacing-0 text-left">
+                <thead>
+                    <tr class="text-[11px] font-semibold uppercase tracking-wider text-gray-900">
+                        <th :class="headCell">
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-1.5 uppercase tracking-wider transition-colors hover:text-[#005740]"
+                                :class="{ 'text-[#005740]': sortKey === 'item_name' }"
+                                @click="toggleSort('item_name')"
+                            >
+                                Item
+                                <i class="fa-solid text-[9px]" :class="sortIcon('item_name')"></i>
+                            </button>
+                        </th>
+                        <th v-if="isVisible('description')" :class="headCell">Description</th>
+                        <th v-if="isVisible('property_number')" :class="headCell">Property No.</th>
+                        <th v-if="isVisible('unit_cost')" :class="[headCell, 'text-right']">Unit Cost</th>
+                        <th v-if="isVisible('facility')" :class="headCell">Facility</th>
+                        <th v-if="isVisible('date_assigned')" :class="headCell">
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-1.5 uppercase tracking-wider transition-colors hover:text-[#005740]"
+                                :class="{ 'text-[#005740]': sortKey === 'date_assigned' }"
+                                @click="toggleSort('date_assigned')"
+                            >
+                                Date Assigned
+                                <i class="fa-solid text-[9px]" :class="sortIcon('date_assigned')"></i>
+                            </button>
+                        </th>
+                        <th v-if="isVisible('date_acquired')" :class="headCell">
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-1.5 uppercase tracking-wider transition-colors hover:text-[#005740]"
+                                :class="{ 'text-[#005740]': sortKey === 'date_acquired' }"
+                                @click="toggleSort('date_acquired')"
+                            >
+                                Date Acquired
+                                <i class="fa-solid text-[9px]" :class="sortIcon('date_acquired')"></i>
+                            </button>
+                        </th>
+                        <th v-if="isVisible('receipt')" :class="headCell">ICS/PAR</th>
+                        <th v-if="isVisible('approval')" :class="headCell">Approval</th>
+                        <!-- Actions stay pinned to the right edge while the table scrolls. -->
+                        <th :class="[headCell, 'sticky right-0 z-10 text-right shadow-[-12px_0_12px_-12px_rgba(15,23,42,0.18)]']">
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <tr
+                        v-for="item in items.data"
+                        :key="item.id"
+                        class="group cursor-pointer"
+                        @click="openModal(item)"
+                    >
+                        <td :class="bodyCell">
+                            <div class="flex items-center gap-3">
+                                <span
+                                    class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#005740]/[0.08] text-sm font-semibold text-[#005740] transition-colors group-hover:bg-[#005740] group-hover:text-white"
+                                    aria-hidden="true"
+                                >
+                                    {{ initials(item.item_name) }}
+                                </span>
+
+                                <div class="min-w-0">
+                                    <p class="max-w-[16rem] truncate text-[13px] font-semibold text-gray-900">
+                                        {{ item.item_name }}
+                                    </p>
+                                    <p class="mt-0.5 max-w-[16rem] truncate text-[11px] text-gray-400">
+                                        SN: {{ item.serial_number ?? "none" }}
+                                    </p>
+                                </div>
                             </div>
-                        </div>
-                    </td>
+                        </td>
 
-                    <td class="px-6 py-4 font-['Poppins']">
-                        <span class="text-[13px] font-medium text-gray-700">
-                            {{ item.property_number }}
-                        </span>
-                    </td>
+                        <td v-if="isVisible('description')" :class="[bodyCell, 'min-w-[14rem] max-w-sm']">
+                            <p
+                                class="line-clamp-2 text-[12px] leading-relaxed text-gray-600"
+                                :title="item.description || undefined"
+                            >
+                                {{ item.description || "—" }}
+                            </p>
+                        </td>
 
-                    <td class="px-6 py-4 font-['Poppins']">
-                        <span class="text-[13px] font-semibold text-[#005740]">
-                            {{ formatCurrency(item.unit_cost) }}
-                        </span>
-                    </td>
+                        <td v-if="isVisible('property_number')" :class="bodyCell">
+                            <span class="whitespace-nowrap rounded-md bg-gray-100 px-2 py-1 font-mono text-[11px] font-medium text-gray-700">
+                                {{ item.property_number || "—" }}
+                            </span>
+                        </td>
 
-                    <td class="px-6 py-4 font-['Poppins']">
-                        <div>
-                            <p class="font-semibold text-gray-900 text-[13px]">
+                        <td v-if="isVisible('unit_cost')" :class="[bodyCell, 'text-right']">
+                            <span class="whitespace-nowrap text-[13px] font-semibold tabular-nums text-gray-900">
+                                {{ formatCurrency(item.unit_cost) }}
+                            </span>
+                        </td>
+
+                        <td v-if="isVisible('facility')" :class="[bodyCell, 'min-w-[11rem]']">
+                            <p class="flex items-center gap-1.5 text-[13px] font-medium text-gray-900">
+                                <i class="fa-solid fa-location-dot text-[10px] text-gray-400"></i>
                                 {{ item.room_name ?? "N/A" }}
                             </p>
                             <p
-                                class="text-[12px] text-gray-400 mt-0.5 line-clamp-2"
+                                v-if="item.building_name || item.room_description"
+                                class="mt-0.5 line-clamp-1 pl-4 text-[11px] text-gray-400"
                             >
-                                {{
-                                    item.room_description ??
-                                    "No description available."
-                                }}
+                                {{ item.building_name || item.room_description }}
                             </p>
-                        </div>
-                    </td>
+                        </td>
 
-                    <td class="px-6 py-4 font-['Poppins']">
-                        <span class="text-[13px] text-gray-600">
-                            {{
-                                formatDate(
-                                    item.latest_acknowledgement_item
-                                        ?.acknowledgement_receipts?.par_date,
-                                )
-                            }}
-                        </span>
-                    </td>
+                        <td v-if="isVisible('date_assigned')" :class="bodyCell">
+                            <span class="whitespace-nowrap text-[13px] text-gray-600">
+                                {{ formatDate(item.latest_acknowledgement_item?.acknowledgement_receipts?.par_date) }}
+                            </span>
+                        </td>
 
-                    <td class="px-6 py-4 font-['Poppins']">
-                        <span class="text-[13px] text-gray-600">
-                            {{ formatDate(item.date_acquired) }}
-                        </span>
-                    </td>
+                        <td v-if="isVisible('date_acquired')" :class="bodyCell">
+                            <span class="whitespace-nowrap text-[13px] text-gray-600">
+                                {{ formatDate(item.date_acquired) }}
+                            </span>
+                        </td>
 
-                    <td class="px-6 py-4 font-['Poppins']">
-                        <span class="text-[13px] text-gray-600">
-                            {{
-                                item.latest_acknowledgement_item
-                                    ?.acknowledgement_receipts?.category ??
-                                "N/A"
-                            }}
-                        </span>
-                    </td>
+                        <td v-if="isVisible('receipt')" :class="bodyCell">
+                            <span class="whitespace-nowrap font-mono text-[12px] text-gray-600">
+                                {{ item.latest_acknowledgement_item?.acknowledgement_receipts?.category ?? "—" }}
+                            </span>
+                        </td>
 
-                    <td class="px-6 py-4 font-['Poppins']">
-                        <span
-                            :class="[
-                                'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold',
-                                approvalBadge(item.approval_status).cls,
-                            ]"
+                        <td v-if="isVisible('approval')" :class="bodyCell">
+                            <span
+                                :class="[
+                                    'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold',
+                                    approvalBadge(item.approval_status).cls,
+                                ]"
+                            >
+                                <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+                                {{ approvalBadge(item.approval_status).label }}
+                            </span>
+                        </td>
+
+                        <td
+                            :class="[bodyCell, 'sticky right-0 z-10 shadow-[-12px_0_12px_-12px_rgba(15,23,42,0.18)]']"
+                            @click.stop
                         >
-                            <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                            {{ approvalBadge(item.approval_status).label }}
-                        </span>
-                    </td>
-
-                    <td class="px-6 py-4 font-['Poppins']" @click.stop>
-                        <div class="flex items-center justify-center gap-1.5">
-                            <button
-                                type="button"
-                                @click="openModal(item)"
-                                class="flex h-8 w-8 items-center justify-center rounded-lg bg-[#005740]/10 text-[#005740] transition-colors hover:bg-[#005740] hover:text-white"
-                                aria-label="View details"
-                                @mouseenter="showActionTooltip($event, 'View details')"
-                                @mousemove="moveActionTooltip"
-                                @mouseleave="hideActionTooltip"
-                            >
-                                <i class="fa-solid fa-eye text-[11px]"></i>
-                            </button>
-
-                            <template v-if="isPending(item)">
+                            <div class="flex items-center justify-end gap-1">
                                 <button
                                     type="button"
-                                    @click="approveItem(item)"
-                                    :disabled="processingId === item.id"
-                                    class="flex h-8 w-8 items-center justify-center rounded-lg bg-green-50 text-green-700 transition-colors hover:bg-green-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                                    aria-label="Approve item"
-                                    @mouseenter="showActionTooltip($event, 'Approve item')"
+                                    @click="openModal(item)"
+                                    class="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-900 hover:text-white"
+                                    aria-label="View details"
+                                    @mouseenter="showActionTooltip($event, 'View details')"
                                     @mousemove="moveActionTooltip"
                                     @mouseleave="hideActionTooltip"
                                 >
-                                    <i class="fa-solid fa-check text-[11px]"></i>
+                                    <i class="fa-solid fa-eye text-[11px]"></i>
                                 </button>
 
-                                <button
-                                    type="button"
-                                    @click="rejectItem(item)"
-                                    :disabled="processingId === item.id"
-                                    class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-700 transition-colors hover:bg-red-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                                    aria-label="Reject item"
-                                    @mouseenter="showActionTooltip($event, 'Reject item')"
-                                    @mousemove="moveActionTooltip"
-                                    @mouseleave="hideActionTooltip"
-                                >
-                                    <i class="fa-solid fa-xmark text-[11px]"></i>
-                                </button>
-                            </template>
-                        </div>
-                    </td>
-                </tr>
+                                <template v-if="isPending(item)">
+                                    <button
+                                        type="button"
+                                        @click="approveItem(item)"
+                                        :disabled="processingId === item.id"
+                                        class="flex h-8 w-8 items-center justify-center rounded-full text-green-700 transition-colors hover:bg-green-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                        aria-label="Approve item"
+                                        @mouseenter="showActionTooltip($event, 'Approve item')"
+                                        @mousemove="moveActionTooltip"
+                                        @mouseleave="hideActionTooltip"
+                                    >
+                                        <i class="fa-solid fa-check text-[11px]"></i>
+                                    </button>
 
-                <tr v-if="!items.data?.length">
-                    <td colspan="9" class="py-16 text-center font-['Poppins']">
-                        <div class="flex flex-col items-center gap-2">
-                            <div
-                                class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center"
-                            >
-                                <i
-                                    class="fa-solid fa-box text-gray-400 text-xl"
-                                ></i>
+                                    <button
+                                        type="button"
+                                        @click="rejectItem(item)"
+                                        :disabled="processingId === item.id"
+                                        class="flex h-8 w-8 items-center justify-center rounded-full text-red-600 transition-colors hover:bg-red-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                        aria-label="Reject item"
+                                        @mouseenter="showActionTooltip($event, 'Reject item')"
+                                        @mousemove="moveActionTooltip"
+                                        @mouseleave="hideActionTooltip"
+                                    >
+                                        <i class="fa-solid fa-xmark text-[11px]"></i>
+                                    </button>
+                                </template>
                             </div>
-                            <h3
-                                class="text-[14px] font-semibold text-gray-800 mt-2"
-                            >
-                                No Assigned Assets
-                            </h3>
-                            <p class="text-[13px] text-gray-400">
-                                You currently have no inventory items assigned.
-                            </p>
-                        </div>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+                        </td>
+                    </tr>
 
+                    <tr v-if="!items.data?.length">
+                        <td :colspan="visibleColumnCount" class="px-6 py-20 text-center">
+                            <div class="flex flex-col items-center">
+                                <span class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100">
+                                    <i class="fa-solid fa-box-open text-xl text-gray-400"></i>
+                                </span>
+                                <h3 class="mt-4 text-sm font-semibold text-gray-900">
+                                    No assigned items here
+                                </h3>
+                                <p class="mt-1 text-[13px] text-gray-500">
+                                    Try another status or search, or check back after property is issued to you.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- PAGING -->
         <div
             v-if="items.last_page > 1"
-            class="flex items-center justify-between px-6 py-4 border-t border-gray-100 font-['Poppins']"
+            class="flex flex-col items-center justify-between gap-3 border-t border-gray-100 px-4 py-3 sm:flex-row sm:px-5"
         >
-            <p class="text-[12px] text-gray-400">
+            <p class="text-xs text-gray-500">
                 Page
-                <span class="font-semibold text-gray-700">{{
-                    items.current_page
-                }}</span>
+                <span class="font-semibold text-gray-900 tabular-nums">{{ items.current_page }}</span>
                 of
-                <span class="font-semibold text-gray-700">{{
-                    items.last_page
-                }}</span>
+                <span class="font-semibold text-gray-900 tabular-nums">{{ items.last_page }}</span>
             </p>
 
-            <div class="flex items-center gap-2">
+            <nav class="flex items-center gap-1" aria-label="Pages">
                 <button
-                    @click="goToPage(items.prev_page_url)"
+                    type="button"
                     :disabled="!items.prev_page_url"
-                    class="flex items-center gap-1.5 px-4 py-2 text-[12px] font-medium rounded-lg border border-gray-200 transition-colors duration-150"
-                    :class="
-                        items.prev_page_url
-                            ? 'text-gray-700 hover:bg-[#005740] hover:text-white hover:border-[#005740]'
-                            : 'text-gray-300 cursor-not-allowed bg-gray-50'
-                    "
+                    class="flex h-8 w-8 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
+                    aria-label="Previous page"
+                    @click="goToPage(items.prev_page_url)"
                 >
-                    <svg
-                        class="w-3.5 h-3.5"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        viewBox="0 0 24 24"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            d="M15 19l-7-7 7-7"
-                        />
-                    </svg>
-                    Previous
+                    <i class="fa-solid fa-chevron-left text-[10px]"></i>
                 </button>
 
-                <button
-                    @click="goToPage(items.next_page_url)"
-                    :disabled="!items.next_page_url"
-                    class="flex items-center gap-1.5 px-4 py-2 text-[12px] font-medium rounded-lg border border-gray-200 transition-colors duration-150"
-                    :class="
-                        items.next_page_url
-                            ? 'text-gray-700 hover:bg-[#005740] hover:text-white hover:border-[#005740]'
-                            : 'text-gray-300 cursor-not-allowed bg-gray-50'
-                    "
-                >
-                    Next
-                    <svg
-                        class="w-3.5 h-3.5"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        viewBox="0 0 24 24"
+                <template v-for="link in pageLinks" :key="link.key">
+                    <span v-if="!link.url" class="px-1 text-xs text-gray-400">…</span>
+                    <button
+                        v-else
+                        type="button"
+                        :class="[
+                            'flex h-8 min-w-[2rem] items-center justify-center rounded-full px-2 text-xs font-medium tabular-nums transition-colors',
+                            link.active
+                                ? 'bg-gray-900 text-white'
+                                : 'text-gray-600 hover:bg-gray-100',
+                        ]"
+                        :aria-current="link.active ? 'page' : undefined"
+                        @click="goToPage(link.url)"
                     >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            d="M9 5l7 7-7 7"
-                        />
-                    </svg>
+                        {{ link.label }}
+                    </button>
+                </template>
+
+                <button
+                    type="button"
+                    :disabled="!items.next_page_url"
+                    class="flex h-8 w-8 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
+                    aria-label="Next page"
+                    @click="goToPage(items.next_page_url)"
+                >
+                    <i class="fa-solid fa-chevron-right text-[10px]"></i>
                 </button>
-            </div>
+            </nav>
         </div>
 
         <Teleport to="body">

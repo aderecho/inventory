@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AcknowledgementItem;
 use App\Models\AcknowledgementReceipt;
+use App\Models\AssetCondition;
 use App\Models\InventoryItem;
 use App\Models\ItemClassification;
 use App\Models\Supplier;
@@ -77,7 +78,6 @@ class DashboardService
             ),
 
             'borrowed_items' => $borrowCounts['borrowed'],
-            'overdue_borrowings' => $borrowCounts['overdue'],
 
             'unassigned_items' => InventoryItem::whereDoesntHave('latestAcknowledgementItem')
                 ->count(),
@@ -85,6 +85,14 @@ class DashboardService
             // Disposed property carries the status itself, so nothing has to
             // match a condition name (or keep it spelled a certain way).
             'disposal_items' => InventoryItem::where('status', InventoryItem::STATUS_DISPOSED)->count(),
+
+            // Still in stock, but the latest inspection says it should go.
+            'for_disposal_items' => InventoryItem::where('status', '!=', InventoryItem::STATUS_DISPOSED)
+                ->whereHas(
+                    'latestInspection.assetCondition',
+                    fn ($query) => $query->where('disposition', AssetCondition::DISPOSITION_FOR_DISPOSAL)
+                )
+                ->count(),
 
             // Approval status lives on the item itself, not on the receipt line.
             'pending_approvals' => InventoryItem::where('approval_status', 'pending')

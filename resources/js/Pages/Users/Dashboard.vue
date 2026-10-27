@@ -7,12 +7,18 @@ import PageHeader from "@/Components/PageHeader.vue";
 import ItemTable from "@/Components/UserComponents/ItemTable.vue";
 import BorrowedItemsTable from "@/Components/UserComponents/BorrowedItemsTable.vue";
 import {
+    ArrowRight,
+    ArrowUpRight,
     BadgeCheck,
+    CircleCheck,
     ClipboardList,
     ClockAlert,
     FileText,
     HandCoins,
+    Hourglass,
+    Mail,
     Package,
+    Phone,
     Search,
 } from "lucide-vue-next";
 
@@ -37,47 +43,90 @@ const greeting = computed(() => {
     return "Good evening";
 });
 
+const assignedCount = computed(() => props.stats?.assigned_items ?? 0);
+const pendingCount = computed(() => props.stats?.pending_items ?? 0);
+const approvedCount = computed(() => props.stats?.approved_items ?? 0);
+
+// Approved / pending / rejected as shares of the assigned items, for the bar
+// on the left. Empty parts are left out.
+const approvalSegments = computed(() => {
+    const total = assignedCount.value;
+
+    if (!total) return [];
+
+    return [
+        { key: "approved", label: "Approved", count: approvedCount.value, tone: "bg-[#005740] text-white" },
+        { key: "pending", label: "Pending", count: pendingCount.value, tone: "bg-amber-300 text-gray-900" },
+        { key: "rejected", label: "Rejected", count: props.stats?.rejected_items ?? 0, tone: "bg-[#D71D1D] text-white" },
+    ]
+        .filter((segment) => segment.count > 0)
+        .map((segment) => ({
+            ...segment,
+            percent: Math.round((segment.count / total) * 100),
+        }));
+});
+
+// Share of assigned property already confirmed.
+const approvedShare = computed(() =>
+    assignedCount.value
+        ? Math.round((approvedCount.value / assignedCount.value) * 100)
+        : 0,
+);
+
+// The numbers on the right of the overview. One with a "status" also filters
+// the assigned list when clicked; "highlight" adds an amber dot.
 const stats_cards = computed(() => [
     {
         key: "assigned",
         label: "Assigned items",
-        value: props.stats?.assigned_items ?? 0,
+        value: assignedCount.value,
         hint: "Property under your custody",
         icon: Package,
-        tile: "bg-[#005740]/10 text-[#005740]",
-        accent: "text-[#005740]",
         target: "assigned-items",
+        status: "",
+        action: "Show all items",
     },
     {
-        key: "borrowed",
-        label: "Borrowed now",
-        value: props.stats?.borrowed_items ?? 0,
-        hint: "Items you have on loan",
-        icon: HandCoins,
-        tile: "bg-[#005740]/10 text-[#005740]",
-        accent: "text-[#005740]",
-        target: "borrowed-items",
-    },
-    {
-        key: "overdue",
-        label: "Overdue",
-        value: props.stats?.overdue_borrowings ?? 0,
-        hint: "Past the return date",
-        icon: ClockAlert,
-        tile: "bg-[#D71D1D]/10 text-[#D71D1D]",
-        accent: "text-[#D71D1D]",
-        target: "borrowed-items",
-    },
-    {
-        key: "receipts",
-        label: "Receipts",
-        value: props.stats?.receipts ?? 0,
-        hint: "Acknowledgement documents",
-        icon: FileText,
-        tile: "bg-[#005740]/10 text-[#005740]",
-        accent: "text-[#005740]",
+        key: "pending",
+        label: "Waiting for you",
+        value: pendingCount.value,
+        hint: "Not yet approved or rejected",
+        icon: Hourglass,
         target: "assigned-items",
+        status: "pending",
+        action: "Review pending items",
+        highlight: pendingCount.value > 0,
     },
+    {
+        key: "approved",
+        label: "Approved",
+        value: approvedCount.value,
+        hint: approvedShare.value + "% of your items confirmed",
+        icon: CircleCheck,
+        target: "assigned-items",
+        status: "approved",
+        action: "Show approved items",
+    },
+    // {
+    //     key: "borrowed",
+    //     label: "Borrowed now",
+    //     value: props.stats?.borrowed_items ?? 0,
+    //     hint: "Items you have on loan",
+    //     icon: HandCoins,
+    //     tile: "bg-[#005740]/10 text-[#005740]",
+    //     accent: "text-[#005740]",
+    //     target: "borrowed-items",
+    // },
+    // {
+    //     key: "overdue",
+    //     label: "Overdue",
+    //     value: props.stats?.overdue_borrowings ?? 0,
+    //     hint: "Past the return date",
+    //     icon: ClockAlert,
+    //     tile: "bg-[#D71D1D]/10 text-[#D71D1D]",
+    //     accent: "text-[#D71D1D]",
+    //     target: "borrowed-items",
+    // },
 ]);
 
 function scrollToSection(id) {
@@ -87,11 +136,29 @@ function scrollToSection(id) {
     });
 }
 
+const isActiveStat = (stat) =>
+    stat.status !== undefined && approvalStatus.value === stat.status;
+
+function openStat(stat) {
+    if (stat.status !== undefined) {
+        approvalStatus.value = stat.status;
+    }
+
+    scrollToSection(stat.target);
+}
+
 // Assigned items: same query parameters the controller already validates.
 const search = ref(props.filters?.search ?? "");
 const approvalStatus = ref(props.filters?.approval_status ?? "");
 const sortKey = ref(props.filters?.sort ?? null);
 const sortDirection = ref(props.filters?.direction ?? "asc");
+
+const statusTabs = computed(() => [
+    { value: "", label: "All", count: assignedCount.value },
+    { value: "pending", label: "Pending", count: pendingCount.value },
+    { value: "approved", label: "Approved", count: approvedCount.value },
+    { value: "rejected", label: "Rejected", count: props.stats?.rejected_items ?? 0 },
+]);
 
 const isSearching = ref(false);
 let searchTimeout = null;
@@ -136,6 +203,11 @@ function handleSort(key) {
     fetchItems();
 }
 
+function reviewPending() {
+    approvalStatus.value = "pending";
+    scrollToSection("assigned-items");
+}
+
 watch(approvalStatus, () => fetchItems());
 
 onBeforeUnmount(() => {
@@ -148,172 +220,246 @@ const borrowedItems = computed(() => props.borrowedItems ?? []);
 <template>
     <Head title="UP | My Dashboard" />
 
-    <UserPortalLayout>
+    <UserPortalLayout wide tinted>
         <PageHeader title="My Dashboard" />
 
         <div class="w-full h-full space-y-5">
-            <!-- GREETING -->
+            <!-- OVERVIEW: who you are on the left, your numbers on the right. -->
             <motion.section
-                class="relative mt-6 overflow-hidden rounded-2xl bg-gradient-to-r from-[#003d2c] via-[#005740] to-[#0E6021] px-6 py-6 text-white shadow-sm sm:px-8"
+                class="mt-6 flex flex-col gap-8 px-1 xl:flex-row xl:items-end xl:justify-between"
                 :initial="{ opacity: 0, y: 12 }"
                 :animate="{ opacity: 1, y: 0 }"
                 :transition="{ type: 'spring', stiffness: 260, damping: 26 }"
             >
-                <div
-                    class="pointer-events-none absolute inset-0"
-                    style="
-                        background:
-                            radial-gradient(circle at 82% 18%, rgba(255, 255, 255, 0.18), transparent 45%),
-                            radial-gradient(circle at 12% 120%, rgba(255, 255, 255, 0.10), transparent 50%);
-                    "
-                ></div>
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm text-gray-500">
+                        {{ greeting }}{{ firstName ? "," : "" }}
+                    </p>
+                    <h1 class="mt-1 truncate text-4xl font-light tracking-tight text-gray-900 sm:text-5xl">
+                        {{ fullName }}
+                    </h1>
+                    <p class="mt-2 text-sm text-gray-600">
+                        {{ profile.primary_unit_division_department || "Accountability dashboard" }}
+                    </p>
 
-                <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-                    <div class="min-w-0">
-                        <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">
-                            {{ greeting }}{{ firstName ? "," : "" }}
-                        </p>
-                        <h1 class="mt-1 truncate text-2xl font-bold sm:text-3xl">
-                            {{ fullName }}
-                        </h1>
-                        <p class="mt-1 text-sm text-white/80">
-                            {{ profile.primary_unit_division_department || "Accountability dashboard" }}
-                        </p>
-                    </div>
-
-                    <div class="flex flex-wrap gap-2 text-[11px]">
-                        <span
-                            v-if="profile.employee_number"
-                            class="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 font-semibold"
-                        >
+                    <div class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-gray-500">
+                        <span v-if="profile.employee_number" class="inline-flex items-center gap-1.5">
                             <BadgeCheck class="h-3.5 w-3.5" />
                             {{ profile.employee_number }}
                         </span>
 
-                        <span
-                            v-if="user?.email"
-                            class="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 font-semibold"
-                        >
+                        <span v-if="user?.email" class="inline-flex items-center gap-1.5">
+                            <Mail class="h-3.5 w-3.5" />
                             {{ user.email }}
                         </span>
 
-                        <span
-                            v-if="profile.contact_number"
-                            class="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 font-semibold"
-                        >
+                        <span v-if="profile.contact_number" class="inline-flex items-center gap-1.5">
+                            <Phone class="h-3.5 w-3.5" />
                             {{ profile.contact_number }}
                         </span>
+
+                        <span class="inline-flex items-center gap-1.5">
+                            <FileText class="h-3.5 w-3.5" />
+                            {{ stats?.receipts ?? 0 }} acknowledgement receipt(s)
+                        </span>
+
+                            <!-- <button
+                                type="button"
+                                class="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-white/20"
+                                @click="scrollToSection('borrowed-items')"
+                            >
+                                <HandCoins class="h-3.5 w-3.5" />
+                                My borrowed items
+                            </button> -->
+                    </div>
+
+                    <!-- APPROVAL BREAKDOWN: each part as wide as its share. -->
+                    <div v-if="approvalSegments.length" class="mt-6 flex max-w-2xl gap-1.5">
+                        <div
+                            v-for="segment in approvalSegments"
+                            :key="segment.key"
+                            class="min-w-[5.5rem]"
+                            :style="{ flexGrow: segment.count, flexBasis: 0 }"
+                        >
+                            <p class="mb-1.5 text-xs text-gray-500">{{ segment.label }}</p>
+                            <div
+                                :class="[
+                                    'flex h-10 items-center rounded-full px-4 text-xs font-medium tabular-nums',
+                                    segment.tone,
+                                ]"
+                            >
+                                {{ segment.percent }}%
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="relative mt-5 flex flex-wrap gap-2">
-                    <button
+                <!-- NUMBERS: each one is a button that filters the list below. -->
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 xl:w-auto">
+                    <motion.button
+                        v-for="(stat, index) in stats_cards"
+                        :key="stat.key"
                         type="button"
-                        class="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-white/20"
-                        @click="scrollToSection('assigned-items')"
+                        :class="[
+                            'group relative flex min-w-[11rem] flex-col rounded-2xl border px-5 pb-4 pt-4 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#005740]/40 focus-visible:ring-offset-2',
+                            isActiveStat(stat)
+                                ? 'border-gray-900 bg-gray-900 text-white shadow-lg shadow-gray-900/20'
+                                : 'border-gray-900/10 bg-white/70 text-gray-900 backdrop-blur hover:border-gray-900/25 hover:bg-white hover:shadow-md',
+                        ]"
+                        :aria-pressed="isActiveStat(stat)"
+                        :title="stat.hint"
+                        :initial="{ opacity: 0, y: 8 }"
+                        :animate="{ opacity: 1, y: 0 }"
+                        :transition="{ delay: 0.08 + index * 0.05, type: 'spring', stiffness: 260, damping: 26 }"
+                        :while-hover="isActiveStat(stat) ? undefined : { y: -3 }"
+                        :while-press="{ scale: 0.97 }"
+                        @click="openStat(stat)"
                     >
-                        <Package class="h-3.5 w-3.5" />
-                        My assigned items
-                    </button>
+                        <div class="flex items-center justify-between gap-3">
+                            <span
+                                :class="[
+                                    'flex items-center gap-1.5 text-xs font-medium',
+                                    isActiveStat(stat) ? 'text-white/75' : 'text-gray-500',
+                                ]"
+                            >
+                                <component :is="stat.icon" class="h-3.5 w-3.5" />
+                                {{ stat.label }}
+                                <span
+                                    v-if="stat.highlight"
+                                    class="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500"
+                                    aria-hidden="true"
+                                ></span>
+                            </span>
 
-                    <button
-                        type="button"
-                        class="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-white/20"
-                        @click="scrollToSection('borrowed-items')"
-                    >
-                        <HandCoins class="h-3.5 w-3.5" />
-                        My borrowed items
-                    </button>
+                            <span
+                                :class="[
+                                    'flex h-7 w-7 items-center justify-center rounded-full border transition-all duration-200',
+                                    isActiveStat(stat)
+                                        ? 'rotate-45 border-white/30 bg-white/15 text-white'
+                                        : 'border-gray-900/15 text-gray-600 group-hover:rotate-45 group-hover:border-gray-900 group-hover:bg-gray-900 group-hover:text-white',
+                                ]"
+                                aria-hidden="true"
+                            >
+                                <ArrowUpRight class="h-3.5 w-3.5" />
+                            </span>
+                        </div>
+
+                        <p class="mt-3 text-5xl font-light leading-none tabular-nums">
+                            {{ stat.value }}
+                        </p>
+
+                        <p
+                            :class="[
+                                'mt-3 text-[11px]',
+                                isActiveStat(stat) ? 'text-white/70' : 'text-gray-400 group-hover:text-gray-600',
+                            ]"
+                        >
+                            {{ isActiveStat(stat) ? "Showing in the list" : stat.action ?? "View in the list" }}
+                        </p>
+                    </motion.button>
                 </div>
             </motion.section>
 
-            <!-- STATS -->
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <motion.button
-                    v-for="(card, index) in stats_cards"
-                    :key="card.key"
-                    type="button"
-                    class="rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-[#005740]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#005740]/30"
-                    :initial="{ opacity: 0, y: 14 }"
-                    :animate="{ opacity: 1, y: 0 }"
-                    :transition="{
-                        delay: 0.06 + index * 0.05,
-                        type: 'spring',
-                        stiffness: 260,
-                        damping: 26,
-                    }"
-                    :while-hover="{ y: -3 }"
-                    :while-press="{ scale: 0.99 }"
-                    @click="scrollToSection(card.target)"
-                >
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                                {{ card.label }}
-                            </p>
-                            <p class="mt-1 text-2xl font-bold" :class="card.accent">
-                                {{ card.value }}
-                            </p>
-                            <p class="mt-0.5 text-[11px] text-gray-400">
-                                {{ card.hint }}
-                            </p>
-                        </div>
-
-                        <span
-                            class="flex h-10 w-10 items-center justify-center rounded-lg"
-                            :class="card.tile"
-                        >
-                            <component :is="card.icon" class="h-5 w-5" />
-                        </span>
+            <!-- NEEDS ATTENTION -->
+            <motion.div
+                v-if="pendingCount > 0"
+                class="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                :initial="{ opacity: 0, y: 8 }"
+                :animate="{ opacity: 1, y: 0 }"
+                :transition="{ delay: 0.05, type: 'spring', stiffness: 260, damping: 26 }"
+            >
+                <div class="flex items-start gap-3">
+                    <span class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                        <Hourglass class="h-4 w-4" />
+                    </span>
+                    <div>
+                        <p class="text-sm font-semibold text-amber-900">
+                            {{ pendingCount }} item(s) waiting for your confirmation
+                        </p>
+                        <p class="text-xs text-amber-800/80">
+                            Approve each item you received, or reject it if something is not right.
+                        </p>
                     </div>
-                </motion.button>
-            </div>
+                </div>
+
+                <button
+                    type="button"
+                    class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-amber-600 px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-amber-700"
+                    @click="reviewPending"
+                >
+                    Review pending
+                    <ArrowRight class="h-3.5 w-3.5" />
+                </button>
+            </motion.div>
 
             <!-- ASSIGNED ITEMS -->
             <section
                 id="assigned-items"
                 class="scroll-mt-24 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
             >
-                <header
-                    class="flex flex-col gap-3 border-b border-gray-100 px-4 py-3 lg:flex-row lg:items-center lg:justify-between"
-                >
-                    <div class="flex items-center gap-2">
-                        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#005740]/10 text-[#005740]">
-                            <ClipboardList class="h-4 w-4" />
-                        </span>
-                        <div>
-                            <h2 class="text-sm font-semibold text-[#1b1b1b]">
-                                Assigned to me
-                            </h2>
-                            <p class="text-[11px] text-gray-500">
-                                {{ items.total ?? 0 }} item(s) under your accountability
-                            </p>
+                <header class="border-b border-gray-100 px-4 py-4 sm:px-5">
+                    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div class="flex items-center gap-3">
+                            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#005740]/10 text-[#005740]">
+                                <ClipboardList class="h-5 w-5" />
+                            </span>
+                            <div>
+                                <h2 class="text-base font-semibold text-[#1b1b1b]">
+                                    Assigned to me
+                                </h2>
+                                <p class="text-xs text-gray-500">
+                                    {{ items.total ?? 0 }} item(s) shown
+                                    <span v-if="isSearching" class="text-[#005740]">· updating…</span>
+                                </p>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <select
-                            v-model="approvalStatus"
-                            class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-xs text-gray-700 focus:border-[#005740] focus:outline-none focus:ring-1 focus:ring-[#005740] sm:w-40"
-                        >
-                            <option value="">All statuses</option>
-                            <option value="pending">Pending</option>
-                            <option value="approved">Approved</option>
-                            <option value="rejected">Rejected</option>
-                        </select>
-
-                        <div class="relative w-full sm:w-72">
+                        <div class="relative w-full lg:w-80">
                             <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
                                 <Search class="h-4 w-4" />
                             </span>
                             <input
                                 v-model="search"
                                 type="search"
-                                placeholder="Search assigned items..."
+                                placeholder="Search item, property number, room..."
                                 class="h-10 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 text-sm text-[#3B3B3B] focus:border-[#005740] focus:outline-none focus:ring-1 focus:ring-[#005740]"
                                 @input="searchItems"
                             />
                         </div>
+                    </div>
+
+                    <!-- STATUS TABS -->
+                    <div
+                        class="mt-4 inline-flex max-w-full gap-1 overflow-x-auto rounded-lg bg-gray-100 p-1"
+                        role="tablist"
+                        aria-label="Filter by approval status"
+                    >
+                        <button
+                            v-for="tab in statusTabs"
+                            :key="tab.value"
+                            type="button"
+                            role="tab"
+                            :aria-selected="approvalStatus === tab.value"
+                            :class="[
+                                'inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
+                                approvalStatus === tab.value
+                                    ? 'bg-white text-[#005740] shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700',
+                            ]"
+                            @click="approvalStatus = tab.value"
+                        >
+                            {{ tab.label }}
+                            <span
+                                :class="[
+                                    'rounded-full px-1.5 text-[10px] tabular-nums',
+                                    approvalStatus === tab.value
+                                        ? 'bg-[#005740]/10 text-[#005740]'
+                                        : 'bg-gray-200 text-gray-500',
+                                ]"
+                            >
+                                {{ tab.count }}
+                            </span>
+                        </button>
                     </div>
                 </header>
 
@@ -326,7 +472,7 @@ const borrowedItems = computed(() => props.borrowedItems ?? []);
             </section>
 
             <!-- BORROWED ITEMS -->
-            <section
+            <!-- <section
                 id="borrowed-items"
                 class="scroll-mt-24 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
             >
@@ -348,8 +494,7 @@ const borrowedItems = computed(() => props.borrowedItems ?? []);
                     :items="borrowedItems"
                     empty-text="Nothing is borrowed on your account right now."
                 />
-            </section>
+            </section> -->
         </div>
     </UserPortalLayout>
 </template>
-

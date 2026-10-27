@@ -341,6 +341,47 @@ const tableAreaRef = ref(null);
 const needsHorizontalScroll = ref(false);
 let tableAreaObserver = null;
 
+// A sideways-scrolling wrapper is its own scroll container, so a sticky header
+// inside it measures its offset from the wrapper and drops below the rows
+// instead of pinning under the toolbar. While the wrapper is on, the header is
+// moved to where an invisible sticky marker just outside the wrapper sits:
+// the browser pins that marker under the toolbar exactly as it would the header.
+const theadRef = ref(null);
+const stickyMarkerRef = ref(null);
+const headerShift = ref(0);
+let headerShiftFrame = null;
+
+function updateHeaderShift() {
+    headerShiftFrame = null;
+
+    const area = tableAreaRef.value;
+    const head = theadRef.value;
+    const marker = stickyMarkerRef.value;
+
+    if (!needsHorizontalScroll.value || !area || !head || !marker) {
+        headerShift.value = 0;
+        return;
+    }
+
+    const areaRect = area.getBoundingClientRect();
+    const wanted = marker.getBoundingClientRect().top - areaRect.top;
+    const lowest = areaRect.height - head.offsetHeight;
+
+    headerShift.value = Math.max(0, Math.min(wanted, lowest));
+}
+
+function scheduleHeaderShift() {
+    if (headerShiftFrame === null) {
+        headerShiftFrame = window.requestAnimationFrame(updateHeaderShift);
+    }
+}
+
+const headerCellTop = computed(() =>
+    needsHorizontalScroll.value ? "0px" : "var(--table-sticky-top, 0px)",
+);
+
+watch(needsHorizontalScroll, scheduleHeaderShift);
+
 function measureTableArea() {
     const el = tableAreaRef.value;
 
@@ -359,11 +400,25 @@ onMounted(() => {
     }
 
     window.addEventListener("resize", measureTableArea);
+    // Capture catches whichever element scrolls the page.
+    document.addEventListener("scroll", scheduleHeaderShift, {
+        capture: true,
+        passive: true,
+    });
+    window.addEventListener("resize", scheduleHeaderShift);
 });
 
 onBeforeUnmount(() => {
     tableAreaObserver?.disconnect();
     window.removeEventListener("resize", measureTableArea);
+    document.removeEventListener("scroll", scheduleHeaderShift, {
+        capture: true,
+    });
+    window.removeEventListener("resize", scheduleHeaderShift);
+
+    if (headerShiftFrame !== null) {
+        window.cancelAnimationFrame(headerShiftFrame);
+    }
 });
 
 // Column visibility and new rows both change how wide the table needs to be.
@@ -503,6 +558,13 @@ function toggleCheck(item) {
             </div>
         </div>
 
+        <div
+            ref="stickyMarkerRef"
+            aria-hidden="true"
+            class="pointer-events-none sticky h-0"
+            style="top: var(--table-sticky-top, 0px)"
+        ></div>
+
         <!-- No scroll container unless the table really overflows: a sticky
              header inside one can never reach the page scroller. -->
         <div
@@ -512,7 +574,15 @@ function toggleCheck(item) {
             <table
                 class="w-full table-auto border-collapse text-left text-xs sm:text-sm"
             >
-                <thead class="bg-[#005740]">
+                <thead
+                    ref="theadRef"
+                    class="relative z-20 bg-[#005740]"
+                    :style="
+                        headerShift
+                            ? { transform: 'translateY(' + headerShift + 'px)' }
+                            : null
+                    "
+                >
                     <tr>
                         <th
                             v-for="col in visibleColumns"
@@ -528,7 +598,7 @@ function toggleCheck(item) {
                                     ? 'right-0 z-20 shadow-[-8px_0_10px_-10px_rgba(15,23,42,0.45)]'
                                     : '',
                             ]"
-                            style="top: var(--table-sticky-top, 0px)"
+                            :style="{ top: headerCellTop }"
                         >
                             <!-- SELECT ALL CHECKBOX -->
                             <template v-if="col.key === 'select_all'">

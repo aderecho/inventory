@@ -11,6 +11,7 @@ import SearchFilterBar from "@/Components/Filters/SearchFilterBar.vue";
 import { usePermissions } from "@/Composables/usePermissions";
 import { useLoading } from "@/Composables/useLoading";
 import { useToast } from "primevue/usetoast";
+import { useStickyToolbar } from "@/Composables/useStickyToolbar";
 
 defineProps({
     rooms: Array,
@@ -18,6 +19,10 @@ defineProps({
 
 const { startLoading, stopLoading } = useLoading();
 const { inspectionActions } = usePermissions();
+
+// The Asset Inspection bar (with Inspect Selected) sticks to the top while the
+// list scrolls, and the table header pins itself right underneath it.
+const toolbarRef = useStickyToolbar();
 
 const columns = [
     { label: "", key: "select_all" },
@@ -298,8 +303,11 @@ function handleDeleteCondition(condition) {
         <div class="w-full h-full">
             <!-- No overflow-hidden: it would trap the table's sticky header. -->
             <div class="mt-5 bg-white border border-gray-200 rounded-2xl shadow-sm">
-                <!-- HEADER -->
-                <div class="rounded-t-2xl bg-gradient-to-r from-[#003d2c] via-[#005740] to-[#00795a] px-6 py-5">
+                <!-- HEADER (sticks to the top while scrolling) -->
+                <div
+                    ref="toolbarRef"
+                    class="sticky top-0 z-30 rounded-t-2xl bg-gradient-to-r from-[#003d2c] via-[#005740] to-[#00795a] px-6 py-5 shadow-sm"
+                >
                     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
                         <div>
                             <h2 class="text-xl font-bold text-white">Asset Inspection</h2>

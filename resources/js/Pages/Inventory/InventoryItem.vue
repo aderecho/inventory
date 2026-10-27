@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed } from "vue";
 import { usePage, router } from "@inertiajs/vue3";
 import { Head } from "@inertiajs/vue3";
 import Layout from "@/Layouts/Layout.vue";
@@ -21,6 +21,7 @@ import { usePermissions } from "@/Composables/usePermissions";
 import { useLoading } from "@/Composables/useLoading";
 import { usePrintDownload } from "@/Composables/usePrintDownload";
 import { buildIirupPayload } from "@/lib/iirupPayload";
+import { useStickyToolbar } from "@/Composables/useStickyToolbar";
 import DownloadProgressCard from "@/Components/DownloadProgressCard.vue";
 import { Button } from "@/Components/ui/button";
 import {
@@ -60,6 +61,7 @@ const {
 const columns = [
     { label: "", key: "select_all" },
     { label: "Item Name", key: "item_name" },
+    { label: "Description", key: "description", cellClass: "min-w-[14rem]" },
     { label: "Unit", key: "unit", format: (val) => val ?? "N/A" },
     {
         label: "Unit Cost",
@@ -93,7 +95,7 @@ const columns = [
         },
     },
     {
-        label: "Acknoweldgement Receipt",
+        label: "PAR/ICS",
         key: "latest_acknowledgement_item.acknowledgement_receipts",
         format: (val) =>
             val?.category ??
@@ -110,21 +112,21 @@ const columns = [
             return `<span class="text-black font-semibold py-1 px-2">${condition}</span>`;
         },
     },
-    {
-        label: "Borrow Status",
-        key: "status",
-        format: (value) => {
-            if (value === "borrowed") {
-                return '<span class="text-[11px] font-semibold text-amber-700">Borrowed</span>';
-            }
+    // {
+    //     label: "Borrow Status",
+    //     key: "status",
+    //     format: (value) => {
+    //         if (value === "borrowed") {
+    //             return '<span class="text-[11px] font-semibold text-amber-700">Borrowed</span>';
+    //         }
 
-            if (value === "retired") {
-                return '<span class="text-[11px] font-semibold text-gray-600">Retired</span>';
-            }
+    //         if (value === "retired") {
+    //             return '<span class="text-[11px] font-semibold text-gray-600">Retired</span>';
+    //         }
 
-            return '<span class="text-[11px] font-semibold text-[#2E7D32]">Available</span>';
-        },
-    },
+    //         return '<span class="text-[11px] font-semibold text-[#2E7D32]">Available</span>';
+    //     },
+    // },
     { label: "Action", key: "action" },
 ];
 
@@ -461,34 +463,7 @@ const room_id = ref("");
 
 // The table header pins itself right below the sticky toolbar, so the
 // toolbar's height is published as a CSS variable that the table reads.
-const toolbarRef = ref(null);
-let toolbarObserver = null;
-
-function publishToolbarHeight() {
-    if (!toolbarRef.value) return;
-
-    document.documentElement.style.setProperty(
-        "--table-sticky-top",
-        toolbarRef.value.offsetHeight + "px",
-    );
-}
-
-onMounted(() => {
-    publishToolbarHeight();
-
-    if (typeof ResizeObserver !== "undefined" && toolbarRef.value) {
-        toolbarObserver = new ResizeObserver(publishToolbarHeight);
-        toolbarObserver.observe(toolbarRef.value);
-    }
-
-    window.addEventListener("resize", publishToolbarHeight);
-});
-
-onBeforeUnmount(() => {
-    toolbarObserver?.disconnect();
-    window.removeEventListener("resize", publishToolbarHeight);
-    document.documentElement.style.removeProperty("--table-sticky-top");
-});
+const toolbarRef = useStickyToolbar();
 
 // MODAL STATE
 const formMode = ref("create");

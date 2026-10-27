@@ -86,16 +86,23 @@ class ConditionDispositionTest extends TestCase
     {
         InventoryItem::factory()->create();
         $disposed = InventoryItem::factory()->create();
+        $markedForDisposal = InventoryItem::factory()->create();
 
         $this->inspect(
             $this->condition('Disposed', AssetCondition::DISPOSITION_DISPOSED),
             [$disposed->id],
         );
+        $this->inspect(
+            $this->condition('Unserviceable', AssetCondition::DISPOSITION_FOR_DISPOSAL),
+            [$markedForDisposal->id],
+        );
 
-        $dashboard = app(DashboardService::class);
+        $highlights = app(DashboardService::class)->getHighlights();
 
-        $this->assertSame(1, $dashboard->getHighlights()['disposal_items']);
-        $this->assertSame(1, $dashboard->getStats()['items']);
+        $this->assertSame(1, $highlights['disposal_items']);
+        // Marked for disposal is still in stock; disposed is not counted twice.
+        $this->assertSame(1, $highlights['for_disposal_items']);
+        $this->assertSame(2, app(DashboardService::class)->getStats()['items']);
     }
 
     public function test_the_import_looks_conditions_up_by_disposition_not_by_name(): void

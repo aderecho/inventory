@@ -43,10 +43,10 @@ const cards = computed(() => {
     const h = props.highlights ?? {};
 
     const unassigned = Number(h.unassigned_items ?? 0);
-    const disposal = Number(h.disposal_items ?? 0);
+    const disposed = Number(h.disposal_items ?? 0);
+    const forDisposal = Number(h.for_disposal_items ?? 0);
     const pending = Number(h.pending_approvals ?? 0);
     const borrowed = Number(h.borrowed_items ?? 0);
-    const overdue = Number(h.overdue_borrowings ?? 0);
 
     return [
         {
@@ -68,15 +68,6 @@ const cards = computed(() => {
             href: "/item-approvals?acknowledgement_status=pending",
         },
         {
-            key: "overdue_borrowings",
-            label: "Overdue Returns",
-            value: count(overdue),
-            hint: "Loans past their due date",
-            icon: TriangleAlert,
-            tone: overdue > 0 ? "warning" : "quiet",
-            href: "/borrowings?acknowledgement_status=overdue",
-        },
-        {
             key: "borrowed_items",
             label: "Out on Loan",
             value: count(borrowed),
@@ -86,12 +77,21 @@ const cards = computed(() => {
             href: "/borrowings?acknowledgement_status=borrowed",
         },
         {
-            key: "disposal_items",
+            key: "for_disposal_items",
             label: "Marked for Disposal",
-            value: count(disposal),
-            hint: "Latest inspection condition is Disposal",
+            value: count(forDisposal),
+            hint: "Inspected as for disposal, not disposed yet",
+            icon: TriangleAlert,
+            tone: forDisposal > 0 ? "warning" : "quiet",
+            href: null,
+        },
+        {
+            key: "disposal_items",
+            label: "Disposed Assets",
+            value: count(disposed),
+            hint: "Disposed and out of the active inventory",
             icon: Trash2,
-            tone: disposal > 0 ? "warning" : "quiet",
+            tone: disposed > 0 ? "brand" : "quiet",
             href: "/disposal",
         },
     ];
@@ -100,7 +100,7 @@ const cards = computed(() => {
 
 <template>
     <div
-        class="grid auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-5"
+        class="grid auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3"
     >
         <component
             :is="card.href && linkable ? Link : 'div'"

@@ -37,10 +37,11 @@ const newCondition = ref({
 });
 
 // What the condition means to the disposal process, not how it reads.
+// Disposed is left out: items are disposed of through the Dispose action, and
+// those conditions are managed from Manage Conditions.
 const CONDITION_MEANINGS = [
     { value: "serviceable", label: "Serviceable" },
     { value: "for_disposal", label: "For disposal" },
-    { value: "disposed", label: "Disposed" },
 ];
 
 // Local conditions list (includes new conditions before submission)
@@ -59,7 +60,11 @@ const allConditions = computed(() => {
             index === self.findIndex((c) => c.id === condition.id),
     );
 
-    return unique.filter((c) => !removedConditionIds.value.includes(c.id));
+    return unique.filter(
+        (c) =>
+            c.disposition !== "disposed" &&
+            !removedConditionIds.value.includes(c.id),
+    );
 });
 
 const selectedCondition = computed(() =>

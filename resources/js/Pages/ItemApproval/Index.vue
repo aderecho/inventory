@@ -74,7 +74,7 @@ const columns = [
         },
     },
     {
-        label: "Acknowledgement Receipt",
+        label: "PAR/ICS",
         key: "latest_acknowledgement_item.acknowledgement_receipts",
         format: (value) =>
             value?.category ??
