@@ -9,7 +9,7 @@ class SSOService
 {
     public function verifySSOToken(Request $request)
     {
-        $pemPath = storage_path(env('UP_SSO_CLIENT_PEM_PATH'));
+        $pemPath = storage_path((string) config('services.up_sso.client_pem_path'));
 
         $pem = file_get_contents($pemPath);
         if ($pem === false) abort(500, "Cannot read public key file: {$pemPath}");

@@ -203,4 +203,12 @@ class BorrowingController extends Controller
             'data' => $this->borrowingService->searchStaff($request->input('search')),
         ]);
     }
+
+    /** Student account picker for the borrow modal. */
+    public function students(Request $request)
+    {
+        return response()->json([
+            'data' => $this->borrowingService->searchStudents($request->input('search')),
+        ]);
+    }
 }

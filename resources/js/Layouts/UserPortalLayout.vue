@@ -8,6 +8,11 @@ import UserNotificationBell from "@/Components/UserComponents/UserNotificationBe
  * The shell for accounts that only have the personal dashboard: the portal
  * header and no administration sidebar.
  */
+const props = defineProps({
+    homeRoute: { type: String, default: "user.dashboard" },
+    portalLabel: { type: String, default: "User Portal" },
+});
+
 const page = usePage();
 
 const user = computed(() => page.props.auth?.user ?? {});
@@ -68,7 +73,7 @@ const year = new Date().getFullYear();
             <div
                 class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6"
             >
-                <Link :href="route('user.dashboard')" class="flex min-w-0 items-center gap-3">
+                <Link :href="route(props.homeRoute)" class="flex min-w-0 items-center gap-3">
                     <img
                         src="/images/UPC-LOGO.png"
                         alt="University of the Philippines Cebu"
@@ -82,7 +87,7 @@ const year = new Date().getFullYear();
                             Inventory Management System
                         </span>
                         <span class="block text-[11px] text-gray-400">
-                            User Portal
+                            {{ portalLabel }}
                         </span>
                     </span>
                 </Link>

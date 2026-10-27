@@ -327,7 +327,23 @@ class BorrowingService
     /** Staff picker for the modal: search the PUSO-synced profiles. */
     public function searchStaff(?string $term, int $limit = 20)
     {
+        return $this->searchProfiles($term, $limit);
+    }
+
+    /** Student accounts, so a student's loans show on their own portal. */
+    public function searchStudents(?string $term, int $limit = 20)
+    {
+        return $this->searchProfiles(
+            $term,
+            $limit,
+            fn ($query) => $query->whereHas('user.roles', fn ($roles) => $roles->where('name', \App\Models\User::ROLE_STUDENT)),
+        );
+    }
+
+    private function searchProfiles(?string $term, int $limit, ?callable $scope = null)
+    {
         return \App\Models\UserProfile::query()
+            ->when($scope, fn ($query) => $scope($query))
             ->when($term, function ($query, $term) {
                 $query->where(function ($q) use ($term) {
                     $q->where('first_name', 'like', '%' . $term . '%')

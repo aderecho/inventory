@@ -16,6 +16,9 @@ class User extends Authenticatable
     use HasApiTokens, LogsActivity, HasFactory, HasRoles, Notifiable,SoftDeletes {
         HasRoles::hasPermissionTo as protected spatieHasPermissionTo;
     }
+
+    public const ROLE_STUDENT = 'STUDENT';
+
     protected $fillable = ['email', 'status', 'last_activity'];
 
     protected $hidden = ['password'];

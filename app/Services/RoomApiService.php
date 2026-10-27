@@ -21,8 +21,17 @@ class RoomApiService
         ];
     }
 
-    $apiUrl = env('SYSTEM_B_API_URL');
-    $token = env('SYSTEM_B_API_TOKEN');
+    $apiUrl = config('services.rooms_api.url');
+    $token = config('services.rooms_api.token');
+
+    if (blank($apiUrl)) {
+        Log::error('Rooms API: SYSTEM_B_API_URL is not set.');
+
+        return [
+            'success' => false,
+            'data' => [],
+        ];
+    }
 
     try {
         $response = Http::withHeaders([
@@ -31,6 +40,10 @@ class RoomApiService
         ])
             ->timeout(5)
             ->get($apiUrl);
+
+        if (!$response->successful()) {
+            Log::warning('Rooms API returned HTTP ' . $response->status());
+        }
 
         $data = $response->successful()
             ? $response->json()

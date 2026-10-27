@@ -3,20 +3,18 @@
 namespace App\Services;
 
 use App\Models\InventoryItem;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Exception;
-use Illuminate\Support\Facades\Log;
-use Spatie\Browsershot\Browsershot;
 
 class DownloadPdfService
 {
     private RoomApiService $roomsApi;
     private QrImageService $qrImages;
+    private PdfRenderService $pdfs;
 
-    public function __construct(RoomApiService $roomsApi, QrImageService $qrImages)
+    public function __construct(RoomApiService $roomsApi, QrImageService $qrImages, PdfRenderService $pdfs)
     {
         $this->roomsApi = $roomsApi;
         $this->qrImages = $qrImages;
+        $this->pdfs = $pdfs;
     }
 
     public function generateQrPdf(array $ids, ?callable $onProgress = null): string
@@ -61,71 +59,15 @@ class DownloadPdfService
             $qrImages[$item->id] = $this->qrImages->dataUri($item->property_number, 260, 0);
         }
 
-        try {
-            $report(45, 'Rendering the sticker sheet');
+        $report(45, 'Rendering the sticker sheet');
 
-            return $this->generateWithBrowsershot($items, $roomNames, $qrImages);
-        } catch (Exception $e) {
-            Log::error('Browsershot PDF generation failed: ' . $e->getMessage());
+        $path = storage_path('app/qr-codes-' . now()->timestamp . '.pdf');
 
-            try {
-                $report(45, 'Rendering the sticker sheet');
-
-                return $this->generateWithDomPdf($items, $roomNames, $qrImages);
-            } catch (Exception $e2) {
-                Log::error('DOMPDF fallback also failed: ' . $e2->getMessage());
-
-                throw $e;
-            }
-        }
-    }
-
-    private function generateWithBrowsershot($items, array $roomNames, array $qrImages): string
-    {
-        $html = view('prints.inventory_qr_browsershot', [
+        file_put_contents($path, $this->pdfs->render('prints.inventory_qr_stickers', [
             'items' => $items,
             'roomNames' => $roomNames,
             'qrImages' => $qrImages,
-        ])->render();
-
-        $filename = 'qr-codes-' . now()->timestamp . '-bs.pdf';
-        $path = storage_path('app/' . $filename);
-
-        $shot = Browsershot::html($html)
-            ->setChromePath('/usr/bin/chromium')
-            ->showBackground()
-            ->addChromiumArguments([
-                'no-sandbox',
-                'disable-setuid-sandbox',
-            ])
-            ->format('A4')
-            ->printBackground();
-
-        if (!empty(env('BROWSERSHOT_CHROME_PATH'))) {
-            $shot->setChromePath(env('BROWSERSHOT_CHROME_PATH'));
-        }
-
-        if (!empty(env('BROWSERSHOT_NODE_PATH'))) {
-            $shot->setNodeBinary(env('BROWSERSHOT_NODE_PATH'));
-        }
-
-        $shot->save($path);
-
-        return $path;
-    }
-
-    private function generateWithDomPdf($items, array $roomNames, array $qrImages): string
-    {
-        $pdf = Pdf::loadView('prints.inventory_qr_browsershot', [
-            'items' => $items,
-            'roomNames' => $roomNames,
-            'qrImages' => $qrImages,
-        ]);
-
-        $filename = 'qr-codes-' . now()->timestamp . '.pdf';
-        $path = storage_path('app/' . $filename);
-
-        file_put_contents($path, $pdf->output());
+        ]));
 
         return $path;
     }

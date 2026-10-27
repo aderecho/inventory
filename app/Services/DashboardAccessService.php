@@ -16,6 +16,7 @@ class DashboardAccessService
         'super-admin' => 'dashboard.index',
         'staff'       => 'dashboard.index',
         'user'        => 'user.dashboard',
+        'student'     => 'student.dashboard',
     ];
 
     /**
@@ -39,12 +40,16 @@ class DashboardAccessService
 
     /**
      * Where an account lands when it cannot choose: the dashboard it can view,
-     * otherwise its personal one.
+     * otherwise the student portal for students and the personal one for everyone else.
      */
     public function defaultRouteFor(?User $user): string
     {
-        return $user?->can('view dashboard')
-            ? 'dashboard.index'
+        if ($user?->can('view dashboard')) {
+            return 'dashboard.index';
+        }
+
+        return $user?->hasRole(User::ROLE_STUDENT)
+            ? 'student.dashboard'
             : 'user.dashboard';
     }
 }

@@ -19,6 +19,8 @@ use App\Http\Controllers\ApiClientController;
 use App\Http\Controllers\ItemLocationHistoryController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\StudentController;
+use App\Models\User;
 use App\Http\Controllers\PropertyCardController;
 use App\Http\Controllers\SamlMetadataController;
 use App\Http\Controllers\SamlSpController;
@@ -94,6 +96,10 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
     })->name('session.ping');
     // User Dashboard
     Route::get('/user/dashboard', [UserController::class, 'index'])->name('user.dashboard');
+
+    Route::get('/student/dashboard', [StudentController::class, 'index'])
+        ->middleware('role:' . User::ROLE_STUDENT)
+        ->name('student.dashboard');
 
     // Property Cards: one ledger per article, built from its recorded history.
     Route::prefix('property-cards')->group(function () {
@@ -306,6 +312,10 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
         Route::get('/staff', [BorrowingController::class, 'staff'])
             ->middleware('can:borrow items')
             ->name('borrowings.staff');
+
+        Route::get('/students', [BorrowingController::class, 'students'])
+            ->middleware('can:borrow items')
+            ->name('borrowings.students');
     });
 
     // Reports

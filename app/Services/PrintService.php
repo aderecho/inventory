@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\InventoryItem;
 use App\Models\AcknowledgementItem;
 use App\Services\RoomApiService;
-use Spatie\Browsershot\Browsershot;
 
 class PrintService
 {
@@ -320,32 +319,8 @@ class PrintService
         |--------------------------------------------------------------------------
         */
 
-        $html = view($view, $data)->render();
-
-        /*
-        |--------------------------------------------------------------------------
-        | Generate PDF using Chromium
-        |--------------------------------------------------------------------------
-        */
-
-        $shot = Browsershot::html($html)
-            ->setChromePath('/usr/bin/chromium')
-            ->format('A4');
-
-        // All receipts print on A4; the transfer report forms (ITR/PTR) are laid out landscape,
-        // with top/bottom margins on every page so continued pages do not start at the edge.
-        if ($isTransfer) {
-            $shot = $shot->landscape()->margins(8, 0, 8, 0);
-        }
-
-        $pdf = $shot
-            ->showBackground()
-            ->emulateMedia('print')
-            ->addChromiumArguments([
-                'no-sandbox',
-                'disable-setuid-sandbox',
-            ])
-            ->pdf();
+        // Each form's template sets its own page: A4 portrait receipts, A4 landscape transfer reports.
+        $pdf = app(PdfRenderService::class)->render($view, $data);
 
         return [
             'pdf' => $pdf,

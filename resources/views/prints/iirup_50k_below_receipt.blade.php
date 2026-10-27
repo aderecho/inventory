@@ -15,7 +15,6 @@
             box-sizing: border-box;
         }
 
-        html,
         body {
             margin: 0;
             padding: 0;
@@ -292,6 +291,13 @@
         .sig-center {
             text-align: center;
         }
+
+        /* DomPDF ignores <col> widths and sizes a fixed table from its first row instead. */
+        tr.col-widths td {
+            height: 0;
+            padding: 0;
+            border: 0;
+        }
     </style>
 </head>
 
@@ -360,28 +366,28 @@
     <!-- ================= MAIN TABLE ================= -->
 
     <table class="main-table">
-        <colgroup>
-            <col style="width: 6.5%;">
-            <col style="width: 18%;">
-            <col style="width: 10.5%;">
-            <col style="width: 3%;">
-            <col style="width: 6%;">
-            <col style="width: 7%;">
-            <col style="width: 7%;">
-            <col style="width: 5.5%;">
-            <col style="width: 6%;">
-            <col style="width: 8%;">
-            <col style="width: 2.5%;">
-            <col style="width: 2.5%;">
-            <col style="width: 2.5%;">
-            <col style="width: 3.5%;">
-            <col style="width: 2.5%;">
-            <col style="width: 3%;">
-            <col style="width: 3%;">
-            <col style="width: 3%;">
-        </colgroup>
-
         <thead>
+
+            <tr class="col-widths">
+            <td style="width: 6.5%;"></td>
+            <td style="width: 18%;"></td>
+            <td style="width: 10.5%;"></td>
+            <td style="width: 3%;"></td>
+            <td style="width: 6%;"></td>
+            <td style="width: 7%;"></td>
+            <td style="width: 7%;"></td>
+            <td style="width: 5.5%;"></td>
+            <td style="width: 6%;"></td>
+            <td style="width: 8%;"></td>
+            <td style="width: 2.5%;"></td>
+            <td style="width: 2.5%;"></td>
+            <td style="width: 2.5%;"></td>
+            <td style="width: 3.5%;"></td>
+            <td style="width: 2.5%;"></td>
+            <td style="width: 3%;"></td>
+            <td style="width: 3%;"></td>
+            <td style="width: 3%;"></td>
+        </tr>
             <tr>
                 <th colspan="10" class="group-header">INVENTORY</th>
                 <th colspan="8" class="group-header">INSPECTION and DISPOSAL</th>
@@ -474,12 +480,12 @@
     <!-- ================= CERTIFICATION AND SIGNATURES ================= -->
 
     <table class="bottom-table">
-        <colgroup>
-            <col style="width: 28%;">
-            <col style="width: 22%;">
-            <col style="width: 25%;">
-            <col style="width: 25%;">
-        </colgroup>
+        <tr class="col-widths">
+            <td style="width: 28%;"></td>
+            <td style="width: 22%;"></td>
+            <td style="width: 25%;"></td>
+            <td style="width: 25%;"></td>
+        </tr>
 
         <tr>
             <td colspan="2" class="cert-text">

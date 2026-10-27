@@ -4,10 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\AssetCondition;
 use App\Models\InventoryItem;
+use App\Services\PdfRenderService;
 use App\Services\PropertyCardService;
 use App\Services\RoomApiService;
 use Illuminate\Http\Request;
-use Spatie\Browsershot\Browsershot;
 
 class PropertyCardController extends Controller
 {
@@ -68,21 +68,9 @@ class PropertyCardController extends Controller
     /** The same card laid out like the printed Property Card form. */
     public function pdf(InventoryItem $item)
     {
-        $html = view('prints.property_card', [
+        $pdf = app(PdfRenderService::class)->render('prints.property_card', [
             'card' => $this->propertyCards->cardFor($item),
-        ])->render();
-
-        $pdf = Browsershot::html($html)
-            ->setChromePath('/usr/bin/chromium')
-            ->format('Letter')
-            ->landscape()
-            ->showBackground()
-            ->emulateMedia('print')
-            ->addChromiumArguments([
-                'no-sandbox',
-                'disable-setuid-sandbox',
-            ])
-            ->pdf();
+        ]);
 
         $number = $item->property_number ?: 'item-' . $item->id;
         $fileName = 'PROPERTY_CARD_'
