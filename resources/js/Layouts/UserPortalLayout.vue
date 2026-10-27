@@ -11,6 +11,10 @@ import UserNotificationBell from "@/Components/UserComponents/UserNotificationBe
 const props = defineProps({
     homeRoute: { type: String, default: "user.dashboard" },
     portalLabel: { type: String, default: "User Portal" },
+    // Pages with a wide table (the user dashboard) use more of a large screen.
+    wide: { type: Boolean, default: false },
+    // A brand-green (#005740) wash that fades from the right edge to the left.
+    tinted: { type: Boolean, default: false },
 });
 
 const page = usePage();
@@ -64,14 +68,30 @@ function closeApps(event) {
 onMounted(() => document.addEventListener("mousedown", closeApps));
 onBeforeUnmount(() => document.removeEventListener("mousedown", closeApps));
 
+const containerWidth = computed(() =>
+    props.wide ? "max-w-screen-2xl" : "max-w-7xl",
+);
+
+const backdrop = computed(() =>
+    props.tinted
+        ? {
+              backgroundImage: [
+                  "radial-gradient(ellipse at 100% 0%, rgba(0, 87, 64, 0.22), transparent 55%)",
+                  "linear-gradient(to left, rgba(0, 87, 64, 0.12), rgba(0, 87, 64, 0.04) 45%, transparent 75%)",
+              ].join(", "),
+              backgroundAttachment: "fixed",
+          }
+        : null,
+);
+
 const year = new Date().getFullYear();
 </script>
 
 <template>
-    <div class="flex min-h-screen flex-col bg-gray-100">
+    <div class="flex min-h-screen flex-col bg-gray-100" :style="backdrop">
         <header class="sticky top-0 z-30 border-b border-gray-200 bg-white/95 backdrop-blur">
             <div
-                class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6"
+                :class="['mx-auto flex items-center justify-between gap-3 px-4 py-2.5 sm:px-6', containerWidth]"
             >
                 <Link :href="route(props.homeRoute)" class="flex min-w-0 items-center gap-3">
                     <img
@@ -200,7 +220,7 @@ const year = new Date().getFullYear();
         </header>
 
         <main class="flex-1">
-            <div class="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6">
+            <div :class="['mx-auto w-full px-4 py-5 sm:px-6', containerWidth]">
                 <slot />
             </div>
         </main>

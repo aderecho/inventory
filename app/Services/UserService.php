@@ -122,10 +122,21 @@ class UserService
     {
         // Matches the "Assigned to me" table: the property whose latest
         // acknowledgement is still held by this account.
-        $assignedItems = InventoryItem::whereHas(
+        $assigned = InventoryItem::whereHas(
             'latestAcknowledgementItem',
             fn ($query) => $query->where('accountable_person_id', $userId)
-        )->count();
+        );
+
+        $assignedItems = (clone $assigned)->count();
+
+        // Items not yet approved or rejected still wait on this account.
+        $byApproval = (clone $assigned)
+            ->selectRaw('approval_status, COUNT(*) as total')
+            ->groupBy('approval_status')
+            ->pluck('total', 'approval_status');
+
+        $approved = (int) ($byApproval['approved'] ?? 0);
+        $rejected = (int) ($byApproval['rejected'] ?? 0);
 
         $receipts = AcknowledgementItem::where('accountable_person_id', $userId)
             ->distinct('acknowledgement_id')
@@ -135,6 +146,9 @@ class UserService
 
         return [
             'assigned_items' => $assignedItems,
+            'pending_items' => $assignedItems - $approved - $rejected,
+            'approved_items' => $approved,
+            'rejected_items' => $rejected,
             'receipts' => $receipts,
             'borrowed_items' => $borrowed->count(),
             'overdue_borrowings' => $borrowed->where('is_overdue', true)->count(),
