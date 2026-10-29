@@ -391,6 +391,17 @@ function confirmBatchDelete() {
             <div
                 class="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 md:w-auto"
             >
+
+             <button
+                    v-if="canCreateCategory"
+                    type="button"
+                    @click="openAdd()"
+                    class="flex w-full items-center justify-center gap-2 rounded-md bg-[#0E6021] px-3 py-2 text-xs text-white transition-colors hover:bg-[#19703a] sm:text-sm"
+                >
+                    <i class="fa-solid fa-user-group"></i>
+                    <span>Add Category</span>
+                </button>
+
                 <button
                     v-if="canCreateCategory"
                     type="button"
@@ -399,6 +410,16 @@ function confirmBatchDelete() {
                 >
                     <i class="fa-solid fa-file-import"></i>
                     <span>Batch Add</span>
+                </button>
+
+                 <button
+                    v-if="canViewCategories"
+                    type="button"
+                    @click="showExportModal = true"
+                    class="flex w-full items-center justify-center gap-2 rounded-md border border-[#0E6021] px-3 py-2 text-xs text-[#0E6021] transition-colors hover:bg-[#0E6021]/5 sm:text-sm"
+                >
+                    <i class="fa-solid fa-file-export"></i>
+                    <span>Export</span>
                 </button>
 
                 <button
@@ -420,26 +441,6 @@ function confirmBatchDelete() {
                     >
                         {{ selectedIds.length }}
                     </span>
-                </button>
-
-                <button
-                    v-if="canCreateCategory"
-                    type="button"
-                    @click="openAdd()"
-                    class="flex w-full items-center justify-center gap-2 rounded-md bg-[#0E6021] px-3 py-2 text-xs text-white transition-colors hover:bg-[#19703a] sm:text-sm"
-                >
-                    <i class="fa-solid fa-user-group"></i>
-                    <span>Add Category</span>
-                </button>
-
-                 <button
-                    v-if="canViewCategories"
-                    type="button"
-                    @click="showExportModal = true"
-                    class="flex w-full items-center justify-center gap-2 rounded-md border border-[#0E6021] px-3 py-2 text-xs text-[#0E6021] transition-colors hover:bg-[#0E6021]/5 sm:text-sm"
-                >
-                    <i class="fa-solid fa-file-export"></i>
-                    <span>Export</span>
                 </button>
             </div>
 

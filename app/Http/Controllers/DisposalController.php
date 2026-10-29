@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Services\RoomApiService;
 use App\Services\DisposalService;
 use App\Models\AssetCondition;
+use App\Models\InventoryItem;
+use App\Http\Requests\BatchArchiveDisposalRequest;
 
 class DisposalController extends Controller
 {
@@ -64,5 +66,26 @@ class DisposalController extends Controller
             'items' => $items,
             'assetConditions' => AssetCondition::all(),
         ]);
+    }
+
+    /** Moves a disposed item to the item archive. */
+    public function archive(InventoryItem $item)
+    {
+        $this->disposalService->archive($item);
+
+        return back()->with('success', 'Item archived successfully.');
+    }
+
+    /** Moves every selected disposed item to the item archive. */
+    public function batchArchive(BatchArchiveDisposalRequest $request)
+    {
+        $archived = $this->disposalService->batchArchive($request->validated('ids'));
+
+        return back()->with(
+            'success',
+            $archived === 1
+                ? 'Item archived successfully.'
+                : $archived . ' items archived successfully.'
+        );
     }
 }

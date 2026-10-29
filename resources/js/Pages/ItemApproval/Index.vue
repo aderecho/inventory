@@ -41,6 +41,15 @@ const approvalColours = (status) => {
     return "bg-amber-100 text-amber-700";
 };
 
+// Remarks are typed by users, so they are escaped before going through v-html.
+const escapeHtml = (value) =>
+    String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+
 // What the item is, where it sits, who holds it, and what they answered.
 // Read-only - there are no actions to take here.
 const columns = [
@@ -89,6 +98,15 @@ const columns = [
             '">' +
             approvalLabel(value) +
             "</span>",
+    },
+    {
+        // Saved in inventory_items.approval_remarks when an item is rejected.
+        label: "Remarks",
+        key: "approval_remarks",
+        format: (value) =>
+            value
+                ? escapeHtml(value)
+                : '<span class="text-gray-400">—</span>',
     },
 ];
 </script>
