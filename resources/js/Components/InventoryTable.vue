@@ -723,7 +723,7 @@ function toggleCheck(item) {
                                         v-if="actions.includes('delete')"
                                         @click="$emit('delete', item)"
                                         class="rounded-md p-1.5 text-[#D71D1D] transition-colors hover:bg-[#D71D1D]/10 hover:text-[#c50e0e]"
-                                        title="Delete"
+                                        title="Archive"
                                     >
                                         <i class="fa-solid fa-box-archive"></i>
                                     </button>

@@ -139,6 +139,7 @@ class InventoryService
                 'property_number',
                 'unit_cost',
                 'approval_status',
+                'approval_remarks',
                 'created_at',
             ])
             ->with([
@@ -234,8 +235,10 @@ class InventoryService
                     $acknowledgementItem->transferTypes()->sync($data['transfer_type']);
                 }
 
+                // A new holder answers afresh, so the last rejection note goes too.
                 InventoryItem::where('id', $itemId)->update([
                     'approval_status' => 'pending',
+                    'approval_remarks' => null,
                 ]);
 
                 $currentLocation = $inventoryItems[$itemId]->latestHistoryLocation;

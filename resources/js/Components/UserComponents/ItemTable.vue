@@ -34,7 +34,7 @@ const HIDEABLE_COLUMNS = [
     { key: "date_assigned", label: "Date Assigned" },
     { key: "date_acquired", label: "Date Acquired" },
     { key: "receipt", label: "ICS/PAR" },
-    { key: "approval", label: "Approval" },
+    { key: "approval", label: "Status" },
 ];
 
 const DEFAULT_HIDDEN_COLUMNS = ["date_assigned", "date_acquired", "receipt"];
@@ -179,8 +179,12 @@ const formatDate = (dateStr) =>
 const formatCurrency = (value) =>
     `₱${Number(value || 0).toLocaleString()}`;
 
+const isDisposed = (item) => item?.status === "disposed";
+
+// Disposed property cannot be approved or rejected any more.
 const isPending = (item) =>
     !!item &&
+    !isDisposed(item) &&
     item.approval_status !== "approved" &&
     item.approval_status !== "rejected";
 
@@ -224,14 +228,14 @@ const approvalBadge = (status) => {
     }
 };
 
-function updateApprovalStatus(item, status) {
+function updateApprovalStatus(item, status, remarks = null, callbacks = {}) {
     if (processingId.value) return;
 
     processingId.value = item.id;
 
     router.patch(
         route("inventory_items.approval", item.id),
-        { approval_status: status },
+        { approval_status: status, approval_remarks: remarks },
         {
             preserveScroll: true,
             preserveState: true,
@@ -240,9 +244,13 @@ function updateApprovalStatus(item, status) {
                     selectedItem.value = {
                         ...selectedItem.value,
                         approval_status: status,
+                        approval_remarks: status === "rejected" ? remarks : null,
                     };
                 }
+
+                callbacks.onSuccess?.();
             },
+            onError: (errors) => callbacks.onError?.(errors),
             onFinish: () => {
                 processingId.value = null;
             },
@@ -254,13 +262,52 @@ function approveItem(item) {
     updateApprovalStatus(item, "approved");
 }
 
+// REJECT: asks why first; the reason is saved with the rejection.
+const rejectTarget = ref(null);
+const rejectRemarks = ref("");
+const rejectError = ref("");
+const REJECT_REMARKS_MAX = 1000;
+
 function rejectItem(item) {
-    updateApprovalStatus(item, "rejected");
+    rejectTarget.value = item;
+    rejectRemarks.value = "";
+    rejectError.value = "";
+}
+
+function closeReject() {
+    if (processingId.value) return;
+
+    rejectTarget.value = null;
+}
+
+function confirmReject() {
+    const remarks = rejectRemarks.value.trim();
+
+    if (!remarks) {
+        rejectError.value = "Please tell us why you are rejecting this item.";
+        return;
+    }
+
+    updateApprovalStatus(rejectTarget.value, "rejected", remarks, {
+        onSuccess: () => {
+            rejectTarget.value = null;
+        },
+        onError: (errors) => {
+            rejectError.value =
+                errors.approval_remarks ??
+                errors.approval_status ??
+                "The item could not be rejected. Please try again.";
+        },
+    });
 }
 
 watch(isModalOpen, (open) => {
     const onKey = (e) => {
-        if (e.key === "Escape") closeModal();
+        if (e.key !== "Escape") return;
+
+        // The reject dialog sits on top of the details, so it closes first.
+        if (rejectTarget.value) closeReject();
+        else closeModal();
     };
 
     if (open) {
@@ -415,7 +462,7 @@ onUnmounted(() => {
                             </button>
                         </th>
                         <th v-if="isVisible('receipt')" :class="headCell">ICS/PAR</th>
-                        <th v-if="isVisible('approval')" :class="headCell">Approval</th>
+                        <th v-if="isVisible('approval')" :class="headCell">Status</th>
                         <!-- Actions stay pinned to the right edge while the table scrolls. -->
                         <th :class="[headCell, 'sticky right-0 z-10 text-right shadow-[-12px_0_12px_-12px_rgba(15,23,42,0.18)]']">
                             Actions
@@ -433,7 +480,12 @@ onUnmounted(() => {
                         <td :class="bodyCell">
                             <div class="flex items-center gap-3">
                                 <span
-                                    class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#005740]/[0.08] text-sm font-semibold text-[#005740] transition-colors group-hover:bg-[#005740] group-hover:text-white"
+                                    :class="[
+                                        'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-sm font-semibold transition-colors',
+                                        isDisposed(item)
+                                            ? 'bg-gray-100 text-gray-400'
+                                            : 'bg-[#005740]/[0.08] text-[#005740] group-hover:bg-[#005740] group-hover:text-white',
+                                    ]"
                                     aria-hidden="true"
                                 >
                                     {{ initials(item.item_name) }}
@@ -445,6 +497,7 @@ onUnmounted(() => {
                                     </p>
                                     <p class="mt-0.5 max-w-[16rem] truncate text-[11px] text-gray-400">
                                         SN: {{ item.serial_number ?? "none" }}
+                                        <span v-if="isDisposed(item)" class="font-semibold text-gray-500">· Disposed</span>
                                     </p>
                                 </div>
                             </div>
@@ -504,6 +557,14 @@ onUnmounted(() => {
 
                         <td v-if="isVisible('approval')" :class="bodyCell">
                             <span
+                                v-if="isDisposed(item)"
+                                class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600"
+                            >
+                                <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+                                Disposed
+                            </span>
+                            <span
+                                v-else
                                 :class="[
                                     'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold',
                                     approvalBadge(item.approval_status).cls,
@@ -512,6 +573,13 @@ onUnmounted(() => {
                                 <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
                                 {{ approvalBadge(item.approval_status).label }}
                             </span>
+                            <p
+                                v-if="!isDisposed(item) && item.approval_status === 'rejected' && item.approval_remarks"
+                                class="mt-1 max-w-[14rem] truncate text-[11px] text-gray-500"
+                                :title="item.approval_remarks"
+                            >
+                                “{{ item.approval_remarks }}”
+                            </p>
                         </td>
 
                         <td
@@ -746,6 +814,19 @@ onUnmounted(() => {
                         v-if="selectedItem"
                         class="flex-1 overflow-y-auto bg-gray-50/70 px-5 py-5 sm:px-6"
                     >
+                        <!-- REJECTION REASON -->
+                        <div
+                            v-if="selectedItem.approval_status === 'rejected' && selectedItem.approval_remarks"
+                            class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3"
+                        >
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-red-700">
+                                Why you rejected this item
+                            </p>
+                            <p class="mt-1 whitespace-pre-line text-sm text-red-900">
+                                {{ selectedItem.approval_remarks }}
+                            </p>
+                        </div>
+
                         <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
                             <div class="space-y-4">
                                 <!-- IDENTIFICATION -->
@@ -979,6 +1060,88 @@ onUnmounted(() => {
                     </div>
                 </motion.div>
             </motion.div>
+        </Teleport>
+
+        <!-- REJECT DIALOG -->
+        <Teleport to="body">
+            <div
+                v-if="rejectTarget"
+                class="fixed inset-0 z-[90] flex items-end justify-center bg-black/45 p-0 backdrop-blur-[2px] sm:items-center sm:p-4"
+                @click.self="closeReject"
+            >
+                <div
+                    class="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-2xl sm:rounded-2xl"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="reject-title"
+                >
+                    <div class="flex items-start gap-3">
+                        <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
+                            <i class="fa-solid fa-xmark"></i>
+                        </span>
+                        <div class="min-w-0">
+                            <h3 id="reject-title" class="text-base font-semibold text-gray-900">
+                                Reject this item?
+                            </h3>
+                            <p class="mt-0.5 truncate text-sm text-gray-500">
+                                {{ rejectTarget.item_name }}
+                                <span v-if="rejectTarget.property_number">· {{ rejectTarget.property_number }}</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <label for="reject-remarks" class="mt-5 block text-xs font-semibold text-gray-700">
+                        Remarks <span class="text-red-500">*</span>
+                    </label>
+                    <textarea
+                        id="reject-remarks"
+                        v-model="rejectRemarks"
+                        rows="4"
+                        :maxlength="REJECT_REMARKS_MAX"
+                        placeholder="e.g. Item not received, wrong serial number, or damaged on arrival."
+                        :class="[
+                            'mt-1.5 w-full resize-none rounded-xl border px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2',
+                            rejectError
+                                ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
+                                : 'border-gray-300 focus:border-[#005740] focus:ring-[#005740]/15',
+                        ]"
+                        @input="rejectError = ''"
+                        @keydown.esc.stop="closeReject"
+                    ></textarea>
+                    <div class="mt-1 flex items-start justify-between gap-3 text-[11px]">
+                        <p class="text-red-600">{{ rejectError }}</p>
+                        <p class="flex-shrink-0 tabular-nums text-gray-400">
+                            {{ rejectRemarks.length }}/{{ REJECT_REMARKS_MAX }}
+                        </p>
+                    </div>
+                    <p class="mt-1 text-[11px] text-gray-500">
+                        The property office sees this note with your rejection.
+                    </p>
+
+                    <div class="mt-5 flex justify-end gap-2">
+                        <button
+                            type="button"
+                            class="rounded-lg px-4 py-2 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100"
+                            :disabled="processingId === rejectTarget.id"
+                            @click="closeReject"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            class="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            :disabled="processingId === rejectTarget.id || !rejectRemarks.trim()"
+                            @click="confirmReject"
+                        >
+                            <i
+                                class="fa-solid text-[10px]"
+                                :class="processingId === rejectTarget.id ? 'fa-spinner fa-spin' : 'fa-xmark'"
+                            ></i>
+                            Reject item
+                        </button>
+                    </div>
+                </div>
+            </div>
         </Teleport>
     </div>
 </template>

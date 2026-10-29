@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\InventoryItem;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class DisposalService
 {
@@ -63,5 +65,41 @@ class DisposalService
             ->orderBy('created_at', 'desc')
             ->paginate($perPage)
             ->withQueryString();
+    }
+
+    /**
+     * Archives (soft deletes) a disposed item, the same as archiving from the
+     * inventory, so it can still be restored or force deleted from the item
+     * archive. Only disposed property can be archived from here.
+     */
+    public function archive(InventoryItem $item): void
+    {
+        if ($item->status !== InventoryItem::STATUS_DISPOSED) {
+            throw ValidationException::withMessages([
+                'item' => 'Only disposed items can be archived from the Disposal module.',
+            ]);
+        }
+
+        $item->delete();
+    }
+
+    /**
+     * Archives the disposed items among the given ids, one at a time so each
+     * keeps its model events and activity log entry. Anything not disposed
+     * (or already archived) is left alone; returns how many were archived.
+     */
+    public function batchArchive(array $ids): int
+    {
+        $items = InventoryItem::whereIn('id', $ids)
+            ->where('status', InventoryItem::STATUS_DISPOSED)
+            ->get();
+
+        DB::transaction(function () use ($items) {
+            foreach ($items as $item) {
+                $item->delete();
+            }
+        });
+
+        return $items->count();
     }
 }
