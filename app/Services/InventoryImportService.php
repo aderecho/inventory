@@ -11,7 +11,6 @@ use App\Models\InventoryItem;
 use App\Models\ItemClassification;
 use App\Models\ItemHistoryLocation;
 use App\Models\Supplier;
-use App\Models\TransferType;
 use App\Models\User;
 use App\Models\UserProfile;
 use Carbon\Carbon;
@@ -24,13 +23,13 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Reader\Csv as CsvReader;
 use PhpOffice\PhpSpreadsheet\RichText\RichText;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Throwable;
 
 /**
- * Imports the PAR/ICS spreadsheet layout (PAR Number, PAR Date, New Property No., ...)
- * into inventory items, their condition, location, and receipt assignment.
+ * Imports inventory items from the Batch Add workbook, including their location
+ * and receipt assignment. Supplier, location, accountable person, and issuer are
+ * numeric IDs, so the file never has to match names against the database.
  *
  * Each spreadsheet row is validated as a whole. A row with any problem is not imported
  * and every problem on it is reported against its Excel row number.
@@ -43,120 +42,102 @@ class InventoryImportService
      */
     public const DEFAULT_START_ROW = 2;
 
-    /** Receipts and assignments are issued by this user / user profile (both share the id). */
+    /** Fallback issuer when the optional Issued By cell is empty. */
     public const ISSUED_BY_ID = 2169;
 
     /** Header text (lowercased, letters and digits only) => field. */
     protected const HEADER_ALIASES = [
-        'parnumber'            => 'par_number',
-        'parno'                => 'par_number',
-        'pardate'              => 'par_date',
-        'newpropertyno'        => 'new_property_no',
-        'newpropertynumber'    => 'new_property_no',
-        'propertyno'           => 'property_no',
-        'propertynumber'       => 'property_no',
-        'qty'                  => 'qty',
-        'quantity'             => 'qty',
-        'unit'                 => 'unit',
-        'unitcost'             => 'unit_cost',
-        'totalamount'          => 'total_amount',
-        'total'                => 'total_amount',
-        'description'          => 'description',
-        'dateacquired'         => 'date_acquired',
-        'accountableperson'    => 'accountable_person',
-        'newaccountableperson' => 'new_accountable_person',
-        'newaccountable'       => 'new_accountable',
-        'fundsource'           => 'fund_source',
-        'pr'                   => 'pr_number',
-        'prno'                 => 'pr_number',
-        'prnumber'             => 'pr_number',
-        'po'                   => 'po_number',
-        'pono'                 => 'po_number',
-        'ponumber'             => 'po_number',
-        'location'             => 'location',
-        'supplier'             => 'supplier',
-        'invoice'              => 'invoice',
-        'invoiceno'            => 'invoice',
-        'invoicenumber'        => 'invoice',
-        'remarks'              => 'remarks',
-
-        // Columns from the sample workbook (Download Sample).
-        'receiptno'            => 'par_number',
-        'receiptnumber'        => 'par_number',
-        'receiptdate'          => 'par_date',
-        'itemname'             => 'item_name',
-        'serialnumber'         => 'serial_number',
-        'serialno'             => 'serial_number',
-        'brand'                => 'brand',
-        'model'                => 'model',
-        'condition'            => 'condition',
-        'lifespan'             => 'lifespan',
-        'lifespanyears'        => 'lifespan',
-        'salesinvoicedate'     => 'sales_invoice_date',
-        'podate'               => 'po_date',
-        'ponumberdate'         => 'po_date',
-        'approvalstatus'       => 'approval_status',
-        'private'              => 'private',
-        'isprivate'            => 'private',
-
-        // Clearer headers used by the current sample (hints in brackets are ignored).
-        'itemdescription'       => 'description',
-        'suppliername'          => 'supplier',
+        'parnumber'             => 'par_number',
+        'parno'                 => 'par_number',
+        'paricsnumber'          => 'par_number',
+        'paricsno'              => 'par_number',
+        'paricsreceipt'         => 'par_number',
+        'receiptno'             => 'par_number',
+        'receiptnumber'         => 'par_number',
+        'pardate'               => 'par_date',
+        'paricsdate'            => 'par_date',
+        'receiptdate'           => 'par_date',
+        'newpropertyno'         => 'new_property_no',
+        'newpropertynumber'     => 'new_property_no',
+        'propertyno'            => 'property_no',
+        'propertynumber'        => 'property_no',
+        'oldpropertyno'         => 'old_property_number',
+        'oldpropertynumber'     => 'old_property_number',
+        'qty'                   => 'qty',
+        'quantity'              => 'qty',
+        'unit'                  => 'unit',
         'unitofmeasure'         => 'unit',
+        'unitcost'              => 'unit_cost',
+        'totalamount'           => 'total_amount',
         'totalcost'             => 'total_amount',
-        'salesinvoiceno'        => 'invoice',
-        'salesinvoicenumber'    => 'invoice',
+        'total'                 => 'total_amount',
+        'itemname'              => 'item_name',
+        'brand'                 => 'brand',
+        'model'                 => 'model',
+        'description'           => 'description',
+        'itemdescription'       => 'description',
+        'serialnumber'          => 'serial_number',
+        'serialno'              => 'serial_number',
+        'accountableperson'     => 'accountable_person',
+        'accountablepersonid'   => 'accountable_person',
+        'fundsource'            => 'fund_source',
+        'pr'                    => 'pr_number',
+        'prno'                  => 'pr_number',
+        'prnumber'              => 'pr_number',
         'purchaserequestno'     => 'pr_number',
         'purchaserequestnumber' => 'pr_number',
+        'po'                    => 'po_number',
+        'pono'                  => 'po_number',
+        'ponumber'              => 'po_number',
         'purchaseorderno'       => 'po_number',
         'purchaseordernumber'   => 'po_number',
-        'purchaseorderdate'     => 'po_date',
-        'usefullife'            => 'lifespan',
+        'location'              => 'location',
         'roomlocation'          => 'location',
         'room'                  => 'location',
-        'privateitem'           => 'private',
+        'supplier'              => 'supplier',
+        'suppliername'          => 'supplier',
+        'supplierid'            => 'supplier',
+        'invoice'               => 'invoice',
+        'invoiceno'             => 'invoice',
+        'invoicenumber'         => 'invoice',
+        'salesinvoiceno'        => 'invoice',
+        'salesinvoicenumber'    => 'invoice',
+        'remarks'               => 'remarks',
         'itemremarks'           => 'remarks',
-        'receiptremarks'        => 'receipt_remarks',
+        'issuedby'              => 'issued_by',
+        'issuedbyid'            => 'issued_by',
     ];
 
     protected const FIELD_LABELS = [
-        'par_number'             => 'PAR Number',
-        'par_date'               => 'PAR Date',
-        'new_property_no'        => 'New Property No.',
-        'property_no'            => 'Property No.',
-        'qty'                    => 'Qty',
-        'unit'                   => 'Unit',
-        'unit_cost'              => 'Unit Cost',
-        'total_amount'           => 'Total Amount',
-        'description'            => 'Description',
-        'date_acquired'          => 'Date Acquired',
-        'accountable_person'     => 'Accountable Person',
-        'new_accountable_person' => 'New Accountable Person',
-        'new_accountable'        => 'New Accountable',
-        'fund_source'            => 'Fund Source',
-        'pr_number'              => 'PR#',
-        'po_number'              => 'PO#',
-        'location'               => 'Location',
-        'supplier'               => 'Supplier',
-        'invoice'                => 'Invoice',
-        'remarks'                => 'Remarks',
-        'item_name'              => 'Item Name',
-        'serial_number'          => 'Serial Number',
-        'brand'                  => 'Brand',
-        'model'                  => 'Model',
-        'condition'              => 'Condition',
-        'lifespan'               => 'Lifespan',
-        'sales_invoice_date'     => 'Sales Invoice Date',
-        'po_date'                => 'PO Date',
-        'approval_status'        => 'Approval Status',
-        'private'                => 'Private',
-        'receipt_remarks'        => 'Receipt Remarks',
+        'par_number'         => 'PAR/ICS number',
+        'par_date'           => 'PAR/ICS date',
+        'new_property_no'    => 'New Property No.',
+        'property_no'        => 'Property number',
+        'old_property_number'=> 'old property number',
+        'qty'                => 'qty',
+        'unit'               => 'unit',
+        'unit_cost'          => 'unit cost',
+        'total_amount'       => 'total amount',
+        'item_name'          => 'item name',
+        'brand'              => 'brand',
+        'model'              => 'model',
+        'description'        => 'description',
+        'serial_number'      => 'serial number',
+        'accountable_person' => 'accountable person',
+        'fund_source'        => 'fund source',
+        'pr_number'          => 'pr number',
+        'po_number'          => 'po number',
+        'location'           => 'location',
+        'supplier'           => 'supplier',
+        'invoice'            => 'invoice',
+        'remarks'            => 'remarks',
+        'issued_by'          => 'issued by',
     ];
 
     /** Database column limits for the free text fields. */
     protected const MAX_LENGTHS = [
         'par_number'      => 100,
-        'property_number' => 80,
+        'property_number' => 19,
         'fund_source'     => 50,
         'invoice'         => 50,
         'unit'            => 40,
@@ -166,10 +147,8 @@ class InventoryImportService
         'serial_number'   => 255,
         'brand'           => 255,
         'model'           => 255,
-        'receipt_remarks' => 255,
+        'old_property_number' => 255,
     ];
-
-    protected const APPROVAL_STATUSES = ['pending', 'approved', 'rejected'];
 
     protected const MAX_QTY = 1000;
 
@@ -187,26 +166,20 @@ class InventoryImportService
     /** @var array<string, string> field => header text as written in the file */
     protected array $headerLabels = [];
 
-    /** True for the PAR workbook (has a "PAR Number" column), false for the sample layout. */
-    protected bool $isParLayout = false;
-
-    /** @var array<string, int> upper-case condition name => asset_conditions id */
-    protected array $conditionIds = [];
-    protected array $disposalPathConditionIds = [];
-
-    protected bool $readsColours = true;
-
+    /** @var array<int, true> */
     protected array $supplierIds = [];
+    /** @var array<string, int> classification code => id */
     protected array $classificationIds = [];
+    /** @var array<int, true> */
     protected array $roomIds = [];
-    protected array $profiles = [];
-    protected array $profileMatches = [];
+    /** @var array<int, true> */
+    protected array $profileIds = [];
+    /** @var array<int, true> */
+    protected array $userIds = [];
     protected array $existingPropertyNumbers = [];
     protected array $filePropertyNumbers = [];
     protected array $receipts = [];
-    protected int $serviceableConditionId;
-    protected int $disposedConditionId;
-    protected ?int $reassignmentTypeId = null;
+    protected ?int $serviceableConditionId = null;
 
     public function __construct(protected RoomApiService $roomApi)
     {
@@ -245,13 +218,11 @@ class InventoryImportService
 
         $extension = strtolower($file->getClientOriginalExtension());
         $this->sheet = $this->loadFirstSheet($file->getRealPath(), $extension);
-        $this->readsColours = $extension !== 'csv' && $extension !== 'txt';
 
         $this->mapHeader();
         $this->loadLookups();
 
-        // The temporary start row is for the PAR workbook; sample-layout files start at row 2.
-        $startRow = $this->isParLayout ? max(2, $startRow) : 2;
+        $startRow = max(2, $startRow);
         $lastRow = $this->sheet->getHighestDataRow();
 
         $result = [
@@ -268,10 +239,6 @@ class InventoryImportService
             'skipped_rows'     => [],
             'notices'          => [],
         ];
-
-        if (! $this->readsColours && ! isset($this->columns['condition'])) {
-            $result['notices'][] = 'CSV files carry no cell colours, so yellow (Disposal) rows cannot be detected. Every item was recorded as Good.';
-        }
 
         for ($row = $startRow; $row <= $lastRow; $row++) {
             $values = $this->readRow($row);
@@ -317,7 +284,6 @@ class InventoryImportService
             $result['imported_rows']++;
             $result['imported_items'] += count($plan['items']);
             $result['receipts_created'] += $receiptCreated ? 1 : 0;
-            $result['disposal_items'] += $plan['is_disposal'] ? count($plan['items']) : 0;
 
             if ($warnings) {
                 $result['warnings'][] = ['row' => $row, 'property_number' => $label, 'messages' => $warnings];
@@ -376,22 +342,13 @@ class InventoryImportService
             $field = self::HEADER_ALIASES[$normalized] ?? null;
 
             if ($field === null) {
-                // "Date Acquired (YYYY-MM-DD)", "Private Item? (Yes / No)", ...
+                // Ignore hints in brackets, such as "PAR/ICS number (nullable)".
                 $normalized = preg_replace('/[^a-z0-9]/', '', strtolower(preg_replace('/\([^)]*\)/', '', $clean)));
                 $field = self::HEADER_ALIASES[$normalized] ?? null;
             }
 
             if ($field === null) {
-                continue; // Office, Warranty, Issued By, Sticker, Picture, ... are ignored.
-            }
-
-            // The sheet repeats "New Accountable Person"; the second one is the newest holder.
-            if ($field === 'new_accountable_person' && isset($this->columns['new_accountable_person'])) {
-                $field = 'new_accountable';
-            }
-
-            if (in_array($normalized, ['parnumber', 'parno'], true)) {
-                $this->isParLayout = true;
+                continue; // Columns outside the Batch Add template are ignored.
             }
 
             if (! isset($this->columns[$field])) {
@@ -401,25 +358,11 @@ class InventoryImportService
         }
 
         $missing = [];
-        foreach (['par_number', 'par_date', 'qty', 'unit_cost', 'description', 'location', 'supplier'] as $field) {
-            if (! isset($this->columns[$field])) {
-                $missing[] = match ($field) {
-                    'par_number'  => 'Receipt No. (PAR / ICS)',
-                    'par_date'    => 'Receipt Date',
-                    'qty'         => 'Quantity',
-                    'unit_cost'   => 'Unit Cost',
-                    'description' => 'Item Description',
-                    'location'    => 'Room / Location',
-                    'supplier'    => 'Supplier Name',
-                    default       => self::FIELD_LABELS[$field],
-                };
-            }
+        if (! isset($this->columns['qty'])) {
+            $missing[] = self::FIELD_LABELS['qty'];
         }
         if (! isset($this->columns['new_property_no']) && ! isset($this->columns['property_no'])) {
-            $missing[] = 'Property Number';
-        }
-        if (! array_intersect_key($this->columns, array_flip(['accountable_person', 'new_accountable_person', 'new_accountable']))) {
-            $missing[] = 'Accountable Person (Full Name)';
+            $missing[] = self::FIELD_LABELS['property_no'];
         }
 
         if ($missing) {
@@ -432,57 +375,31 @@ class InventoryImportService
 
     protected function loadLookups(): void
     {
-        if (! User::whereKey(self::ISSUED_BY_ID)->exists() || ! UserProfile::whereKey(self::ISSUED_BY_ID)->exists()) {
-            throw new InventoryImportException('The issuing user (id ' . self::ISSUED_BY_ID . ') does not exist, so receipts cannot be created.');
-        }
-
-        $conditions = AssetCondition::all();
-
-        $serviceable = $conditions
-            ->firstWhere('disposition', AssetCondition::DISPOSITION_SERVICEABLE);
-        $disposed = $conditions
-            ->firstWhere('disposition', AssetCondition::DISPOSITION_DISPOSED);
-
-        if (! $serviceable || ! $disposed) {
-            throw new InventoryImportException('The asset conditions need one serviceable condition and one disposed condition before importing.');
-        }
-
-        $this->serviceableConditionId = $serviceable->id;
-        $this->disposedConditionId = $disposed->id;
-        $this->conditionIds = $conditions->keyBy(fn ($c) => strtoupper(trim($c->condition_name)))->map(fn ($c) => $c->id)->all();
-        $this->disposalPathConditionIds = $conditions
-            ->filter(fn ($c) => $c->isOnDisposalPath())
-            ->pluck('id')
-            ->all();
+        $this->serviceableConditionId = AssetCondition::query()
+            ->where('disposition', AssetCondition::DISPOSITION_SERVICEABLE)
+            ->value('id');
 
         $rooms = $this->roomApi->fetchRooms()['data'] ?? [];
-        if (empty($rooms)) {
-            throw new InventoryImportException('The rooms API returned no rooms, so locations cannot be checked. Please try again later.');
-        }
         foreach ($rooms as $room) {
-            foreach (['room_name', 'room_code'] as $key) {
-                if (! empty($room[$key])) {
-                    $this->roomIds[$this->key($room[$key])] ??= (int) $room['id'];
-                }
+            if (! empty($room['id'])) {
+                $this->roomIds[(int) $room['id']] = true;
             }
         }
 
-        foreach (Supplier::all(['id', 'supplier_name']) as $supplier) {
-            $this->supplierIds[$this->supplierKey($supplier->supplier_name)] ??= $supplier->id;
+        foreach (Supplier::pluck('id') as $supplierId) {
+            $this->supplierIds[(int) $supplierId] = true;
         }
 
         foreach (ItemClassification::all(['id', 'classification_code']) as $classification) {
             $this->classificationIds[trim((string) $classification->classification_code)] ??= $classification->id;
         }
 
-        foreach (UserProfile::all(['id', 'first_name', 'middle_name', 'last_name']) as $profile) {
-            $this->profiles[] = [
-                'id'     => $profile->id,
-                'first'  => $this->nameKey($profile->first_name),
-                'middle' => $this->nameKey($profile->middle_name),
-                'last'   => $this->nameKey($profile->last_name),
-                'name'   => trim($profile->first_name . ' ' . $profile->last_name),
-            ];
+        foreach (UserProfile::pluck('id') as $profileId) {
+            $this->profileIds[(int) $profileId] = true;
+        }
+
+        foreach (User::pluck('id') as $userId) {
+            $this->userIds[(int) $userId] = true;
         }
 
         // Archived items do not block an import: the new item is added and the
@@ -490,8 +407,6 @@ class InventoryImportService
         foreach (InventoryItem::pluck('property_number') as $number) {
             $this->existingPropertyNumbers[$this->key($number)] = true;
         }
-
-        $this->reassignmentTypeId = TransferType::whereRaw('LOWER(name) = ?', ['reassignment'])->value('id');
     }
 
     /* ------------------------------------------------------------------
@@ -504,51 +419,53 @@ class InventoryImportService
      */
     protected function buildRowPlan(int $row, array $v, array &$errors, array &$warnings): ?array
     {
-        // Qty
         $qty = null;
         $qtyRaw = $v['qty'];
         if ($this->isEmpty($qtyRaw)) {
-            $errors[] = 'Qty is empty.';
+            $errors[] = 'qty is empty.';
         } else {
             $qtyNumber = $this->number($qtyRaw);
             if ($qtyNumber === null || floor($qtyNumber) != $qtyNumber || $qtyNumber < 1) {
-                $errors[] = 'Qty "' . $this->text($qtyRaw) . '" must be a whole number of 1 or more.';
+                $errors[] = 'qty "' . $this->text($qtyRaw) . '" must be a whole number of 1 or more.';
             } elseif ($qtyNumber > self::MAX_QTY) {
-                $errors[] = 'Qty ' . (int) $qtyNumber . ' is more than ' . self::MAX_QTY . '.';
+                $errors[] = 'qty ' . (int) $qtyNumber . ' is more than ' . self::MAX_QTY . '.';
             } else {
                 $qty = (int) $qtyNumber;
             }
         }
 
-        // Unit cost / total amount
         $unitCost = null;
-        if ($this->isEmpty($v['unit_cost'])) {
-            $errors[] = 'Unit Cost is empty.';
-        } else {
+        if (! $this->isEmpty($v['unit_cost'] ?? null)) {
             $unitCost = $this->number($v['unit_cost']);
-            if ($unitCost === null || $unitCost <= 0) {
-                $errors[] = 'Unit Cost "' . $this->text($v['unit_cost']) . '" is not a valid amount.';
+            if ($unitCost === null || $unitCost < 0) {
+                $errors[] = $this->label('unit_cost') . ' "' . $this->text($v['unit_cost']) . '" is not a valid amount.';
                 $unitCost = null;
             }
         }
 
-        if ($unitCost !== null && $qty !== null && ! $this->isEmpty($v['total_amount'] ?? null)) {
-            $total = $this->number($v['total_amount']);
-            $expected = round($unitCost * $qty, 2);
-            if ($total === null) {
-                $warnings[] = 'Total Amount "' . $this->text($v['total_amount']) . '" is not a number; used Unit Cost × Qty (' . $this->money($expected) . ').';
-            } elseif (abs($total - $expected) > 0.01) {
-                $warnings[] = 'Total Amount ' . $this->money($total) . ' does not equal Unit Cost × Qty (' . $this->money($expected) . '); each item was saved with its Unit Cost.';
+        $totalAmount = null;
+        if (! $this->isEmpty($v['total_amount'] ?? null)) {
+            $totalAmount = $this->number($v['total_amount']);
+            if ($totalAmount === null || $totalAmount < 0) {
+                $errors[] = $this->label('total_amount') . ' "' . $this->text($v['total_amount']) . '" is not a valid amount.';
+                $totalAmount = null;
             }
         }
 
-        // Description
-        $description = $this->text($v['description']);
-        if ($description === null) {
-            $errors[] = 'Description is empty.';
+        if ($unitCost !== null && $qty !== null && $totalAmount !== null) {
+            $expected = round($unitCost * $qty, 2);
+            if (abs($totalAmount - $expected) > 0.01) {
+                $warnings[] = $this->label('total_amount') . ' ' . $this->money($totalAmount)
+                    . ' does not equal unit cost × qty (' . $this->money($expected) . ').';
+            }
         }
 
-        // Property numbers
+        $description = $this->text($v['description'] ?? null);
+        $itemName = $this->singleLine($v['item_name'] ?? null);
+        if ($itemName !== null && mb_strlen($itemName) > self::MAX_LENGTHS['item_name']) {
+            $errors[] = $this->label('item_name') . ' is longer than ' . self::MAX_LENGTHS['item_name'] . ' characters.';
+        }
+
         $propertyNumbers = $this->resolvePropertyNumbers($v, $qty, $errors, $warnings);
         foreach ($propertyNumbers['numbers'] as $number) {
             if (mb_strlen($number) > self::MAX_LENGTHS['property_number']) {
@@ -566,52 +483,35 @@ class InventoryImportService
             }
         }
 
-        // Classification
-        $classificationId = $this->resolveClassification($v, $propertyNumbers['numbers'][0] ?? null, $errors);
+        $classificationId = $this->resolveClassification($v, $propertyNumbers['numbers'][0] ?? null);
 
-        // Supplier
+        $oldPropertyNumber = $this->singleLine($v['old_property_number'] ?? null);
+        if ($oldPropertyNumber !== null && mb_strlen($oldPropertyNumber) > self::MAX_LENGTHS['old_property_number']) {
+            $errors[] = $this->label('old_property_number') . ' is longer than ' . self::MAX_LENGTHS['old_property_number'] . ' characters.';
+        }
+
         $supplierId = null;
-        $supplier = $this->singleLine($v['supplier']);
-        if ($supplier === null) {
-            $errors[] = 'Supplier is empty.';
-        } else {
-            $supplierId = $this->supplierIds[$this->supplierKey($supplier)] ?? null;
+        if (! $this->isEmpty($v['supplier'] ?? null)) {
+            $supplierId = $this->integerId($v['supplier']);
             if ($supplierId === null) {
-                $errors[] = 'Supplier "' . $supplier . '" does not exist in Suppliers.';
+                $errors[] = $this->label('supplier') . ' must be a numeric supplier id.';
+            } elseif (! isset($this->supplierIds[$supplierId])) {
+                $errors[] = $this->label('supplier') . ' id ' . $supplierId . ' does not exist in Suppliers.';
             }
         }
 
-        // Location
         $roomId = null;
-        $location = $this->singleLine($v['location']);
-        if ($location === null) {
-            $errors[] = 'Location is empty.';
-        } else {
-            $roomId = $this->roomIds[$this->key($location)] ?? null;
+        if (! $this->isEmpty($v['location'] ?? null)) {
+            $roomId = $this->integerId($v['location']);
             if ($roomId === null) {
-                $errors[] = 'Location "' . $location . '" does not exist in the rooms API.';
+                $errors[] = $this->label('location') . ' must be a numeric room id.';
+            } elseif (! isset($this->roomIds[$roomId])) {
+                $errors[] = $this->label('location') . ' id ' . $roomId . ' does not exist in the rooms API.';
             }
         }
 
-        // Dates
-        $dateAcquired = $this->date($row, 'date_acquired', $errors);
-        if ($dateAcquired && $dateAcquired->isFuture()) {
-            $warnings[] = 'Date Acquired ' . $dateAcquired->toDateString() . ' is in the future.';
-        }
+        $assignment = $this->resolveAssignment($row, $v, $errors, $warnings);
 
-        // Accountable person and receipt
-        $assignment = $this->resolveAssignment($row, $v, $unitCost, $errors, $warnings);
-
-        $receiptRemarks = $this->text($v['receipt_remarks'] ?? null);
-        if ($receiptRemarks !== null && mb_strlen($receiptRemarks) > self::MAX_LENGTHS['receipt_remarks']) {
-            $errors[] = $this->label('receipt_remarks') . ' is longer than ' . self::MAX_LENGTHS['receipt_remarks'] . ' characters.';
-        } elseif ($assignment) {
-            $assignment['receipt_remarks'] = $receiptRemarks;
-        } elseif ($receiptRemarks !== null) {
-            $warnings[] = $this->label('receipt_remarks') . ' was not saved because the item has no receipt.';
-        }
-
-        // Short text fields
         $text = [];
         foreach (['unit', 'fund_source', 'pr_number', 'po_number', 'invoice', 'brand', 'model'] as $field) {
             $value = $this->singleLine($v[$field] ?? null);
@@ -620,22 +520,17 @@ class InventoryImportService
             }
             $text[$field] = $value;
         }
-        if ($text['unit'] === null) {
-            $warnings[] = 'Unit is empty.';
-        }
 
-        $extra = $this->resolveSampleColumns($row, $v, $qty, $errors);
+        $serials = $this->serialNumbers($v['serial_number'] ?? null, $qty, $errors);
+        if ($serials === [] && $qty !== null) {
+            $serials = $this->splitSerials($this->extractSerials($description), (int) $qty, $warnings);
+        }
 
         if ($errors) {
             return null;
         }
 
-        $conditionId = $extra['condition_id'] ?? null;
-        $isDisposal = in_array($conditionId, $this->disposalPathConditionIds, true)
-            || ($conditionId === null && $this->isYellowRow($row));
-        $serials = $extra['serials'] ?? $this->splitSerials($this->extractSerials($description), $qty, $warnings);
         $remarks = $this->text($v['remarks'] ?? null);
-        $itemName = $extra['item_name'] ?? $this->itemName($description);
 
         $items = [];
         foreach ($propertyNumbers['numbers'] as $index => $number) {
@@ -661,96 +556,38 @@ class InventoryImportService
             'item_name'         => $itemName,
             'description'       => $description,
             'unit_cost'         => $unitCost,
-            'date_acquired'     => $dateAcquired?->toDateString(),
-            'is_disposal'       => $isDisposal,
-            'condition_id'      => $conditionId ?? ($isDisposal ? $this->disposedConditionId : $this->serviceableConditionId),
+            'total_amount'      => $totalAmount,
+            'old_property_number' => $oldPropertyNumber,
+            'condition_id'      => $this->serviceableConditionId,
             'assignment'        => $assignment,
-            'lifespan'          => $extra['lifespan'] ?? null,
-            'sales_invoice_date'=> $extra['sales_invoice_date'] ?? null,
-            'po_date'           => $extra['po_date'] ?? null,
-            'approval_status'   => $extra['approval_status'] ?? null,
-            'is_private'        => $extra['is_private'] ?? false,
         ] + $text;
     }
 
     /**
-     * Optional columns from the sample layout: Item Name, Serial Number, Condition,
-     * Lifespan, Sales Invoice Date, PO Date, Approval Status, Private.
-     * Missing or empty cells fall back to the usual import rules.
+     * Splits the optional Serial Number cell into one value per item.
+     *
+     * @return string[]
      */
-    protected function resolveSampleColumns(int $row, array $v, ?int $qty, array &$errors): array
+    protected function serialNumbers(mixed $raw, ?int $qty, array &$errors): array
     {
-        $extra = [];
-
-        $itemName = $this->singleLine($v['item_name'] ?? null);
-        if ($itemName !== null) {
-            if (mb_strlen($itemName) > self::MAX_LENGTHS['item_name']) {
-                $errors[] = $this->label('item_name') . ' is longer than ' . self::MAX_LENGTHS['item_name'] . ' characters.';
-            }
-            $extra['item_name'] = $itemName;
+        $serial = $this->text($raw);
+        if ($serial === null || $qty === null) {
+            return [];
         }
 
-        $serial = $this->text($v['serial_number'] ?? null);
-        if ($serial !== null && $qty !== null) {
-            // One unit keeps the whole cell; several units need one serial each.
-            $parts = $qty === 1
-                ? [trim(preg_replace('/\s+/', ' ', $serial))]
-                : array_values(array_filter(array_map('trim', preg_split('/[\n,;]+/', $serial))));
+        $parts = $qty === 1
+            ? [trim(preg_replace('/\s+/', ' ', $serial))]
+            : array_values(array_filter(array_map('trim', preg_split('/[\n,;]+/', $serial))));
 
-            if (count($parts) !== $qty) {
-                $errors[] = $this->label('serial_number') . ' lists ' . count($parts) . ' serial number(s) but Quantity is ' . $qty . '. Separate them with commas, one per unit.';
-            } elseif (collect($parts)->contains(fn ($part) => mb_strlen($part) > self::MAX_LENGTHS['serial_number'])) {
-                $errors[] = $this->label('serial_number') . ' is longer than ' . self::MAX_LENGTHS['serial_number'] . ' characters.';
-            } else {
-                $extra['serials'] = $parts;
-            }
+        if (count($parts) !== $qty) {
+            $errors[] = $this->label('serial_number') . ' lists ' . count($parts) . ' serial number(s) but qty is ' . $qty . '. Separate them with commas, one per unit.';
+        } elseif (collect($parts)->contains(fn ($part) => mb_strlen($part) > self::MAX_LENGTHS['serial_number'])) {
+            $errors[] = $this->label('serial_number') . ' is longer than ' . self::MAX_LENGTHS['serial_number'] . ' characters.';
+        } else {
+            return $parts;
         }
 
-        $condition = $this->singleLine($v['condition'] ?? null);
-        if ($condition !== null) {
-            $extra['condition_id'] = $this->conditionIds[strtoupper($condition)] ?? null;
-            if ($extra['condition_id'] === null) {
-                $errors[] = $this->label('condition') . ' "' . $condition . '" does not exist. Use one of: ' . implode(', ', array_map('ucfirst', array_map('strtolower', array_keys($this->conditionIds)))) . '.';
-            }
-        }
-
-        $lifespan = $this->text($v['lifespan'] ?? null);
-        if ($lifespan !== null) {
-            $years = $this->number($lifespan);
-            if ($years === null || floor($years) != $years || $years < 0 || $years > 100) {
-                $errors[] = $this->label('lifespan') . ' "' . $lifespan . '" must be a whole number of years.';
-            } else {
-                $extra['lifespan'] = (int) $years;
-            }
-        }
-
-        $extra['sales_invoice_date'] = $this->date($row, 'sales_invoice_date', $errors)?->toDateString();
-        $extra['po_date'] = $this->date($row, 'po_date', $errors)?->toDateString();
-
-        $status = $this->singleLine($v['approval_status'] ?? null);
-        if ($status !== null) {
-            if (! in_array(strtolower($status), self::APPROVAL_STATUSES, true)) {
-                $errors[] = $this->label('approval_status') . ' "' . $status . '" must be Pending, Approved, or Rejected.';
-            } else {
-                $extra['approval_status'] = strtolower($status);
-            }
-        }
-
-        $private = $this->singleLine($v['private'] ?? null);
-        if ($private !== null) {
-            $flag = match (strtolower($private)) {
-                'yes', 'y', 'true', '1' => true,
-                'no', 'n', 'false', '0' => false,
-                default => null,
-            };
-            if ($flag === null) {
-                $errors[] = $this->label('private') . ' "' . $private . '" must be Yes or No.';
-            } else {
-                $extra['is_private'] = $flag;
-            }
-        }
-
-        return $extra;
+        return [];
     }
 
     /**
@@ -876,86 +713,50 @@ class InventoryImportService
         return rtrim($number, '-') . '-(001-' . str_pad((string) $qty, 3, '0', STR_PAD_LEFT) . ')';
     }
 
-    /**
-     * The classification code is the first number of the Property Number:
-     * 221-905-001 => 221, which must exist in item_classifications.
-     */
-    protected function resolveClassification(array $v, ?string $propertyNumber, array &$errors): ?int
+    /** Uses a matching PAR/ICS or property-number prefix when one exists. */
+    protected function resolveClassification(array $v, ?string $propertyNumber): ?int
     {
-        if (! $this->isParLayout) {
-            $code = $propertyNumber !== null && preg_match('/^(\d+)-/', $propertyNumber, $m) ? $m[1] : null;
-
-            if ($code === null) {
-                $errors[] = $this->label('property_no') . ' "' . $propertyNumber . '" must start with a classification code, for example 221-905-001.';
-                return null;
-            }
-
-            if (! isset($this->classificationIds[$code])) {
-                $errors[] = 'Classification code ' . $code . ' (from ' . $this->label('property_no') . ' ' . $propertyNumber . ') does not exist in Classifications.';
-                return null;
-            }
-
-            return $this->classificationIds[$code];
-        }
-
-        // PAR workbook: New Property No. starts with the year (2022-70-10-...), so also
-        // look at the PAR Number and the old Property No.
         $candidates = [];
-        foreach ([$this->singleLine($v['par_number']), $this->singleLine($v['property_no'] ?? null), $propertyNumber, $this->singleLine($v['new_property_no'] ?? null)] as $value) {
-            if ($value !== null && preg_match('/^(\d+)/', $value, $m)) {
-                $candidates[] = $m[1];
+        foreach ([$this->singleLine($v['par_number'] ?? null), $propertyNumber] as $value) {
+            if ($value !== null && preg_match('/^(\d+)-/', $value, $m)) {
+                $candidates[$m[1]] = true;
             }
         }
 
-        foreach ($candidates as $code) {
+        foreach (array_keys($candidates) as $code) {
             if (isset($this->classificationIds[$code])) {
                 return $this->classificationIds[$code];
             }
         }
 
-        $tried = $candidates ? ' (tried ' . implode(', ', array_unique($candidates)) . ')' : '';
-        $errors[] = 'No item classification matches the first number of the PAR Number or Property No.' . $tried . '.';
-
         return null;
     }
 
     /**
-     * Uses New Accountable, then New Accountable Person, then Accountable Person.
-     * The PAR Number becomes the receipt; the PAR Date its date.
+     * The accountable person, PAR/ICS number, PAR/ICS date, and issuer are all
+     * optional. An assignment needs both an accountable person id and a PAR/ICS
+     * number; a blank issuer falls back to the configured import account.
      */
-    protected function resolveAssignment(int $row, array $v, ?float $unitCost, array &$errors, array &$warnings): ?array
+    protected function resolveAssignment(int $row, array $v, array &$errors, array &$warnings): ?array
     {
-        $chosenField = null;
-        foreach (['new_accountable', 'new_accountable_person', 'accountable_person'] as $field) {
-            if ($this->text($v[$field] ?? null) !== null) {
-                $chosenField = $field;
-                break;
+        $parNumber = $this->singleLine($v['par_number'] ?? null);
+        $accountableRaw = $this->text($v['accountable_person'] ?? null);
+
+        if ($accountableRaw === null) {
+            if ($parNumber !== null) {
+                $warnings[] = $this->label('par_number') . ' was not saved because no accountable person id was given.';
             }
-        }
-
-        $parNumber = $this->singleLine($v['par_number']);
-
-        if ($chosenField === null) {
-            $warnings[] = 'No accountable person, so the item was imported without an assignment.';
             return null;
         }
 
-        // Names often carry the hand-over date: "SHERYL G. ALFORQUE 04-20-2026".
-        $name = trim(preg_replace('/\b\d{1,4}[-\/.]\d{1,2}[-\/.]\d{1,4}\b/', '', $this->firstLine($v[$chosenField])));
-        $matches = $this->matchProfiles($name);
-        $label = $this->label($chosenField);
-        $profileId = null;
-
-        if (count($matches) === 0) {
-            $errors[] = $label . ' "' . $name . '" does not match any user profile.';
-        } elseif (count($matches) > 1) {
-            $errors[] = $label . ' "' . $name . '" matches more than one user profile (' . implode(', ', array_column($matches, 'name')) . '). Write the full name.';
-        } else {
-            $profileId = $matches[0]['id'];
+        $profileId = $this->integerId($accountableRaw);
+        if ($profileId === null || ! isset($this->profileIds[$profileId])) {
+            $errors[] = $this->label('accountable_person') . ' "' . $accountableRaw . '" must be a numeric user profile id that exists.';
+            return null;
         }
 
         if ($parNumber === null) {
-            $warnings[] = $this->label('par_number') . ' is empty, so the item was imported without an assignment to ' . $name . '.';
+            $warnings[] = $this->label('accountable_person') . ' id ' . $profileId . ' was not assigned because ' . $this->label('par_number') . ' is empty.';
             return null;
         }
 
@@ -967,24 +768,26 @@ class InventoryImportService
         if ($parDate === null && ! $this->isEmpty($v['par_date'] ?? null)) {
             return null; // the date error was already recorded
         }
-        if ($parDate === null) {
-            $errors[] = $this->label('par_date') . ' is empty for ' . $this->label('par_number') . ' ' . $parNumber . '.';
+
+        $issuedById = self::ISSUED_BY_ID;
+        if (! $this->isEmpty($v['issued_by'] ?? null)) {
+            $issuedById = $this->integerId($v['issued_by']);
+            if ($issuedById === null) {
+                $errors[] = $this->label('issued_by') . ' must be a numeric user id.';
+                return null;
+            }
+        }
+
+        if (! isset($this->userIds[$issuedById]) || ! isset($this->profileIds[$issuedById])) {
+            $errors[] = $this->label('issued_by') . ' id ' . $issuedById . ' must exist in Users and User Profiles.';
             return null;
         }
 
-        // Only the PAR workbook is meant to hold ₱50,000-and-up items.
-        if ($this->isParLayout && $unitCost !== null && $unitCost < 50000) {
-            $warnings[] = 'Unit Cost ' . $this->money($unitCost) . ' is below ₱50,000; PAR is for items ₱50,000 and above (this may belong on an ICS).';
-        }
-
-        $previousHolder = $chosenField !== 'accountable_person'
-            && ($this->text($v['accountable_person'] ?? null) !== null || $chosenField === 'new_accountable' && $this->text($v['new_accountable_person'] ?? null) !== null);
-
         return [
-            'profile_id'   => $profileId,
-            'par_number'   => $parNumber,
-            'par_date'     => $parDate->toDateString(),
-            'reassignment' => $previousHolder,
+            'profile_id'    => $profileId,
+            'par_number'    => $parNumber,
+            'par_date'      => $parDate?->toDateString(),
+            'issued_by_id'  => $issuedById,
         ];
     }
 
@@ -1001,9 +804,14 @@ class InventoryImportService
         $receiptCreated = false;
         $warnings = [];
         $receipt = null;
+        $totalPerItem = $plan['unit_cost'];
 
         if ($assignment) {
-            [$receipt, $receiptCreated] = $this->findOrCreateReceipt($assignment, $warnings);
+            [$receipt, $receiptCreated] = $this->findOrCreateReceipt($assignment);
+        }
+
+        if ($totalPerItem === null && $plan['total_amount'] !== null) {
+            $totalPerItem = round($plan['total_amount'] / max(count($plan['items']), 1), 2);
         }
 
         foreach ($plan['items'] as $item) {
@@ -1017,47 +825,42 @@ class InventoryImportService
                 'quantity'               => 1,
                 'unit'                   => $plan['unit'],
                 'unit_cost'              => $plan['unit_cost'],
-                'total_amount'           => $plan['unit_cost'],
+                'total_amount'           => $totalPerItem,
                 'property_number'        => $item['property_number'],
+                'old_property_number'    => $plan['old_property_number'],
                 'serial_number'          => $item['serial_number'],
-                'pr_number'              => $plan['pr_number'] ?? '',
-                'po_number'              => $plan['po_number'] ?? '',
+                'pr_number'              => $plan['pr_number'] ?? null,
+                'po_number'              => $plan['po_number'] ?? null,
                 'remarks'                => $item['remarks'],
-                'date_acquired'          => $plan['date_acquired'],
                 'brand'                  => $plan['brand'] ?? null,
                 'model'                  => $plan['model'] ?? null,
-                'lifespan'               => $plan['lifespan'],
-                'sales_invoice_date'     => $plan['sales_invoice_date'],
-                'po_number_date'         => $plan['po_date'],
-                'approval_status'        => $plan['approval_status'] ?? ($receipt ? 'approved' : 'pending'),
-                'is_private'             => $plan['is_private'] ? 1 : 0,
             ]);
 
-            AssetInspection::create([
-                'inventory_item_id'  => $inventoryItem->id,
-                'asset_condition_id' => $plan['condition_id'],
-                'inspected_by'       => auth()->id(),
-                'inspection_date'    => now(),
-                'remarks'            => 'Initial condition recorded on import (row ' . $plan['row'] . ').',
-            ]);
+            if ($plan['condition_id'] !== null) {
+                AssetInspection::create([
+                    'inventory_item_id'  => $inventoryItem->id,
+                    'asset_condition_id' => $plan['condition_id'],
+                    'inspected_by'       => auth()->id(),
+                    'inspection_date'    => now(),
+                    'remarks'            => 'Initial condition recorded on import (row ' . $plan['row'] . ').',
+                ]);
+            }
 
-            ItemHistoryLocation::create([
-                'inventory_item_id' => $inventoryItem->id,
-                'room_id'           => $plan['room_id'],
-            ]);
+            if ($plan['room_id'] !== null) {
+                ItemHistoryLocation::create([
+                    'inventory_item_id' => $inventoryItem->id,
+                    'room_id'           => $plan['room_id'],
+                ]);
+            }
 
             if ($receipt) {
-                $acknowledgementItem = AcknowledgementItem::create([
+                AcknowledgementItem::create([
                     'acknowledgement_id'    => $receipt->id,
                     'inventory_item_id'     => $inventoryItem->id,
                     'accountable_person_id' => $assignment['profile_id'],
-                    'issued_by_id'          => self::ISSUED_BY_ID,
+                    'issued_by_id'          => $assignment['issued_by_id'],
                     'status'                => 1,
                 ]);
-
-                if ($assignment['reassignment'] && $this->reassignmentTypeId) {
-                    $acknowledgementItem->transferTypes()->sync([$this->reassignmentTypeId]);
-                }
             }
         }
 
@@ -1067,21 +870,13 @@ class InventoryImportService
         ];
     }
 
-    /**
-     * One receipt per PAR Number, reusing a receipt that already exists. The
-     * file is the source of truth for that receipt's remarks: a differing value
-     * updates the receipt and says so, instead of being dropped silently.
-     */
-    protected function findOrCreateReceipt(array $assignment, array &$warnings = []): array
+    /** One receipt per PAR/ICS number, reusing an existing receipt. */
+    protected function findOrCreateReceipt(array $assignment): array
     {
         $key = $this->key($assignment['par_number']);
-        $receiptRemarks = $assignment['receipt_remarks'] ?? null;
 
         if (isset($this->receipts[$key])) {
-            $receipt = $this->receipts[$key];
-            $this->applyReceiptRemarks($receipt, $receiptRemarks, $warnings);
-
-            return [$receipt, false];
+            return [$this->receipts[$key], false];
         }
 
         $receipt = AcknowledgementReceipt::where('category', $assignment['par_number'])->first();
@@ -1091,103 +886,16 @@ class InventoryImportService
             $receipt = AcknowledgementReceipt::create([
                 'category'     => $assignment['par_number'],
                 'par_date'     => $assignment['par_date'],
-                'issued_by_id' => self::ISSUED_BY_ID,
+                'issued_by_id' => $assignment['issued_by_id'],
                 'created_by'   => auth()->id(),
-                'remarks'      => $receiptRemarks,
             ]);
             $created = true;
-        } else {
-            $this->applyReceiptRemarks($receipt, $receiptRemarks, $warnings);
         }
 
         // Only remember it once the surrounding transaction commits.
         DB::afterCommit(fn () => $this->receipts[$key] = $receipt);
 
         return [$receipt, $created];
-    }
-
-    /**
-     * Keeps an existing receipt in step with the file. Only a value actually
-     * written in the sheet can change it; an empty cell leaves it alone.
-     */
-    protected function applyReceiptRemarks(
-        AcknowledgementReceipt $receipt,
-        ?string $remarks,
-        array &$warnings,
-    ): void {
-        if (blank($remarks) || trim((string) $receipt->remarks) === trim($remarks)) {
-            return;
-        }
-
-        $receipt->update(['remarks' => $remarks]);
-
-        $warnings[] = 'Receipt Remarks for ' . $receipt->category
-            . ' were updated from this file because they differed from the receipt on record.';
-    }
-
-    /* ------------------------------------------------------------------
-     | Accountable person matching
-     * ------------------------------------------------------------------ */
-
-    /**
-     * Matches names written as "M. PEDRANO", "JK. CUIZON", "SHERYL G. ALFORQUE",
-     * or "JONATHAN VICTOLERO" against user profiles.
-     */
-    protected function matchProfiles(string $name): array
-    {
-        $key = $this->nameKey(str_replace('.', ' ', $name));
-
-        if (array_key_exists($key, $this->profileMatches)) {
-            return $this->profileMatches[$key];
-        }
-
-        $tokens = $key === '' ? [] : explode(' ', $key);
-        $matches = [];
-
-        foreach ($this->profiles as $profile) {
-            if ($profile['last'] === '' || $profile['first'] === '') {
-                continue;
-            }
-
-            $lastTokens = explode(' ', $profile['last']);
-            if (count($tokens) <= count($lastTokens) || array_slice($tokens, -count($lastTokens)) !== $lastTokens) {
-                continue;
-            }
-
-            $given = array_slice($tokens, 0, -count($lastTokens));
-
-            // Drop a trailing middle initial ("SHERYL G") or middle name.
-            while (count($given) > 1 && strlen(end($given)) === 1) {
-                if ($profile['middle'] !== '' && end($given) !== $profile['middle'][0]) {
-                    break;
-                }
-                array_pop($given);
-            }
-            if ($profile['middle'] !== '' && count($given) > 1 && str_ends_with(implode(' ', $given), ' ' . $profile['middle'])) {
-                $given = explode(' ', trim(substr(implode(' ', $given), 0, -strlen($profile['middle']))));
-            }
-
-            if ($this->givenNameMatches(implode(' ', $given), $profile['first'])) {
-                $matches[] = $profile;
-            }
-        }
-
-        return $this->profileMatches[$key] = $matches;
-    }
-
-    protected function givenNameMatches(string $given, string $first): bool
-    {
-        if ($given === '') {
-            return false;
-        }
-
-        $firstWords = explode(' ', $first);
-        $initials = implode('', array_map(fn ($word) => $word[0], $firstWords));
-
-        return $given === $first
-            || $given === $firstWords[0]
-            || (strlen($given) === 1 && $given === $first[0])
-            || (strlen($given) <= 3 && ! str_contains($given, ' ') && $given === $initials);
     }
 
     /* ------------------------------------------------------------------
@@ -1299,16 +1007,6 @@ class InventoryImportService
         return $perItem;
     }
 
-    protected function itemName(string $description): string
-    {
-        $line = $this->firstLine($description);
-        if (preg_match(self::SERIAL_MARKER, $line, $m, PREG_OFFSET_CAPTURE)) {
-            $line = trim(substr($line, 0, $m[0][1])) ?: $line;
-        }
-
-        return Str::limit($line, 250);
-    }
-
     /* ------------------------------------------------------------------
      | Cell helpers
      * ------------------------------------------------------------------ */
@@ -1377,26 +1075,6 @@ class InventoryImportService
         return null;
     }
 
-    protected function isYellowRow(int $row): bool
-    {
-        if (! $this->readsColours) {
-            return false;
-        }
-
-        $lastColumn = max($this->columns);
-        $yellow = 0;
-
-        for ($col = 1; $col <= $lastColumn; $col++) {
-            $fill = $this->sheet->getStyle(Coordinate::stringFromColumnIndex($col) . $row)->getFill();
-            if ($fill->getFillType() === Fill::FILL_SOLID && strtoupper($fill->getStartColor()->getRGB()) === 'FFFF00') {
-                $yellow++;
-            }
-        }
-
-        // Single highlighted cells are common; only a mostly yellow row means Disposal.
-        return $yellow * 2 > $lastColumn;
-    }
-
     protected function isBlank(array $values): bool
     {
         foreach ($values as $value) {
@@ -1411,7 +1089,7 @@ class InventoryImportService
     /** Section labels ("January to December 2023") and formula-only total rows have no item data. */
     protected function hasItemData(array $values): bool
     {
-        foreach (['new_property_no', 'property_no', 'description', 'qty', 'unit_cost'] as $field) {
+        foreach (['new_property_no', 'property_no', 'item_name', 'description', 'qty', 'unit_cost'] as $field) {
             if (! $this->isEmpty($values[$field] ?? null)) {
                 return true;
             }
@@ -1427,7 +1105,7 @@ class InventoryImportService
         return $number === null ? null : Str::limit(preg_replace('/\s+/', ' ', $number), 60);
     }
 
-    /** The column's header as written in the file, e.g. "Receipt No." or "PAR Number". */
+    /** The column's header as written in the file. */
     protected function label(string $field): string
     {
         return $this->headerLabels[$field] ?? self::FIELD_LABELS[$field] ?? $field;
@@ -1495,15 +1173,10 @@ class InventoryImportService
         return strtoupper(trim(preg_replace('/\s+/', ' ', (string) $value)));
     }
 
-    protected function supplierKey(?string $value): string
+    protected function integerId(mixed $value): ?int
     {
-        return $this->key(str_replace(['.', ','], '', Str::ascii((string) $value)));
-    }
+        $text = $this->singleLine($value);
 
-    protected function nameKey(?string $value): string
-    {
-        $value = strtoupper(Str::ascii((string) $value));
-
-        return trim(preg_replace('/\s+/', ' ', preg_replace('/[^A-Z ]/', ' ', $value)));
+        return $text !== null && ctype_digit($text) ? (int) $text : null;
     }
 }

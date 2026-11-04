@@ -27,71 +27,57 @@ class InventoryExportService
      * Column header => [width, type]. Types: text, money, int, date, wrap.
      */
     public const COLUMNS = [
-        'Property Number'                                 => [20, 'text'],
-        'Item Name'                                       => [30, 'wrap'],
-        'Brand'                                           => [14, 'text'],
-        'Model'                                           => [14, 'text'],
-        'Item Description'                                => [46, 'wrap'],
-        'Serial Number'                                   => [24, 'wrap'],
-        'Supplier Name'                                   => [28, 'text'],
-        'Quantity'                                        => [10, 'int'],
-        'Unit of Measure (e.g. unit, pcs, lot)'           => [16, 'text'],
-        'Unit Cost (₱)'                                   => [15, 'money'],
-        'Total Cost (₱)'                                  => [15, 'money'],
-        'Fund Source'                                     => [14, 'text'],
-        'Sales Invoice No.'                               => [15, 'text'],
-        'Sales Invoice Date (YYYY-MM-DD)'                 => [16, 'date'],
-        'Purchase Request (PR) No.'                       => [17, 'text'],
-        'Purchase Order (PO) No.'                         => [17, 'text'],
-        'Purchase Order (PO) Date (YYYY-MM-DD)'           => [17, 'date'],
-        'Date Acquired (YYYY-MM-DD)'                      => [16, 'date'],
-        'Useful Life (Years)'                             => [12, 'int'],
-        'Condition (Good / Disposal)'                     => [14, 'text'],
-        'Room / Location'                                 => [18, 'text'],
-        'Accountable Person (Full Name)'                  => [24, 'text'],
-        'Receipt No. (PAR / ICS)'                         => [20, 'text'],
-        'Receipt Date (YYYY-MM-DD)'                       => [16, 'date'],
-        'Approval Status (Pending / Approved / Rejected)' => [20, 'text'],
-        'Private Item? (Yes / No)'                        => [12, 'text'],
-        'Item Remarks'                                    => [30, 'wrap'],
-        'Receipt Remarks'                                 => [30, 'wrap'],
+        'PAR/ICS number'    => [22, 'text'],
+        'PAR/ICS date'      => [16, 'date'],
+        'Property number'   => [20, 'text'],
+        'old property number' => [22, 'text'],
+        'qty'               => [10, 'int'],
+        'unit'              => [14, 'text'],
+        'unit cost'         => [15, 'money'],
+        'total amount'      => [15, 'money'],
+        'item name'         => [30, 'wrap'],
+        'brand'             => [14, 'text'],
+        'model'             => [14, 'text'],
+        'description'       => [46, 'wrap'],
+        'serial number'     => [24, 'wrap'],
+        'accountable person' => [18, 'int'],
+        'fund source'       => [14, 'text'],
+        'pr number'         => [17, 'text'],
+        'po number'         => [17, 'text'],
+        'location'          => [12, 'int'],
+        'supplier'          => [12, 'int'],
+        'invoice'           => [15, 'text'],
+        'remarks'           => [30, 'wrap'],
+        'issued by'         => [12, 'int'],
     ];
 
     /**
      * Fixed, made-up rows for the sample workbook (docs/Inventory_Export_Sample.xlsx).
-     * Names, suppliers, and numbers are fictional; each row uses a different
-     * classification (from the Property Number), approval status, and private flag.
+     * The ID columns are examples and need to be replaced with ids from the database.
      */
     public const SAMPLE_ROWS = [
         [
-            '221-905-001', 'Split-type Air Conditioner 2.0 HP', 'Coolwave', 'CW-SPL20X', "2.0 HP wall-mounted split-type inverter aircon with remote\nIndoor: CW-SPL20X-IN / Outdoor: CW-SPL20X-OUT",
-            'CWX4471A20 / CWX4471B20', 'Brightline Trading Corp.', 1, 'unit', 68500, 68500,
-            '164', 'SI-20417', '2024-03-04', 'PR-2024-02-118', 'PO-2024-02-071', '2024-02-19', '2024-03-08', 10,
-            'Good', 'ADM 201', 'Marisol T. Dacanay', '221-2024-03-512', '2024-03-11', 'Approved', 'No',
-            'Installed beside the conference room door', 'Issued for the Admin conference room',
+            '221-2024-03-512', '2024-03-11', '221-905-001', null, 1, 'unit', 68500, 68500,
+            'Split-type Air Conditioner 2.0 HP', 'Coolwave', 'CW-SPL20X',
+            "2.0 HP wall-mounted split-type inverter aircon with remote\nIndoor: CW-SPL20X-IN / Outdoor: CW-SPL20X-OUT",
+            'CWX4471A20 / CWX4471B20', 1, '164', 'PR-2024-02-118', 'PO-2024-02-071', 1, 1, 'SI-20417',
+            'Installed beside the conference room door', 1,
         ],
         [
-            '223-918-001', 'Laptop Computer, 14-inch', 'Nexora', 'NX-14 Pro', 'Laptop, Intel Core i5, 16GB RAM, 512GB SSD, 14-inch FHD display, Windows 11 Pro',
-            'NXP14K9T2271', 'Pinnacle Systems Supply', 1, 'unit', 54990, 54990,
-            '101', 'SI-88203', '2025-06-12', 'PR-2025-05-044', 'PO-2025-05-019', '2025-05-26', '2025-06-16', 5,
-            'Good', 'AS 134', 'Rodel V. Sanpedro', '223-2025-06-533', '2025-06-17', 'Pending', 'Yes',
-            'For field data collection', 'Laptop for the research team; return when the project ends',
+            '223-2025-06-533', '2025-06-17', '223-918-001', null, 1, 'unit', 54990, 54990,
+            'Laptop Computer, 14-inch', 'Nexora', 'NX-14 Pro',
+            'Laptop, Intel Core i5, 16GB RAM, 512GB SSD, 14-inch FHD display, Windows 11 Pro',
+            'NXP14K9T2271', 2, '101', 'PR-2025-05-044', 'PO-2025-05-019', 2, 2, 'SI-88203',
+            'For field data collection', 2,
         ],
         [
-            '222-931-001', 'Steel Filing Cabinet, 4 Drawers', 'Ironvale', 'IV-FC4', 'Heavy-duty steel filing cabinet, 4 lockable drawers, legal size, gray finish',
-            null, 'Hilltop Office Furnishing', 1, 'unit', 52300, 52300,
-            '164', 'SI-50981', '2019-09-23', 'PR-2019-09-210', 'PO-2019-09-088', '2019-09-09', '2019-09-27', 15,
-            'Disposal', 'ADW 1', 'Jocelyn P. Abrenica', '222-2019-09-488', '2019-09-30', 'Rejected', 'No',
-            'Rusted drawer rails; recommended for disposal', 'Receipt cancelled after inspection',
+            '222-2019-09-488', '2019-09-30', '222-931-001', null, 1, 'unit', 52300, 52300,
+            'Steel Filing Cabinet, 4 Drawers', 'Ironvale', 'IV-FC4',
+            'Heavy-duty steel filing cabinet, 4 lockable drawers, legal size, gray finish',
+            null, 3, '164', 'PR-2019-09-210', 'PO-2019-09-088', 3, 3, 'SI-50981',
+            'Rusted drawer rails; recommended for disposal', 3,
         ],
     ];
-
-    /**
-     * Writes the fixed sample rows to a temporary .xlsx file and returns its path.
-     */
-    public function __construct(protected RoomApiService $roomApi)
-    {
-    }
 
     public function sampleToFile(): string
     {
@@ -104,19 +90,13 @@ class InventoryExportService
      */
     public function exportToFile(string $format = 'xlsx'): string
     {
-        $roomNames = collect($this->roomApi->fetchRooms()['data'] ?? [])
-            ->mapWithKeys(fn ($room) => [(int) $room['id'] => $room['room_name'] ?? null]);
-
         $rows = InventoryItem::with([
-            'supplier',
             'latestHistoryLocation',
-            'latestInspection.assetCondition',
-            'latestAcknowledgementItem.accountablePerson',
             'latestAcknowledgementItem.acknowledgementReceipts',
         ])
             ->orderByDesc('created_at')
             ->get()
-            ->map(fn (InventoryItem $item) => $this->rowFor($item, $roomNames->all()));
+            ->map(fn (InventoryItem $item) => $this->rowFor($item));
 
         if ($format === 'csv') {
             $types = array_map(
@@ -139,41 +119,34 @@ class InventoryExportService
     /**
      * One row per item. The order must match self::COLUMNS.
      */
-    public function rowFor(InventoryItem $item, array $roomNames = []): array
+    public function rowFor(InventoryItem $item): array
     {
         $acknowledgement = $item->latestAcknowledgementItem;
         $receipt = $acknowledgement?->acknowledgementReceipts;
-        $roomId = $item->latestHistoryLocation?->room_id;
 
         return [
+            $receipt?->category,
+            $receipt?->par_date,
             $item->property_number,
+            $item->old_property_number,
+            $item->quantity,
+            $item->unit,
+            $item->unit_cost,
+            $item->total_amount,
             $item->item_name,
             $item->brand,
             $item->model,
             $item->description,
             $item->serial_number,
-            $item->supplier?->supplier_name,
-            $item->quantity,
-            $item->unit,
-            $item->unit_cost,
-            $item->total_amount,
+            $acknowledgement?->accountable_person_id,
             $item->fund_source,
-            $item->invoice,
-            $item->sales_invoice_date,
             $item->pr_number,
             $item->po_number,
-            $item->po_number_date,
-            $item->date_acquired,
-            $item->lifespan,
-            $item->latestInspection?->assetCondition?->condition_name,
-            $roomId ? ($roomNames[(int) $roomId] ?? 'Room #' . $roomId) : null,
-            $acknowledgement?->accountablePerson?->full_name,
-            $receipt?->category,
-            $receipt?->par_date,
-            $item->approval_status ? ucfirst($item->approval_status) : null,
-            $item->is_private ? 'Yes' : 'No',
+            $item->latestHistoryLocation?->room_id,
+            $item->supplier_id,
+            $item->invoice,
             $item->remarks,
-            $receipt?->remarks,
+            $acknowledgement?->issued_by_id ?? $receipt?->issued_by_id,
         ];
     }
 

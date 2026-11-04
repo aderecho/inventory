@@ -22,6 +22,10 @@ const props = defineProps({
         type: String,
         default: "",
     },
+    columnsVersion: {
+        type: [String, Number],
+        default: 1,
+    },
     actions: {
         type: Array,
         default: () => [],
@@ -266,7 +270,13 @@ function cellExtra(col, item, index) {
 const ALWAYS_VISIBLE = ["select_all", "action"];
 
 // Hidden on a user's first visit; the picker lets them bring any of them back.
-const DEFAULT_HIDDEN = ["serial_number", "po_number", "unit"];
+const DEFAULT_HIDDEN = [
+    "brand",
+    "model",
+    "serial_number",
+    "po_number",
+    "unit",
+];
 
 const hideableColumns = computed(() =>
     (props.columns ?? []).filter(
@@ -275,7 +285,12 @@ const hideableColumns = computed(() =>
 );
 
 const storageKey = computed(
-    () => "table-columns:" + (props.module || "default"),
+    () => {
+        const version = String(props.columnsVersion ?? 1);
+        const suffix = version === "1" ? "" : ":v" + version;
+
+        return "table-columns:" + (props.module || "default") + suffix;
+    },
 );
 
 function readHiddenColumns() {
@@ -488,72 +503,75 @@ function toggleCheck(item) {
                 </template>
             </p>
 
-            <div class="relative ml-auto">
-                <button
-                    type="button"
-                    @click="showColumnPicker = !showColumnPicker"
-                    class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-[#005740]/40 hover:bg-[#005740]/5 hover:text-[#005740]"
-                >
-                    <i class="fa-solid fa-table-columns"></i>
-                    Columns
-                    <span
-                        v-if="hiddenCount"
-                        class="rounded-full bg-[#005740]/10 px-1.5 text-[10px] font-semibold text-[#005740]"
+            <div class="ml-auto flex items-center gap-2">
+                <slot name="toolbar-actions" />
+                <div class="relative">
+                    <button
+                        type="button"
+                        @click="showColumnPicker = !showColumnPicker"
+                        class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-[#005740]/40 hover:bg-[#005740]/5 hover:text-[#005740]"
                     >
-                        {{ hiddenCount }} hidden
-                    </span>
-                </button>
+                        <i class="fa-solid fa-table-columns"></i>
+                        Columns
+                        <span
+                            v-if="hiddenCount"
+                            class="rounded-full bg-[#005740]/10 px-1.5 text-[10px] font-semibold text-[#005740]"
+                        >
+                            {{ hiddenCount }} hidden
+                        </span>
+                    </button>
 
-                <!-- click-away layer -->
-                <div
-                    v-if="showColumnPicker"
-                    class="fixed inset-0 z-20"
-                    @click="showColumnPicker = false"
-                ></div>
-
-                <div
-                    v-if="showColumnPicker"
-                    class="absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg"
-                >
+                    <!-- click-away layer -->
                     <div
-                        class="flex items-center justify-between border-b border-gray-100 px-4 py-2.5"
-                    >
-                        <p
-                            class="text-[11px] font-semibold uppercase tracking-wider text-gray-500"
-                        >
-                            Show columns
-                        </p>
-                        <button
-                            type="button"
-                            @click="showAllColumns"
-                            class="text-[11px] font-semibold text-[#005740] hover:underline"
-                        >
-                            Show all
-                        </button>
-                    </div>
+                        v-if="showColumnPicker"
+                        class="fixed inset-0 z-20"
+                        @click="showColumnPicker = false"
+                    ></div>
 
-                    <ul class="max-h-72 overflow-y-auto py-1">
-                        <li
-                            v-for="col in hideableColumns"
-                            :key="col.key"
-                            class="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-gray-50"
+                    <div
+                        v-if="showColumnPicker"
+                        class="absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg"
+                    >
+                        <div
+                            class="flex items-center justify-between border-b border-gray-100 px-4 py-2.5"
                         >
-                            <TableCheckbox
-                                :checked="!hiddenColumns.includes(col.key)"
-                                tone="brand"
-                                size="sm"
-                                :title="'Show ' + col.label"
-                                @toggle="toggleColumn(col.key)"
-                            />
+                            <p
+                                class="text-[11px] font-semibold uppercase tracking-wider text-gray-500"
+                            >
+                                Show columns
+                            </p>
                             <button
                                 type="button"
-                                class="flex-1 text-left text-sm text-gray-700"
-                                @click="toggleColumn(col.key)"
+                                @click="showAllColumns"
+                                class="text-[11px] font-semibold text-[#005740] hover:underline"
                             >
-                                {{ col.label }}
+                                Show all
                             </button>
-                        </li>
-                    </ul>
+                        </div>
+
+                        <ul class="max-h-72 overflow-y-auto py-1">
+                            <li
+                                v-for="col in hideableColumns"
+                                :key="col.key"
+                                class="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-gray-50"
+                            >
+                                <TableCheckbox
+                                    :checked="!hiddenColumns.includes(col.key)"
+                                    tone="brand"
+                                    size="sm"
+                                    :title="'Show ' + col.label"
+                                    @toggle="toggleColumn(col.key)"
+                                />
+                                <button
+                                    type="button"
+                                    class="flex-1 text-left text-sm text-gray-700"
+                                    @click="toggleColumn(col.key)"
+                                >
+                                    {{ col.label }}
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, nextTick, watch } from "vue";
 import { usePage, router } from "@inertiajs/vue3";
 import { Head } from "@inertiajs/vue3";
 import Layout from "@/Layouts/Layout.vue";
@@ -27,6 +27,7 @@ import { Button } from "@/Components/ui/button";
 import {
     Archive,
     ChevronDown,
+    ChevronUp,
     UserPlus,
     QrCode,
     Printer,
@@ -61,6 +62,8 @@ const {
 const columns = [
     { label: "", key: "select_all" },
     { label: "Item Name", key: "item_name" },
+    { label: "Brand", key: "brand" },
+    { label: "Model", key: "model" },
     { label: "Description", key: "description", cellClass: "min-w-[14rem]" },
     { label: "Unit", key: "unit", format: (val) => val ?? "N/A" },
     {
@@ -75,6 +78,7 @@ const columns = [
                 : "N/A",
     },
     { label: "Property Number", key: "property_number" },
+    { label: "Old Property Number", key: "old_property_number" },
     { label: "Serial Number", key: "serial_number" },
     { label: "PO Number", key: "po_number" },
     { label: "Room Name", key: "room_name" },
@@ -132,7 +136,10 @@ const columns = [
 
 const viewItem = [
     { label: "Item Name", key: "item_name" },
+    { label: "Brand", key: "brand" },
+    { label: "Model", key: "model" },
     { label: "Property Number", key: "property_number" },
+    { label: "Old Property Number", key: "old_property_number" },
     { label: "Unit", key: "unit", format: (val) => val ?? "N/A" },
     { label: "PO Number Date", key: "po_number_date" },
     {
@@ -443,6 +450,9 @@ const rooms = computed(() => page.props.rooms || []);
 const itemClassifications = computed(
     () => page.props.itemClassifications || [],
 );
+const propertyNumberSuggestions = computed(
+    () => page.props.propertyNumberSuggestions || {},
+);
 const suppliers = computed(() => page.props.suppliers || []);
 const assetConditions = computed(() => page.props.assetConditions || []);
 
@@ -464,6 +474,16 @@ const room_id = ref("");
 // The table header pins itself right below the sticky toolbar, so the
 // toolbar's height is published as a CSS variable that the table reads.
 const toolbarRef = useStickyToolbar();
+const hideTopBar = ref(false);
+
+watch(hideTopBar, async (hidden) => {
+    await nextTick();
+
+    document.documentElement.style.setProperty(
+        "--table-sticky-top",
+        (hidden ? 0 : toolbarRef.value?.offsetHeight ?? 0) + "px",
+    );
+});
 
 // MODAL STATE
 const formMode = ref("create");
@@ -596,7 +616,9 @@ async function handleImportFile(file) {
         pendingImportFile.value = null;
 
         if (data.imported_rows > 0) {
-            router.reload({ only: ["items", "biggestCategories"] });
+            router.reload({
+                only: ["items", "biggestCategories", "propertyNumberSuggestions"],
+            });
         }
     } catch (error) {
         const response = error.response;
@@ -1096,11 +1118,13 @@ function handleAssignSubmit(ids) {
         <DownloadProgressCard :job="stickerJob" @dismiss="dismissStickerJob" />
         <DownloadProgressCard :job="disposeJob" @dismiss="dismissDisposeJob" />
 
-        <PageHeader title="Items" />
+        <PageHeader v-show="!hideTopBar" title="Items" />
+
         <div class="w-full h-full">
             <!-- TOOLBAR (sticks to the top while scrolling) -->
             <div
                 ref="toolbarRef"
+                v-show="!hideTopBar"
                 class="sticky top-0 z-30 mt-6 rounded-xl border border-gray-200 bg-white/95 p-3 shadow-sm backdrop-blur"
             >
                 <div
@@ -1158,7 +1182,7 @@ function handleAssignSubmit(ids) {
 
                     <!-- filters and search -->
                     <div class="flex w-full flex-col gap-2 xl:max-w-3xl">
-                        <div class="flex justify-end">
+                        <div class="flex justify-end gap-2">
                             <Button
                                 type="button"
                                 @click="showConditionModal = true"
@@ -1167,6 +1191,15 @@ function handleAssignSubmit(ids) {
                             >
                                 <ListChecks class="w-4 h-4 mr-2" />
                                 Manage Conditions
+                            </Button>
+                            <Button
+                                type="button"
+                                @click="hideTopBar = true"
+                                variant="outline"
+                                class="justify-center border-gray-300 text-xs text-gray-600 hover:bg-gray-50 sm:text-sm"
+                            >
+                                <ChevronUp class="w-4 h-4 mr-2" />
+                                Hide
                             </Button>
                         </div>
 
@@ -1441,6 +1474,7 @@ function handleAssignSubmit(ids) {
                 :totalCost="totalCost"
                 :assetConditions="assetConditions"
                 :itemClass="itemClassifications"
+                :propertyNumberSuggestions="propertyNumberSuggestions"
                 :rooms="rooms"
                 :roomDropdown="roomDropdown"
                 :initialValues="currentItem"
@@ -1480,6 +1514,7 @@ function handleAssignSubmit(ids) {
                 :rows="items"
                 :rooms="rooms"
                 :module="'inventory'"
+                :columnsVersion="2"
                 :actions="inventoryActions"
                 :selected="tempSelectedIds"
                 @selection-changed="handleSelectionChanged"
@@ -1487,7 +1522,19 @@ function handleAssignSubmit(ids) {
                 @edit="handleEdit"
                 @delete="handleDelete"
                 @print="handlePrint"
-            />
+            >
+                <template #toolbar-actions>
+                    <button
+                        v-if="hideTopBar"
+                        type="button"
+                        @click="hideTopBar = false"
+                        class="flex items-center gap-1.5 rounded-lg border border-[#0E6021]/20 px-3 py-1.5 text-xs font-medium text-[#0E6021] transition-colors hover:bg-[#0E6021]/5"
+                    >
+                        <ChevronDown class="h-3.5 w-3.5" />
+                        Show toolbar
+                    </button>
+                </template>
+            </InventoryTable>
         </div>
 
         <!-- Print Format Modal -->

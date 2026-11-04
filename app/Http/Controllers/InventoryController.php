@@ -103,6 +103,7 @@ class InventoryController extends Controller
             'assetConditions' => $assetConditions,
             'transferTypes' => $transferTypes,
             'biggestCategories' => $biggestCategories,
+            'propertyNumberSuggestions' => $this->inventoryService->nextPropertyNumbersByClassification($itemClassifications),
         ]);
     }
 
