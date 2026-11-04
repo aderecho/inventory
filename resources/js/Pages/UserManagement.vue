@@ -9,6 +9,7 @@ import SearchFilterBar from "@/Components/Filters/SearchFilterBar.vue";
 import PrimaryButton from "@/Components/Buttons/PrimaryButton.vue";
 import UserFormModal from "@/Components/Modals/UserFormModal.vue";
 import ArchiveModal from "@/Components/Modals/ArchiveModal.vue";
+import ExportFormatModal from "@/Components/Modals/ExportFormatModal.vue";
 import { useLoading } from "@/Composables/useLoading";
 import { usePermissions } from "@/Composables/usePermissions";
 import { useToast } from "primevue/usetoast";
@@ -72,6 +73,34 @@ const showFormModal = ref(false);
 const currentUser = ref(null);
 
 const showArchiveModal = ref(false);
+
+const showExportModal = ref(false);
+const exportTarget = ref("users");
+
+const exportTitle = computed(() =>
+    exportTarget.value === "rooms" ? "Export Rooms" : "Export Users",
+);
+const exportSubtitle = computed(() =>
+    exportTarget.value === "rooms"
+        ? "Download the rooms supplied by the rooms API. Pick the file format you want."
+        : "Download every user in the database. Pick the file format you want.",
+);
+
+function openExport(target) {
+    exportTarget.value = target;
+    showExportModal.value = true;
+}
+
+function confirmExport(format) {
+    showExportModal.value = false;
+
+    const routeName =
+        exportTarget.value === "rooms"
+            ? "user_management.export-rooms"
+            : "user_management.export";
+
+    window.location.href = route(routeName, { format });
+}
 
 function openAdd() {
     formMode.value = "create";
@@ -146,29 +175,53 @@ const filterStatus = [
             <div
                 class="mt-10 flex flex-col md:flex-row md:items-end md:justify-between gap-3"
             >
-                <div class="flex flex-col sm:flex-row items-stretch gap-3">
-                    <PrimaryButton v-if="canViewUsers" @click="openAdd">
-                        <i class="fa-solid fa-user-group"></i>
-                        <span>Add User</span>
-                    </PrimaryButton>
+                <div class="flex flex-col gap-3">
+                    <div class="flex flex-col items-stretch gap-3 sm:flex-row">
+                        <PrimaryButton v-if="canViewUsers" @click="openAdd">
+                            <i class="fa-solid fa-user-group"></i>
+                            <span>Add User</span>
+                        </PrimaryButton>
 
-                    <Link
-                        v-if="canViewRoles"
-                        :href="route('roles.index')"
-                        class="flex gap-2 bg-[#0E6021] rounded-md text-white px-3 py-2 text-xs sm:text-sm hover:bg-[#19703a] w-full sm:w-auto items-center mt-2 justify-center"
-                    >
-                        <i class="fa-solid fa-shield-halved"></i>
-                        <span>Manage Roles</span>
-                    </Link>
+                        <Link
+                            v-if="canViewRoles"
+                            :href="route('roles.index')"
+                            class="flex gap-2 bg-[#0E6021] rounded-md text-white px-3 py-2 text-xs sm:text-sm hover:bg-[#19703a] w-full sm:w-auto items-center mt-2 justify-center"
+                        >
+                            <i class="fa-solid fa-shield-halved"></i>
+                            <span>Manage Roles</span>
+                        </Link>
 
-                    <Link
-                        v-if="canViewPermissions"
-                        :href="route('permissions.index')"
-                        class="flex gap-2 bg-[#0E6021] rounded-md text-white px-3 py-2 text-xs sm:text-sm hover:bg-[#19703a] w-full sm:w-auto items-center mt-2 justify-center"
-                    >
-                        <i class="fa-solid fa-key"></i>
-                        <span>Manage Permissions</span>
-                    </Link>
+                        <Link
+                            v-if="canViewPermissions"
+                            :href="route('permissions.index')"
+                            class="flex gap-2 bg-[#0E6021] rounded-md text-white px-3 py-2 text-xs sm:text-sm hover:bg-[#19703a] w-full sm:w-auto items-center mt-2 justify-center"
+                        >
+                            <i class="fa-solid fa-key"></i>
+                            <span>Manage Permissions</span>
+                        </Link>
+                    </div>
+
+                    <div class="flex flex-col items-stretch gap-3 sm:flex-row">
+                        <button
+                            v-if="canViewUsers"
+                            type="button"
+                            @click="openExport('users')"
+                            class="flex w-full items-center justify-center gap-2 rounded-md border border-[#0E6021] px-3 py-2 text-xs text-[#0E6021] transition-colors hover:bg-[#0E6021]/5 sm:w-auto sm:text-sm"
+                        >
+                            <i class="fa-solid fa-file-export"></i>
+                            <span>Export Users</span>
+                        </button>
+
+                        <button
+                            v-if="canViewUsers"
+                            type="button"
+                            @click="openExport('rooms')"
+                            class="flex w-full items-center justify-center gap-2 rounded-md border border-[#0E6021] px-3 py-2 text-xs text-[#0E6021] transition-colors hover:bg-[#0E6021]/5 sm:w-auto sm:text-sm"
+                        >
+                            <i class="fa-solid fa-door-open"></i>
+                            <span>Export Rooms</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div
@@ -200,6 +253,14 @@ const filterStatus = [
                 :item="currentUser"
                 @confirm="confirmArchive"
                 @close="showArchiveModal = false"
+            />
+
+            <ExportFormatModal
+                :show="showExportModal"
+                :title="exportTitle"
+                :subtitle="exportSubtitle"
+                @confirm="confirmExport"
+                @close="showExportModal = false"
             />
 
             <InventoryTable

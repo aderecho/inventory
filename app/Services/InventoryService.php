@@ -11,6 +11,7 @@ use App\Models\AcknowledgementReceipt;
 use App\Models\User;
 use App\Models\AssetInspection;
 use App\Models\AssetCondition;
+use App\Support\PropertyNumber;
 use App\Notifications\ItemsPendingApproval;
 use Spatie\Permission\Models\Permission;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -282,9 +283,12 @@ class InventoryService
     public function createInventoryItems(array $data): void
     {
         $base = rtrim($data['property_number'], '-');
+        $serialNumbers = array_values($data['serial_numbers']);
+        $itemCount = count($serialNumbers);
+        $propertyNumbers = PropertyNumber::forQuantity($data['property_number'], $itemCount);
 
-        foreach ($data['serial_numbers'] as $index => $serialNumber) {
-            $propertyNumber = $base . '-' . str_pad($index + 1, 3, '0', STR_PAD_LEFT);
+        foreach ($serialNumbers as $index => $serialNumber) {
+            $propertyNumber = $propertyNumbers[$index] ?? $base;
             $description = $data['descriptions'][$index] ?? $data['description'] ?? null;
 
             $inventoryItem = InventoryItem::create([
@@ -302,6 +306,7 @@ class InventoryService
                 'unit_cost' => $data['unit_cost'],
                 'total_amount' => $data['unit_cost'],
                 'property_number' => $propertyNumber,
+                'old_property_number' => $data['old_property_number'] ?? null,
                 'serial_number' => $serialNumber,
                 'pr_number' => $data['pr_number'],
                 'po_number' => $data['po_number'],
@@ -327,6 +332,46 @@ class InventoryService
         }
     }
 
+    /**
+     * Next property-number sequence per year-classification prefix.
+     * The sequence starts at 2000 and is the last segment of the number.
+     *
+     * @param  iterable<int, object>  $classifications
+     * @return array<string, array{number: int}>
+     */
+    public function nextPropertyNumbersByClassification(iterable $classifications): array
+    {
+        $codes = collect($classifications)
+            ->pluck('classification_code')
+            ->filter()
+            ->map(fn ($code) => trim((string) $code))
+            ->filter()
+            ->unique()
+            ->sortByDesc(fn (string $code) => strlen($code))
+            ->values();
+
+        $highest = [];
+
+        foreach (InventoryItem::withTrashed()->whereNotNull('property_number')->pluck('property_number') as $propertyNumber) {
+            foreach ($codes as $code) {
+                $pattern = '/^(\d{4})-' . preg_quote($code, '/') . '-(\d+)/';
+
+                if (! preg_match($pattern, (string) $propertyNumber, $matches)) {
+                    continue;
+                }
+
+                $key = $matches[1] . '-' . $code;
+                $highest[$key] = max($highest[$key] ?? 0, (int) $matches[2]);
+
+                break;
+            }
+        }
+
+        return collect($highest)
+            ->map(fn (int $sequence) => ['number' => max(2000, $sequence + 1)])
+            ->all();
+    }
+
     public function updateInventoryItem(int $id, array $data): void
     {
         $item = InventoryItem::findOrFail($id);
@@ -341,7 +386,7 @@ class InventoryService
             $base = rtrim($data['property_number'], '-');
 
             $existing = $item->property_number ?? '';
-            $suffix = '001';
+            $suffix = null;
 
             if (str_starts_with($existing, $base . '-')) {
                 $parts = explode('-', $existing);
@@ -351,7 +396,7 @@ class InventoryService
                 }
             }
 
-            $propertyNumberToSave = $base . '-' . $suffix;
+            $propertyNumberToSave = $suffix ? $base . '-' . $suffix : $base;
         }
 
         $item->update([
@@ -370,6 +415,7 @@ class InventoryService
             'unit_cost' => $data['unit_cost'],
             'total_amount' => $totalAmount,
             'property_number' => $propertyNumberToSave,
+            'old_property_number' => $data['old_property_number'] ?? null,
             'serial_number' => $data['serial_number'],
             'pr_number' => $data['pr_number'],
             'po_number' => $data['po_number'],

@@ -3,6 +3,8 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use App\Support\PropertyNumber;
 
 class InventoryStoreRequest extends FormRequest
 {
@@ -22,7 +24,13 @@ class InventoryStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'item_classification_id' => 'required|integer',
+            'item_classification_id' => [
+                'nullable',
+                'integer',
+                'exists:item_classifications,id',
+                Rule::requiredIf(fn () => ! $this->boolean('free_text_property_number')),
+            ],
+            'free_text_property_number' => 'nullable|boolean',
             'supplier_id' => 'required|integer|exists:suppliers,id',
             'room_id' => 'nullable|integer',
             'unit' => 'required|string|max:50',
@@ -50,13 +58,10 @@ class InventoryStoreRequest extends FormRequest
             'property_number' => [
                 'required',
                 'string',
-                'max:50',
+                'max:60',
                 function ($attribute, $value, $fail) {
                     $quantity = max((int) $this->input('quantity', 1), 1);
-                    $base = rtrim($value, '-'); // strip any trailing dash the user typed
-
-                    $generated = collect(range(1, $quantity))
-                        ->map(fn($i) => $base . '-' . str_pad($i, 3, '0', STR_PAD_LEFT));
+                    $generated = PropertyNumber::forQuantity($value, $quantity);
 
                     $conflict = \App\Models\InventoryItem::query()
                         ->whereIn('property_number', $generated)
@@ -68,6 +73,7 @@ class InventoryStoreRequest extends FormRequest
                     }
                 },
             ],
+            'old_property_number' => 'nullable|string|max:255',
         ];
     }
 }

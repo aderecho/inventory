@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\UserStoreRequest;
 use App\Http\Requests\UserUpdateRequest;
 use App\Models\User;
+use App\Services\RoomExportService;
+use App\Services\UserExportService;
 use App\Services\UserService;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Permission;
@@ -35,6 +37,28 @@ class UserManagementController extends Controller
         ]);
     }
 
+    public function export(Request $request, UserExportService $exporter)
+    {
+        $format = $request->query('format') === 'csv' ? 'csv' : 'xlsx';
+
+        return $this->downloadExport(
+            $exporter->exportToFile($format),
+            'Users_' . now()->format('Y-m-d_His') . '.' . $format,
+            $format,
+        );
+    }
+
+    public function exportRooms(Request $request, RoomExportService $exporter)
+    {
+        $format = $request->query('format') === 'csv' ? 'csv' : 'xlsx';
+
+        return $this->downloadExport(
+            $exporter->exportToFile($format),
+            'Rooms_' . now()->format('Y-m-d_His') . '.' . $format,
+            $format,
+        );
+    }
+
     public function store(UserStoreRequest $request)
     {
         $this->userService->createUser($request->validated());
@@ -54,5 +78,16 @@ class UserManagementController extends Controller
         $this->userService->deleteUser($user);
 
         return redirect()->back()->with('success', 'User deleted successfully');
+    }
+
+    private function downloadExport(string $path, string $filename, string $format)
+    {
+        $contentType = $format === 'csv'
+            ? 'text/csv'
+            : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+        return response()
+            ->download($path, $filename, ['Content-Type' => $contentType])
+            ->deleteFileAfterSend(true);
     }
 }

@@ -2,11 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Exceptions\InventoryImportException;
 use App\Models\AssetCondition;
 use App\Models\InventoryItem;
 use App\Models\User;
-use App\Models\UserProfile;
 use App\Services\DashboardService;
 use App\Services\InspectionService;
 use App\Services\InventoryImportService;
@@ -105,7 +103,7 @@ class ConditionDispositionTest extends TestCase
         $this->assertSame(2, app(DashboardService::class)->getStats()['items']);
     }
 
-    public function test_the_import_looks_conditions_up_by_disposition_not_by_name(): void
+    public function test_the_import_uses_the_serviceable_condition_by_disposition(): void
     {
         $this->mock(RoomApiService::class, function ($mock) {
             $mock->shouldReceive('fetchRooms')->andReturn([
@@ -113,34 +111,29 @@ class ConditionDispositionTest extends TestCase
             ]);
         });
 
-        $this->createIssuingRecords();
-
         // Deliberately named nothing like "disposal": the disposition decides.
         $serviceable = $this->condition('Working', AssetCondition::DISPOSITION_SERVICEABLE);
-        $disposed = $this->condition('Unserviceable', AssetCondition::DISPOSITION_DISPOSED);
+        $this->condition('Unserviceable', AssetCondition::DISPOSITION_DISPOSED);
 
         $service = app(InventoryImportService::class);
         $load = new ReflectionMethod($service, 'loadLookups');
         $load->invoke($service);
 
         $this->assertSame($serviceable->id, $this->property($service, 'serviceableConditionId'));
-        $this->assertSame($disposed->id, $this->property($service, 'disposedConditionId'));
     }
 
-    public function test_the_import_refuses_to_run_without_a_disposed_condition(): void
+    public function test_the_import_does_not_require_a_disposed_condition(): void
     {
         $this->mock(RoomApiService::class, function ($mock) {
             $mock->shouldReceive('fetchRooms')->andReturn(['data' => [['id' => 7, 'room_name' => 'Supply Office']]]);
         });
 
-        $this->createIssuingRecords();
+        $serviceable = $this->condition('Good', AssetCondition::DISPOSITION_SERVICEABLE);
+        $service = app(InventoryImportService::class);
 
-        $this->condition('Good', AssetCondition::DISPOSITION_SERVICEABLE);
+        (new ReflectionMethod($service, 'loadLookups'))->invoke($service);
 
-        $this->expectException(InventoryImportException::class);
-
-        (new ReflectionMethod(InventoryImportService::class, 'loadLookups'))
-            ->invoke(app(InventoryImportService::class));
+        $this->assertSame($serviceable->id, $this->property($service, 'serviceableConditionId'));
     }
 
     public function test_the_disposition_helpers_describe_each_condition(): void
@@ -198,17 +191,6 @@ class ConditionDispositionTest extends TestCase
             'condition_name' => $name,
             'disposition' => $disposition,
         ]);
-    }
-
-    /** The import service expects an issuing user and profile with this key. */
-    private function createIssuingRecords(): void
-    {
-        User::factory()->create()->forceFill(['id' => InventoryImportService::ISSUED_BY_ID])->save();
-
-        UserProfile::factory()
-            ->create(['user_id' => InventoryImportService::ISSUED_BY_ID])
-            ->forceFill(['id' => InventoryImportService::ISSUED_BY_ID])
-            ->save();
     }
 
     private function property(object $target, string $name): mixed

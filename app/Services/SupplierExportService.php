@@ -15,7 +15,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /**
  * Builds the supplier workbook (.xlsx): the fixed sample used as the Batch Add
- * template, and the full export using those same columns.
+ * template, and the full export with the supplier id included.
  */
 class SupplierExportService
 {
@@ -23,6 +23,16 @@ class SupplierExportService
 
     /** Column header => width. */
     public const COLUMNS = [
+        'Supplier Name'              => 34,
+        'Contact No.'                => 18,
+        'Email'                      => 30,
+        'Address'                    => 40,
+        'Status (Active / Inactive)' => 16,
+    ];
+
+    /** The export adds the database id; the Batch Add sample does not. */
+    public const EXPORT_COLUMNS = [
+        'ID'                         => 8,
         'Supplier Name'              => 34,
         'Contact No.'                => 18,
         'Email'                      => 30,
@@ -53,18 +63,17 @@ class SupplierExportService
             ->map(fn (Supplier $supplier) => $this->rowFor($supplier));
 
         if ($format === 'csv') {
-            return $this->writeCsvFile($rows, self::COLUMNS);
+            return $this->writeCsvFile($rows, self::EXPORT_COLUMNS);
         }
 
-        return $this->writeToFile($rows, 'Suppliers');
+        return $this->writeToFile($rows, 'Suppliers', self::EXPORT_COLUMNS);
     }
 
-    /**
-     * One row per supplier. The order must match self::COLUMNS.
-     */
+    /** One row per supplier. The order must match self::EXPORT_COLUMNS. */
     public function rowFor(Supplier $supplier): array
     {
         return [
+            $supplier->id,
             $supplier->supplier_name,
             $supplier->contact_no,
             $supplier->email,
@@ -76,20 +85,22 @@ class SupplierExportService
     /**
      * Builds the formatted workbook and saves it to a temporary file.
      */
-    public function writeToFile(iterable $rows, string $sheetTitle): string
+    public function writeToFile(iterable $rows, string $sheetTitle, ?array $columns = null): string
     {
+        $columns ??= self::COLUMNS;
+
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle($sheetTitle);
 
-        $headers = array_keys(self::COLUMNS);
+        $headers = array_keys($columns);
         $lastColumn = Coordinate::stringFromColumnIndex(count($headers));
         $sheet->fromArray($headers, null, 'A1');
 
         $rowNumber = 1;
         foreach ($rows as $row) {
             $rowNumber++;
-            foreach (array_values(self::COLUMNS) as $index => $width) {
+            foreach (array_values($columns) as $index => $width) {
                 $value = $row[$index] ?? null;
 
                 if ($value === null || $value === '') {
@@ -119,7 +130,7 @@ class SupplierExportService
         $sheet->getStyle("A2:{$lastColumn}{$rowNumber}")
             ->getAlignment()->setVertical(Alignment::VERTICAL_TOP)->setWrapText(true);
 
-        foreach (array_values(self::COLUMNS) as $index => $width) {
+        foreach (array_values($columns) as $index => $width) {
             $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($index + 1))->setWidth($width);
         }
 

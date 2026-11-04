@@ -121,6 +121,7 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
 
     // Update Profile
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::patch('/profile/property-number-preference', [ProfileController::class, 'updatePropertyNumberPreference'])->name('profile.property-number-preference');
 
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'searchBar'])->middleware('can:view dashboard')->name('dashboard.index');
@@ -330,6 +331,8 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
     // User Management
     Route::prefix('user-management')->group(function () {
         Route::get('/', [UserManagementController::class, 'UserManagement'])->middleware('can:view users')->name('user_management.index');
+        Route::get('/export', [UserManagementController::class, 'export'])->middleware('can:view users')->name('user_management.export');
+        Route::get('/export-rooms', [UserManagementController::class, 'exportRooms'])->middleware('can:view users')->name('user_management.export-rooms');
         Route::post('/', [UserManagementController::class, 'store'])->middleware('can:create users')->name('user_management.store');
         Route::put('/{user}', [UserManagementController::class, 'update'])->middleware('can:edit users')->name('user_management.update');
         Route::patch('/batch-restore', [UserArchiveController::class, 'batchRestore'])->middleware('can:restore archive_users')->name('user_management.batch-restore');

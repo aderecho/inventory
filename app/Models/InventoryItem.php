@@ -36,6 +36,7 @@ class InventoryItem extends Model
         'po_number',
         'po_number_date',
         'property_number',
+        'old_property_number',
         'serial_number',
         'remarks',
         'date_acquired',

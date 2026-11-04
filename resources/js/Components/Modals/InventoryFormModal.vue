@@ -4,6 +4,7 @@ import { computed, watch, ref, nextTick } from "vue";
 import Toast from "primevue/toast";
 import { useToast } from "primevue/usetoast";
 import Multiselect from "@vueform/multiselect";
+import axios from "axios";
 import "/node_modules/@vueform/multiselect/themes/default.css";
 import draggable from "vuedraggable";
 
@@ -28,9 +29,11 @@ const props = defineProps({
     rooms: { type: Array, default: () => [] },
     lifespanField: { type: Array, default: () => [] },
     assetConditions: { type: Array, default: () => [] },
+    propertyNumberSuggestions: { type: Object, default: () => ({}) },
 });
 
 const toast = useToast();
+const page = usePage();
 
 const emit = defineEmits(["submit", "close", "created"]);
 
@@ -50,6 +53,10 @@ const form = useForm({
     unit_cost: "",
     total_amount: 0,
     property_number: "",
+    old_property_number: "",
+    free_text_property_number: Boolean(
+        page.props.auth?.user?.free_text_property_number,
+    ),
     sales_invoice_date: "",
     po_number_date: "",
     serial_numbers: [], // FOR ADD ITEM
@@ -66,6 +73,7 @@ const form = useForm({
 
 const isEditing = ref(false);
 const separateDescriptions = ref(false);
+const generatedPropertyNumber = ref("");
 
 const calculateTotalAmount = () => {
     const qty = Number(form.quantity) || 0;
@@ -77,26 +85,95 @@ const calculateTotalAmount = () => {
 
 watch(() => [form.quantity, form.unit_cost], calculateTotalAmount);
 
+function propertyNumberSuggestion() {
+    const selectedClass = props.itemClass.find(
+        (c) => c.id === form.item_classification_id,
+    );
+    const code = selectedClass?.classification_code;
+
+    if (!code) return "";
+
+    const acquired = form.date_acquired ? new Date(form.date_acquired) : null;
+    const year =
+        acquired && !Number.isNaN(acquired.getTime())
+            ? acquired.getFullYear()
+            : new Date().getFullYear();
+
+    const key = `${year}-${code}`;
+    const next = props.propertyNumberSuggestions?.[key];
+    return `${key}-${next?.number ?? 2000}-`;
+}
+
+function applyPropertyNumberSuggestion() {
+    const next = propertyNumberSuggestion();
+    if (next) {
+        form.property_number = next;
+        generatedPropertyNumber.value = next;
+    }
+}
+
 watch(
     () => form.item_classification_id,
     (newVal) => {
-        if (isEditing.value || !newVal) return;
-        const selectedClass = props.itemClass.find((c) => c.id === newVal);
+        if (isEditing.value || form.free_text_property_number || !newVal) return;
+        applyPropertyNumberSuggestion();
+    },
+);
 
-        if (selectedClass) {
-            const code = selectedClass.classification_code;
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, "0");
+watch(
+    () => form.date_acquired,
+    () => {
+        if (
+            isEditing.value ||
+            form.free_text_property_number ||
+            !form.item_classification_id
+        ) {
+            return;
+        }
 
-            if (code) {
-                const formatted = `${code}-${year}-${month}-`;
-                form.category = formatted;
-                form.property_number = `${code}-`;
-            } else {
-                form.category = "";
-                form.property_number = "";
-            }
+        const next = propertyNumberSuggestion();
+        if (!next) return;
+
+        const current = form.property_number || "";
+        const previous = generatedPropertyNumber.value;
+
+        if (!current || current === previous || current.endsWith("-")) {
+            form.property_number = next;
+            generatedPropertyNumber.value = next;
+        }
+    },
+);
+
+watch(
+    () => form.free_text_property_number,
+    (isFreeText) => {
+        if (isFreeText) {
+            form.item_classification_id = "";
+            generatedPropertyNumber.value = "";
+            if (props.mode === "create") form.property_number = "";
+        } else if (props.mode === "create" && form.item_classification_id) {
+            applyPropertyNumberSuggestion();
+        }
+
+        if (props.mode === "create") {
+            axios
+                .patch(route("profile.property-number-preference"), {
+                    free_text_property_number: isFreeText ? 1 : 0,
+                })
+                .then(({ data }) => {
+                    if (page.props.auth?.user) {
+                        page.props.auth.user.free_text_property_number =
+                            data.free_text_property_number;
+                    }
+                })
+                .catch(() => {
+                    toast.add({
+                        severity: "warn",
+                        summary: "Preference not saved",
+                        detail: "The free-text setting could not be saved.",
+                        life: 3000,
+                    });
+                });
         }
     },
 );
@@ -128,13 +205,10 @@ watch(
         form.po_number_date = item.po_number_date
             ? item.po_number_date.split("T")[0]
             : "";
-        // If the API provided a full property number (with -NNN), store only the prefix
-        if (item.property_number) {
-            const m = String(item.property_number).match(/^(.*)-(\d{3})$/);
-            form.property_number = m ? m[1] + "-" : item.property_number;
-        } else {
-            form.property_number = "";
-        }
+        form.property_number = item.property_number ?? "";
+        generatedPropertyNumber.value = "";
+        form.free_text_property_number = !item.item_classification_id;
+        form.old_property_number = item.old_property_number ?? "";
         form.serial_number = item.serial_number ?? [];
         form.pr_number = item.pr_number ?? "";
         form.po_number = item.po_number ?? "";
@@ -224,32 +298,71 @@ watch(
     },
 );
 
+function withoutLegacyQuantitySuffix(value) {
+    if (value.endsWith("-")) return value;
+
+    const base = value.replace(/-+$/, "");
+    const parts = base.split("-");
+    const last = parts[parts.length - 1];
+    const before = parts[parts.length - 2];
+
+    if (/^0\d{2}$/.test(last) && /^\d{3,}$/.test(before ?? "")) {
+        parts.pop();
+        return parts.join("-");
+    }
+
+    return value;
+}
+
+function generatedPropertyNumbers(value, quantity) {
+    value = withoutLegacyQuantitySuffix(value);
+    const hadTrailingDash = value.endsWith("-");
+    const base = value.replace(/-+$/, "");
+
+    if (!base) return Array(quantity).fill("");
+
+    const parts = base.split("-");
+    let sequenceIndex = null;
+
+    if (hadTrailingDash && /^\d+$/.test(parts[parts.length - 1])) {
+        sequenceIndex = parts.length - 1;
+    } else if (
+        parts.length >= 2 &&
+        /^\d+$/.test(parts[parts.length - 2]) &&
+        parts[parts.length - 2].length >= 3
+    ) {
+        sequenceIndex = parts.length - 2;
+    }
+
+    if (sequenceIndex === null) {
+        for (let i = parts.length - 1; i >= 0; i--) {
+            if (/^\d+$/.test(parts[i])) {
+                sequenceIndex = i;
+                break;
+            }
+        }
+    }
+
+    if (sequenceIndex === null) {
+        return Array.from({ length: quantity }, (_, i) =>
+            `${base}-${2000 + i}`,
+        );
+    }
+
+    const width = parts[sequenceIndex].length;
+    const start = Number(parts[sequenceIndex]);
+
+    return Array.from({ length: quantity }, (_, i) => {
+        const next = [...parts];
+        next[sequenceIndex] = String(start + i).padStart(width, "0");
+        return next.join("-");
+    });
+}
+
 function getPropertyNumberFor(index) {
-    const prefix = form.property_number || "";
-    return `${prefix}${String(index + 1).padStart(3, "0")}`;
-}
+    const quantity = parseInt(form.quantity) || 1;
 
-const propertyEditing = ref(false);
-const propertyInput = ref("");
-
-const displayPropertyValue = computed(() => {
-    if (propertyEditing.value) return propertyInput.value;
-    return getPropertyNumberFor(0);
-});
-
-function startEditingProperty() {
-    propertyEditing.value = true;
-    propertyInput.value = form.property_number || "";
-}
-
-function onPropertyInput(e) {
-    propertyInput.value = e.target.value || "";
-}
-
-function finishEditingProperty() {
-    propertyEditing.value = false;
-    const v = propertyInput.value || "";
-    form.property_number = v === "" ? "" : v.endsWith("-") ? v : v + "-";
+    return generatedPropertyNumbers(form.property_number || "", quantity)[index] ?? "";
 }
 
 function autoResize(e) {
@@ -275,11 +388,6 @@ watch(
     },
     { deep: true, immediate: true },
 );
-
-const propertyNumberSuffix = computed(() => {
-    const qty = parseInt(form.quantity) || 1;
-    return qty <= 1 ? "001" : `001–${String(qty).padStart(3, "0")}`;
-});
 
 function submit() {
     form.total_amount = parseFloat(form.total_amount);
@@ -634,6 +742,9 @@ function fieldByModel(fields, model) {
                                     <div
                                         class="flex flex-col md:flex-row gap-2 mb-4"
                                     >
+                                        <template
+                                            v-if="!form.free_text_property_number"
+                                        >
                                         <div
                                             v-for="fdp in firstDropdown"
                                             :key="fdp.model"
@@ -696,6 +807,7 @@ function fieldByModel(fields, model) {
                                                 {{ form.errors[fdp.model] }}
                                             </div>
                                         </div>
+                                        </template>
 
                                         <!-- FIRST INPUT FIELD SECTION -->
                                         <div
@@ -707,51 +819,24 @@ function fieldByModel(fields, model) {
                                                 class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
                                             >
                                                 {{ fif.label }}
-                                                <span class="text-red-500"
+                                                <span
+                                                    v-if="fif.required !== false"
+                                                    class="text-red-500"
                                                     >*</span
                                                 >
                                             </label>
 
-                                            <!-- Property number: editable prefix + locked suffix -->
-                                            <div
-                                                v-if="
-                                                    fif.model ===
-                                                    'property_number'
-                                                "
-                                                :class="[
-                                                    'w-full sm:w-[15.7rem] rounded-md',
-                                                    form.errors[fif.model]
-                                                        ? 'border-red-500 border focus-within:ring-red-500'
-                                                        : 'border-gray-300',
-                                                ]"
-                                            >
-                                                <input
-                                                    type="text"
-                                                    :value="
-                                                        displayPropertyValue
-                                                    "
-                                                    @focus="
-                                                        startEditingProperty
-                                                    "
-                                                    @input="onPropertyInput"
-                                                    @blur="
-                                                        finishEditingProperty
-                                                    "
-                                                    :placeholder="
-                                                        fif.placeholder
-                                                    "
-                                                    :required="fif.required"
-                                                    class="w-full rounded-md px-3 py-3 bg-[#F8F8F8] text-[#3B3B3B] text-sm focus:outline-none"
-                                                />
-                                            </div>
-
-                                            <!-- Every other first-input-field, unchanged -->
                                             <input
-                                                v-else
                                                 :type="fif.type || 'text'"
                                                 v-model="form[fif.model]"
                                                 :placeholder="fif.placeholder"
                                                 :required="fif.required"
+                                                :maxlength="
+                                                    fif.model ===
+                                                    'property_number'
+                                                        ? 60
+                                                        : undefined
+                                                "
                                                 :class="[
                                                     'w-full sm:w-[15.7rem] rounded-md px-3 py-3 text-[#3B3B3B] bg-[#F8F8F8] text-sm focus:ring-1 focus:outline-none border',
                                                     form.errors[fif.model]
@@ -759,6 +844,23 @@ function fieldByModel(fields, model) {
                                                         : 'border-gray-300 focus:ring-[#005740] focus:border-[#005740]',
                                                 ]"
                                             />
+
+                                            <label
+                                                v-if="
+                                                    fif.model ===
+                                                    'property_number'
+                                                "
+                                                class="mt-2 inline-flex items-center gap-1.5 text-[11px] text-gray-500"
+                                            >
+                                                <input
+                                                    v-model="
+                                                        form.free_text_property_number
+                                                    "
+                                                    type="checkbox"
+                                                    class="h-3.5 w-3.5 rounded border-gray-300 text-[#0E6021] focus:ring-[#0E6021]"
+                                                />
+                                                <span>Free text property number</span>
+                                            </label>
 
                                             <div
                                                 v-if="form.errors[fif.model]"

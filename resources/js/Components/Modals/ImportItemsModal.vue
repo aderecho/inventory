@@ -23,21 +23,24 @@ const props = defineProps({
             introBody:
                 "Your file must use the same column headers as the sample, in the first row. Each row below the headers is one item. Download the sample, replace the example rows with your items, and keep the headers as they are.",
             requiredColumns:
-                "Property Number, Item Description, Quantity, Unit Cost, Supplier Name, Room / Location, Accountable Person, Receipt No., Receipt Date.",
+                "PAR/ICS number, PAR/ICS date, Property number, old property number, qty, unit, unit cost, total amount, item name, brand, model, description, serial number, accountable person, fund source, pr number, po number, location, supplier, invoice, remarks, issued by",
             requiredNote:
-                "Leave Accountable Person and Receipt No. blank to import an item without assigning it.",
+                "Only Property number and qty are required. Leave any other cell blank to import it as empty; Accountable person and PAR/ICS number must both be filled to create an assignment.",
             mustExist: [
-                "Supplier Name, as named on the Suppliers page",
-                "Room / Location, as a room name or code (e.g. ADM 201)",
-                "Accountable Person, as a user's full name",
-                "Classification, read from the first number of the Property Number (221-905-001 → 221)",
+                "accountable person, location, supplier, and issued by are numeric IDs, not names",
+                "supplier is the id from the Suppliers page",
+                "location is the room id supplied by the rooms API",
+                "accountable person and issued by are user profile ids",
+                "Classification is optional; it is used when the PAR/ICS or property-number prefix matches an existing classification",
             ],
             values: [
                 "Dates as YYYY-MM-DD, for example 2025-06-16.",
-                "For several units, write the property range like 223-918-(001-003) and list one serial per unit, separated by commas.",
-                "Condition: Good or Disposal · Approval Status: Pending, Approved, or Rejected · Private: Yes or No.",
-                "The names in the sample are examples and will be rejected if imported as they are.",
-                "Item Remarks are saved on the item. Receipt Remarks are saved on its receipt (PAR / ICS).",
+                "Property number is limited to 19 characters including hyphens, for example 2016-50-30-0031-161. Old property number is optional free text.",
+                "For several units, write the property number range like 223-918-(001-003) and list one serial per unit, separated by commas.",
+                "accountable person, location, supplier, and issued by expect numeric IDs from the database.",
+                "The IDs in the sample are examples and may not exist in your database; replace them before importing.",
+                "Condition, approval status, private flag, date acquired, lifespan, sales invoice date, PO date, and receipt remarks are no longer imported.",
+                "remarks are saved on the item.",
             ],
             footer:
                 "Rows with problems are skipped. After importing, you will see each skipped row's Excel row number and the reason, so you can fix and import them again.",

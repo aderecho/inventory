@@ -23,7 +23,13 @@ class InventoryUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'item_classification_id' => 'required|integer',
+            'item_classification_id' => [
+                'nullable',
+                'integer',
+                'exists:item_classifications,id',
+                Rule::requiredIf(fn () => ! $this->boolean('free_text_property_number')),
+            ],
+            'free_text_property_number' => 'nullable|boolean',
             'supplier_id' => 'required|integer',
             'room_id' => 'nullable|integer',
             'invoice' => 'required|string|max:50',
@@ -50,10 +56,13 @@ class InventoryUpdateRequest extends FormRequest
             'asset_condition_id' => 'nullable|integer|exists:asset_conditions,id',
             'property_number' => [
                 'required',
+                'string',
+                'max:60',
                 Rule::unique('inventory_items', 'property_number')
                     ->ignore($this->route('id'))
                     ->whereNull('deleted_at'),
             ],
+            'old_property_number' => 'nullable|string|max:255',
         ];
     }
 }
