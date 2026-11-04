@@ -19,6 +19,7 @@ const ACTIONS = [
     "borrow",
     "return",
     "assign",
+    "archive",
 ];
 
 const ACTION_ORDER = [
@@ -27,6 +28,7 @@ const ACTION_ORDER = [
     "create",
     "edit",
     "delete",
+    "archive",
     "restore",
     "force delete",
     "upload",

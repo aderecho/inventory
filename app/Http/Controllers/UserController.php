@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ItemApprovalRequest;
 use Illuminate\Http\Request;
 use App\Models\InventoryItem;
 use App\Models\User;
@@ -26,6 +27,7 @@ class UserController extends Controller
             'sort' => ['nullable', 'string'],
             'direction' => ['nullable', Rule::in(['asc', 'desc'])],
             'approval_status' => ['nullable', Rule::in(['pending', 'approved', 'rejected'])],
+            'status' => ['nullable', Rule::in(['disposed'])],
         ]);
 
         $userId = auth()->id();
@@ -58,6 +60,7 @@ class UserController extends Controller
             10,
             $matchingRoomIds,
             $request->approval_status,
+            $request->status === 'disposed',
         );
 
         $items->getCollection()->transform(function ($item) use ($roomsLookup) {
@@ -71,7 +74,7 @@ class UserController extends Controller
             return $item;
         });
 
-        $items->appends($request->only(['search', 'sort', 'direction', 'approval_status']));
+        $items->appends($request->only(['search', 'sort', 'direction', 'approval_status', 'status']));
 
         return inertia('Users/Dashboard', [
             'user' => $this->userService->getAuthenticatedUser(),
@@ -83,15 +86,13 @@ class UserController extends Controller
                 'sort' => $request->sort,
                 'direction' => $request->direction ?? 'asc',
                 'approval_status' => $request->approval_status,
+                'status' => $request->status,
             ],
         ]);
     }
 
-    public function updateApproval(Request $request, InventoryItem $inventoryItem)
+    public function updateApproval(ItemApprovalRequest $request, InventoryItem $inventoryItem)
     {
-        $request->validate([
-            'approval_status' => ['required', Rule::in(['pending', 'approved', 'rejected'])],
-        ]);
 
         $accountablePersonId = $inventoryItem->latestAcknowledgementItem?->accountable_person_id;
 
@@ -103,6 +104,7 @@ class UserController extends Controller
 
         $inventoryItem->update([
             'approval_status' => $request->approval_status,
+            'approval_remarks' => $request->approvalRemarks(),
         ]);
 
         $this->syncPendingApprovalNotification(
@@ -127,6 +129,7 @@ class UserController extends Controller
             'id' => $inventoryItem->id,
             'property_number' => $inventoryItem->property_number,
             'item_name' => $inventoryItem->item_name,
+            'remarks' => $inventoryItem->approval_remarks,
         ];
 
         $admins = User::role(['ADMIN', 'SUPER-ADMIN'])

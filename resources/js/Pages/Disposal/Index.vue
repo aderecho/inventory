@@ -1,12 +1,15 @@
 <script setup>
 import { computed, ref } from "vue";
-import { usePage } from "@inertiajs/vue3";
+import { router, usePage } from "@inertiajs/vue3";
 import { Head } from "@inertiajs/vue3";
 import Layout from "@/Layouts/Layout.vue";
 import Toast from "primevue/toast";
 import InventoryTable from "@/Components/InventoryTable.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import InventoryFormModal from "@/Components/Modals/InventoryFormModal.vue";
+import ArchiveModal from "@/Components/Modals/ArchiveModal.vue";
+import BatchArchiveModal from "@/Components/Modals/BatchArchiveModal.vue";
+import SuccessDeleteModal from "@/Components/Modals/SuccessDeleteModal.vue";
 import SearchFilterBar from "@/Components/Filters/SearchFilterBar.vue";
 import { usePermissions } from "@/Composables/usePermissions";
 import DownloadProgressCard from "@/Components/DownloadProgressCard.vue";
@@ -14,7 +17,7 @@ import { usePrintDownload } from "@/Composables/usePrintDownload";
 import { buildIirupPayload } from "@/lib/iirupPayload";
 import { useStickyToolbar } from "@/Composables/useStickyToolbar";
 import { useToast } from "primevue/usetoast";
-import { ChevronDown, Printer, X } from "lucide-vue-next";
+import { Archive, ChevronDown, Printer, X } from "lucide-vue-next";
 import { Button } from "@/Components/ui/button";
 
 defineProps({
@@ -368,6 +371,90 @@ function handleView(item) {
     showFormModal.value = true;
 }
 
+// ARCHIVE: moves a disposed item to the item archive ("archive disposal").
+const showArchiveModal = ref(false);
+const showArchiveSuccess = ref(false);
+const isArchiving = ref(false);
+
+const archiveSuccessIcon = `
+  <span class="flex h-16 w-16 items-center justify-center rounded-full bg-[#C8EFD4]">
+    <i class="fa-solid fa-box-archive text-2xl text-[#41BD66]"></i>
+  </span>`;
+
+const canArchive = computed(() => disposalActions.value.includes("delete"));
+const showBatchArchiveModal = ref(false);
+const archiveSuccessMessage = ref("The item was moved to the item archive.");
+
+function openBatchArchive() {
+    if (!canArchive.value || tempSelectedIds.value.length === 0) return;
+
+    showBatchArchiveModal.value = true;
+}
+
+function confirmBatchArchive() {
+    if (isArchiving.value) return;
+
+    const count = tempSelectedIds.value.length;
+    isArchiving.value = true;
+
+    router.delete(route("disposal.batch-archive"), {
+        data: { ids: tempSelectedIds.value },
+        preserveScroll: true,
+        onSuccess: () => {
+            showBatchArchiveModal.value = false;
+            archiveSuccessMessage.value =
+                count === 1
+                    ? "The item was moved to the item archive."
+                    : count + " items were moved to the item archive.";
+            showArchiveSuccess.value = true;
+            clearSelection();
+        },
+        onError: () => {
+            toast.add({
+                severity: "error",
+                summary: "Archive Failed",
+                detail: "The selected items could not be archived.",
+                life: 5000,
+            });
+        },
+        onFinish: () => {
+            isArchiving.value = false;
+        },
+    });
+}
+
+function handleArchive(item) {
+    currentItem.value = item;
+    showArchiveModal.value = true;
+}
+
+function confirmArchive(item) {
+    if (isArchiving.value) return;
+
+    isArchiving.value = true;
+
+    router.delete(route("disposal.archive", item.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showArchiveModal.value = false;
+            archiveSuccessMessage.value = "The item was moved to the item archive.";
+            showArchiveSuccess.value = true;
+            removeFromSelection(item.id);
+        },
+        onError: (errors) => {
+            toast.add({
+                severity: "error",
+                summary: "Archive Failed",
+                detail: errors.item ?? "The item could not be archived.",
+                life: 5000,
+            });
+        },
+        onFinish: () => {
+            isArchiving.value = false;
+        },
+    });
+}
+
 const selectedItemsMap = ref(new Map());
 
 const tempSelectedIds = computed(() => Array.from(selectedItemsMap.value.keys()));
@@ -509,6 +596,24 @@ async function printIirupForm(printRoute) {
                                     class="hidden rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold sm:inline"
                                 >
                                     Both forms, one file
+                                </span>
+                            </Button>
+                        </div>
+
+                        <!-- BATCH ARCHIVE: only with "archive disposal" -->
+                        <div v-if="canArchive" class="w-full sm:w-auto">
+                            <Button
+                                type="button"
+                                @click="openBatchArchive"
+                                :disabled="tempSelectedIds.length === 0"
+                                class="w-full justify-center bg-[#D71D1D] text-xs text-white hover:bg-[#b81616] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-[#D71D1D] sm:text-sm"
+                            >
+                                <Archive class="h-4 w-4" />
+                                Batch Archive
+                                <span
+                                    class="inline-flex h-5 min-w-7 items-center justify-center rounded-full bg-white/25 px-1.5 text-[11px] tabular-nums"
+                                >
+                                    {{ tempSelectedIds.length }}
                                 </span>
                             </Button>
                         </div>
@@ -662,6 +767,30 @@ async function printIirupForm(printRoute) {
                 :selected="tempSelectedIds"
                 @selection-changed="handleSelectionChanged"
                 @view="handleView"
+                @delete="handleArchive"
+            />
+
+            <BatchArchiveModal
+                v-if="showBatchArchiveModal"
+                :items="selectedItemsDetails"
+                @confirm="confirmBatchArchive"
+                @close="showBatchArchiveModal = false"
+            />
+
+            <ArchiveModal
+                v-if="showArchiveModal"
+                :item="currentItem"
+                @confirm="confirmArchive"
+                @close="showArchiveModal = false"
+            />
+
+            <SuccessDeleteModal
+                v-if="showArchiveSuccess"
+                :icon="archiveSuccessIcon"
+                title="Archive Success"
+                :message="archiveSuccessMessage"
+                buttonText="Confirm"
+                @close="showArchiveSuccess = false"
             />
         </div>
     </Layout>

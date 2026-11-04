@@ -237,6 +237,12 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
     // Disposal
     Route::prefix('disposal')->group(function () {
         Route::get('/', [DisposalController::class, 'index'])->name('disposal.index');
+        Route::delete('/batch-archive', [DisposalController::class, 'batchArchive'])
+            ->middleware('can:archive disposal')
+            ->name('disposal.batch-archive');
+        Route::delete('/{item}/archive', [DisposalController::class, 'archive'])
+            ->middleware('can:archive disposal')
+            ->name('disposal.archive');
 
         Route::post('/print/iirup', [DisposalPrintController::class, 'printIirup'])
             ->name('disposal.print.iirup');

@@ -2,8 +2,12 @@
 
 namespace App\Services;
 
-use App\Models\InventoryItem;
+use App\Models\AcknowledgementItem;
 use App\Models\AcknowledgementReceipt;
+use App\Models\AssetInspection;
+use App\Models\InventoryItem;
+use App\Models\ItemHistoryLocation;
+use Illuminate\Support\Facades\DB;
 
 class ItemArchivingService
 {
@@ -67,30 +71,40 @@ class ItemArchivingService
             ->withQueryString();
     }
 
-    public function forceDelete($id)
+    /**
+     * Permanently removes an archived item and everything recorded against it:
+     * its acknowledgement lines (and their transfer types), inspections and
+     * location history, then any receipt left without a single item. A receipt
+     * that still lists other items stays, since it is their record too.
+     * All of it happens in one transaction, so a failure leaves nothing half gone.
+     */
+    public function forceDelete($id): void
     {
-        $item = InventoryItem::onlyTrashed()
-            ->with('acknowledgementItems')
-            ->findOrFail($id);
+        DB::transaction(function () use ($id) {
+            $item = InventoryItem::onlyTrashed()->findOrFail($id);
 
-        $receiptIds = $item->acknowledgementItems
-            ->pluck('acknowledgement_id')
-            ->filter()
-            ->unique();
+            $acknowledgementItemIds = AcknowledgementItem::where('inventory_item_id', $item->id)
+                ->pluck('id');
 
-        // Neither acknowledgement model is soft deletable, so these are real
-        // deletes: the item's link rows go first, then any receipt that is
-        // left without a single item.
-        $item->acknowledgementItems()->delete();
+            $receiptIds = AcknowledgementItem::whereIn('id', $acknowledgementItemIds)
+                ->whereNotNull('acknowledgement_id')
+                ->distinct()
+                ->pluck('acknowledgement_id');
 
-        foreach ($receiptIds as $receiptId) {
-            $receipt = AcknowledgementReceipt::find($receiptId);
+            DB::table('acknowledgement_item_transfer_type')
+                ->whereIn('acknowledgement_item_id', $acknowledgementItemIds)
+                ->delete();
 
-            if ($receipt && $receipt->acknowledgementItems()->count() === 0) {
-                $receipt->delete();
-            }
-        }
+            AcknowledgementItem::whereIn('id', $acknowledgementItemIds)->delete();
 
-        $item->forceDelete();
+            AcknowledgementReceipt::whereIn('id', $receiptIds)
+                ->whereDoesntHave('acknowledgementItems')
+                ->delete();
+
+            AssetInspection::where('inventory_item_id', $item->id)->delete();
+            ItemHistoryLocation::where('inventory_item_id', $item->id)->delete();
+
+            $item->forceDelete();
+        });
     }
 }

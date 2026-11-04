@@ -50,6 +50,7 @@ class UserService
         int $perPage = 10,
         array $matchingRoomIds = [],
         ?string $approvalStatus = null,
+        bool $disposed = false,
     ) {
         $sortable = ['item_name', 'date_acquired', 'date_assigned'];
         $sort = in_array($sort, $sortable, true) ? $sort : null;
@@ -98,7 +99,15 @@ class UserService
             ]);
         }
 
-        if (filled($approvalStatus)) {
+        // Disposed property has its own tab; every other view is what the
+        // account still holds.
+        $query->where(
+            'status',
+            $disposed ? '=' : '!=',
+            InventoryItem::STATUS_DISPOSED
+        );
+
+        if (filled($approvalStatus) && ! $disposed) {
             $query->where('approval_status', $approvalStatus);
         }
 
@@ -122,10 +131,14 @@ class UserService
     {
         // Matches the "Assigned to me" table: the property whose latest
         // acknowledgement is still held by this account.
-        $assigned = InventoryItem::whereHas(
+        $held = InventoryItem::whereHas(
             'latestAcknowledgementItem',
             fn ($query) => $query->where('accountable_person_id', $userId)
         );
+
+        // Disposed property is no longer in custody, so it is counted apart.
+        $disposedItems = (clone $held)->where('status', InventoryItem::STATUS_DISPOSED)->count();
+        $assigned = (clone $held)->where('status', '!=', InventoryItem::STATUS_DISPOSED);
 
         $assignedItems = (clone $assigned)->count();
 
@@ -149,6 +162,7 @@ class UserService
             'pending_items' => $assignedItems - $approved - $rejected,
             'approved_items' => $approved,
             'rejected_items' => $rejected,
+            'disposed_items' => $disposedItems,
             'receipts' => $receipts,
             'borrowed_items' => $borrowed->count(),
             'overdue_borrowings' => $borrowed->where('is_overdue', true)->count(),

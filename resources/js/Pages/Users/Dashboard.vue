@@ -20,6 +20,7 @@ import {
     Package,
     Phone,
     Search,
+    Trash2,
 } from "lucide-vue-next";
 
 const props = defineProps({
@@ -107,6 +108,16 @@ const stats_cards = computed(() => [
         status: "approved",
         action: "Show approved items",
     },
+    {
+        key: "disposed",
+        label: "Disposed",
+        value: props.stats?.disposed_items ?? 0,
+        hint: "No longer in your custody",
+        icon: Trash2,
+        target: "assigned-items",
+        status: "disposed",
+        action: "Show disposed items",
+    },
     // {
     //     key: "borrowed",
     //     label: "Borrowed now",
@@ -149,15 +160,57 @@ function openStat(stat) {
 
 // Assigned items: same query parameters the controller already validates.
 const search = ref(props.filters?.search ?? "");
-const approvalStatus = ref(props.filters?.approval_status ?? "");
+// "disposed" is a tab of its own; the server reads it as status=disposed.
+const approvalStatus = ref(
+    props.filters?.status === "disposed"
+        ? "disposed"
+        : (props.filters?.approval_status ?? ""),
+);
 const sortKey = ref(props.filters?.sort ?? null);
 const sortDirection = ref(props.filters?.direction ?? "asc");
 
+// Each filter wears its status colour: soft while idle, solid when chosen.
 const statusTabs = computed(() => [
-    { value: "", label: "All", count: assignedCount.value },
-    { value: "pending", label: "Pending", count: pendingCount.value },
-    { value: "approved", label: "Approved", count: approvedCount.value },
-    { value: "rejected", label: "Rejected", count: props.stats?.rejected_items ?? 0 },
+    {
+        value: "",
+        label: "All Asset/s",
+        count: assignedCount.value,
+        idle: "border-gray-200 bg-white text-gray-700 hover:border-gray-400",
+        active: "border-gray-900 bg-gray-900 text-white",
+        dot: "bg-gray-400",
+    },
+    {
+        value: "pending",
+        label: "Pending Asset/s",
+        count: pendingCount.value,
+        idle: "border-amber-200 bg-amber-50 text-amber-800 hover:border-amber-400",
+        active: "border-amber-500 bg-amber-500 text-white",
+        dot: "bg-amber-500",
+    },
+    {
+        value: "approved",
+        label: "Approved Asset/s",
+        count: approvedCount.value,
+        idle: "border-emerald-200 bg-emerald-50 text-emerald-800 hover:border-emerald-400",
+        active: "border-[#005740] bg-[#005740] text-white",
+        dot: "bg-[#005740]",
+    },
+    {
+        value: "rejected",
+        label: "Rejected Asset/s",
+        count: props.stats?.rejected_items ?? 0,
+        idle: "border-red-200 bg-red-50 text-red-700 hover:border-red-400",
+        active: "border-[#D71D1D] bg-[#D71D1D] text-white",
+        dot: "bg-[#D71D1D]",
+    },
+    {
+        value: "disposed",
+        label: "Disposed Asset/s",
+        count: props.stats?.disposed_items ?? 0,
+        idle: "border-slate-200 bg-slate-100 text-slate-700 hover:border-slate-400",
+        active: "border-slate-600 bg-slate-600 text-white",
+        dot: "bg-slate-500",
+    },
 ]);
 
 const isSearching = ref(false);
@@ -170,7 +223,11 @@ function fetchItems(extra = {}) {
         route("user.dashboard"),
         {
             search: search.value || undefined,
-            approval_status: approvalStatus.value || undefined,
+            approval_status:
+                approvalStatus.value && approvalStatus.value !== "disposed"
+                    ? approvalStatus.value
+                    : undefined,
+            status: approvalStatus.value === "disposed" ? "disposed" : undefined,
             sort: sortKey.value || undefined,
             direction: sortDirection.value,
             ...extra,
@@ -260,7 +317,7 @@ const borrowedItems = computed(() => props.borrowedItems ?? []);
 
                         <span class="inline-flex items-center gap-1.5">
                             <FileText class="h-3.5 w-3.5" />
-                            {{ stats?.receipts ?? 0 }} acknowledgement receipt(s)
+                            {{ stats?.receipts ?? 0 }} ICS/PAR
                         </span>
 
                             <!-- <button
@@ -295,7 +352,7 @@ const borrowedItems = computed(() => props.borrowedItems ?? []);
                 </div>
 
                 <!-- NUMBERS: each one is a button that filters the list below. -->
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 xl:w-auto">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:w-auto">
                     <motion.button
                         v-for="(stat, index) in stats_cards"
                         :key="stat.key"
@@ -430,9 +487,9 @@ const borrowedItems = computed(() => props.borrowedItems ?? []);
 
                     <!-- STATUS TABS -->
                     <div
-                        class="mt-4 inline-flex max-w-full gap-1 overflow-x-auto rounded-lg bg-gray-100 p-1"
+                        class="mt-4 flex max-w-full flex-wrap gap-2"
                         role="tablist"
-                        aria-label="Filter by approval status"
+                        aria-label="Filter by status"
                     >
                         <button
                             v-for="tab in statusTabs"
@@ -441,20 +498,26 @@ const borrowedItems = computed(() => props.borrowedItems ?? []);
                             role="tab"
                             :aria-selected="approvalStatus === tab.value"
                             :class="[
-                                'inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
+                                'inline-flex items-center gap-2 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-150 active:scale-95',
                                 approvalStatus === tab.value
-                                    ? 'bg-white text-[#005740] shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-700',
+                                    ? [tab.active, 'shadow-sm']
+                                    : tab.idle,
                             ]"
                             @click="approvalStatus = tab.value"
                         >
+                            <span
+                                :class="[
+                                    'h-1.5 w-1.5 rounded-full',
+                                    approvalStatus === tab.value ? 'bg-white' : tab.dot,
+                                ]"
+                            ></span>
                             {{ tab.label }}
                             <span
                                 :class="[
                                     'rounded-full px-1.5 text-[10px] tabular-nums',
                                     approvalStatus === tab.value
-                                        ? 'bg-[#005740]/10 text-[#005740]'
-                                        : 'bg-gray-200 text-gray-500',
+                                        ? 'bg-white/20 text-white'
+                                        : 'bg-white/80 text-current',
                                 ]"
                             >
                                 {{ tab.count }}

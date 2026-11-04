@@ -964,13 +964,18 @@ async function printQrCodesAsPdf() {
     });
 }
 
+// Same rule as UserProfile::formatNamePart on the server: every word starts
+// with a capital, including ñ and accented letters ("DELA PEÑA" -> "Dela Peña").
 const formatName = (name) => {
     if (!name) return "";
 
     return name
         .trim()
-        .toLowerCase()
-        .replace(/\b\w/g, (char) => char.toUpperCase());
+        .replace(/\s+/g, " ")
+        .toLocaleLowerCase("en-PH")
+        .replace(/(^|[\s\-'’])(\p{L})/gu, (match, before, letter) =>
+            before + letter.toLocaleUpperCase("en-PH"),
+        );
 };
 
 const users = computed(() => {
@@ -1106,6 +1111,15 @@ function handleAssignSubmit(ids) {
                     <div
                         class="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto"
                     >
+                     <Button
+                            v-if="canCreateInventory"
+                            @click="openAdd"
+                            class="w-full justify-center bg-[#0E6021] text-xs text-white hover:bg-[#19703a] sm:text-sm"
+                        >
+                            <Plus class="w-4 h-4 mr-2" />
+                            Add Item
+                        </Button>
+
                         <Button
                             v-if="canImportInventory"
                             @click="openImportModal"
@@ -1116,6 +1130,16 @@ function handleAssignSubmit(ids) {
                         </Button>
 
                         <Button
+                            v-if="canExportInventory"
+                            @click="showExportModal = true"
+                            variant="outline"
+                            class="w-full justify-center border-[#0E6021] text-xs text-[#0E6021] hover:bg-[#0E6021]/5 sm:text-sm"
+                        >
+                            <FileDown class="w-4 h-4 mr-2" />
+                            Export
+                        </Button>
+
+                         <Button
                             v-if="canDeleteInventory"
                             @click="openBatchArchive"
                             :disabled="!tempSelectedIds.length"
@@ -1128,25 +1152,6 @@ function handleAssignSubmit(ids) {
                             >
                                 {{ tempSelectedIds.length }}
                             </span>
-                        </Button>
-
-                        <Button
-                            v-if="canCreateInventory"
-                            @click="openAdd"
-                            class="w-full justify-center bg-[#0E6021] text-xs text-white hover:bg-[#19703a] sm:text-sm"
-                        >
-                            <Plus class="w-4 h-4 mr-2" />
-                            Add Item
-                        </Button>
-
-                        <Button
-                            v-if="canExportInventory"
-                            @click="showExportModal = true"
-                            variant="outline"
-                            class="w-full justify-center border-[#0E6021] text-xs text-[#0E6021] hover:bg-[#0E6021]/5 sm:text-sm"
-                        >
-                            <FileDown class="w-4 h-4 mr-2" />
-                            Export
                         </Button>
 
                     </div>

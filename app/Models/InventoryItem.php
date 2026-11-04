@@ -40,6 +40,7 @@ class InventoryItem extends Model
         'remarks',
         'date_acquired',
         'approval_status',
+        'approval_remarks',
         'status',
         'lifespan',
         'is_private',

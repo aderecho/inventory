@@ -18,6 +18,8 @@ export function usePermissions() {
     const disposalActions = computed(() => {
         const result = [];
         if (can("view disposal")) result.push("view");
+        // InventoryTable shows its archive button for "delete".
+        if (can("archive disposal")) result.push("delete");
         return result;
     });
 

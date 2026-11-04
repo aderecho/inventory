@@ -48,10 +48,33 @@ class UserProfile extends Model
                     $this->middle_name,
                     $this->last_name,
                 ])
+                    ->map(fn ($name) => self::formatNamePart($name))
                     ->filter()
-                    ->map(fn($name) => ucfirst(strtolower(trim($name))))
                     ->join(' ');
             }
+        );
+    }
+
+    /**
+     * Capitalises every word of a name part, whatever case it was saved in:
+     * "DELA PEÑA" -> "Dela Peña", "santos-cruz" -> "Santos-Cruz",
+     * "O'BRIEN" -> "O'Brien". Multibyte-safe, so ñ and accents keep working.
+     */
+    public static function formatNamePart(?string $name): string
+    {
+        $name = trim(preg_replace('/\s+/u', ' ', (string) $name));
+
+        if ($name === '') {
+            return '';
+        }
+
+        $name = mb_convert_case($name, MB_CASE_TITLE, 'UTF-8');
+
+        // Title case treats an apostrophe as part of the word ("O'brien").
+        return preg_replace_callback(
+            "/(['’])(\\p{Ll})/u",
+            fn (array $match) => $match[1] . mb_strtoupper($match[2], 'UTF-8'),
+            $name
         );
     }
 
