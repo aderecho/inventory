@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from "vue";
+import axios from "axios";
 import {
     Eye,
     FileDown,
@@ -13,6 +14,9 @@ const props = defineProps({
     // Shows the "Download Sample" link inside the instructions.
     canDownloadSample: { type: Boolean, default: true },
 
+    // When set, the modal lists the workbook's sheets before importing.
+    sheetEndpoint: { type: String, default: null },
+
     // Wording for the module using this modal (items by default).
     content: {
         type: Object,
@@ -23,9 +27,9 @@ const props = defineProps({
             introBody:
                 "Your file must use the same column headers as the sample, in the first row. Each row below the headers is one item. Download the sample, replace the example rows with your items, and keep the headers as they are.",
             requiredColumns:
-                "PAR/ICS number, PAR/ICS date, Property number, old property number, qty, unit, unit cost, total amount, item name, brand, model, description, serial number, accountable person, fund source, pr number, po number, location, supplier, invoice, remarks, issued by",
+                "PAR/ICS Number, PAR/ICS Date, New Property No., Property No., Qty, Unit, Unit Cost, Total Amount, Description, Date Acquired, Accountable Person, Fund Source, PR#, PO#, Location, Supplier, Invoice, Remarks, Issued By",
             requiredNote:
-                "Only Property number and qty are required. Leave any other cell blank to import it as empty; Accountable person and PAR/ICS number must both be filled to create an assignment.",
+                "Only New Property No. (or Property No.) and Qty are required. Leave any other cell blank to import it as empty. Accountable Person and PAR/ICS Number must both be filled to create an assignment.",
             mustExist: [
                 "accountable person, location, supplier, and issued by are numeric IDs, not names",
                 "supplier is the id from the Suppliers page",
@@ -34,12 +38,12 @@ const props = defineProps({
                 "Classification is optional; it is used when the PAR/ICS or property-number prefix matches an existing classification",
             ],
             values: [
-                "Dates as YYYY-MM-DD, for example 2025-06-16.",
-                "Property number is limited to 19 characters including hyphens, for example 2016-50-30-0031-161. Old property number is optional free text.",
-                "For several units, write the property number range like 223-918-(001-003) and list one serial per unit, separated by commas.",
+                "PAR/ICS Date and Date Acquired use MM-DD-YYYY, for example 06-16-2025. Excel date cells are accepted in any display format.",
+                "Property No. is limited to 19 characters including hyphens, for example 2016-50-30-0031-161.",
+                "For several units, write the property number range like 223-918-(001-003).",
                 "accountable person, location, supplier, and issued by expect numeric IDs from the database.",
                 "The IDs in the sample are examples and may not exist in your database; replace them before importing.",
-                "Condition, approval status, private flag, date acquired, lifespan, sales invoice date, PO date, and receipt remarks are no longer imported.",
+                "Approval status, private flag, lifespan, sales invoice date, PO date, and receipt remarks are not imported.",
                 "remarks are saved on the item.",
             ],
             footer:
@@ -51,7 +55,8 @@ const props = defineProps({
 
 const emit = defineEmits(["close", "import", "review", "download-sample"]);
 
-const MAX_BYTES = 20 * 1024 * 1024;
+const MAX_MB = 20;
+const MAX_BYTES = MAX_MB * 1024 * 1024;
 const ACCEPTED = [".xlsx", ".xls", ".csv"];
 
 const fileInput = ref(null);
@@ -59,6 +64,13 @@ const selectedFile = ref(null);
 const fileError = ref("");
 const isDragging = ref(false);
 const isClosing = ref(false);
+const sheets = ref([]);
+const selectedSheet = ref(null);
+const loadingSheets = ref(false);
+const sheetError = ref("");
+const canSubmit = computed(
+    () => Boolean(selectedFile.value) && !fileError.value && !loadingSheets.value,
+);
 
 const fileSize = computed(() => {
     const bytes = selectedFile.value?.size ?? 0;
@@ -67,22 +79,51 @@ const fileSize = computed(() => {
         : Math.max(1, Math.round(bytes / 1024)) + " KB";
 });
 
-function pickFile(file) {
+async function pickFile(file) {
     fileError.value = "";
+    sheets.value = [];
+    selectedSheet.value = null;
+    sheetError.value = "";
 
     if (!file) return;
 
     const name = file.name.toLowerCase();
     if (!ACCEPTED.some((ext) => name.endsWith(ext))) {
+        selectedFile.value = null;
         fileError.value = "Please choose an .xlsx, .xls, or .csv file.";
         return;
     }
     if (file.size > MAX_BYTES) {
-        fileError.value = "The file is larger than 20 MB.";
+        selectedFile.value = null;
+        fileError.value = `The file is larger than ${MAX_MB} MB.`;
         return;
     }
 
     selectedFile.value = file;
+    await loadSheets(file);
+}
+
+async function loadSheets(file) {
+    if (!props.sheetEndpoint || !/\.(xlsx|xls)$/i.test(file.name)) return;
+
+    loadingSheets.value = true;
+
+    try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const { data } = await axios.post(props.sheetEndpoint, formData);
+        const list = Array.isArray(data.sheets) ? data.sheets : [];
+        sheets.value = list;
+        selectedSheet.value =
+            list.find((sheet) => sheet.active)?.name ?? list[0]?.name ?? null;
+    } catch (error) {
+        sheetError.value =
+            error.response?.data?.message ??
+            "Could not read the sheet names from this file.";
+    } finally {
+        loadingSheets.value = false;
+    }
 }
 
 function onFileChange(event) {
@@ -98,18 +139,21 @@ function onDrop(event) {
 function clearFile() {
     selectedFile.value = null;
     fileError.value = "";
+    sheets.value = [];
+    selectedSheet.value = null;
+    sheetError.value = "";
 }
 
 function submit() {
     if (selectedFile.value) {
-        emit("import", selectedFile.value);
+        emit("import", selectedFile.value, selectedSheet.value);
     }
 }
 
 // Review parses the file and reports what would happen, without saving.
 function review() {
     if (selectedFile.value) {
-        emit("review", selectedFile.value);
+        emit("review", selectedFile.value, selectedSheet.value);
     }
 }
 
@@ -232,6 +276,60 @@ function closeWithAnimation() {
 
                 <p class="text-xs text-gray-500">{{ content.footer }}</p>
 
+                <div v-if="loadingSheets" class="text-xs text-gray-500">
+                    Reading worksheet names…
+                </div>
+
+                <div
+                    v-else-if="sheets.length > 1"
+                    class="rounded-lg border border-gray-200 bg-gray-50 p-3"
+                >
+                    <p
+                        class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500"
+                    >
+                        Choose worksheet
+                    </p>
+
+                    <div class="flex flex-wrap gap-1.5">
+                        <button
+                            v-for="(sheet, index) in sheets"
+                            :key="sheet.name"
+                            type="button"
+                            @click="selectedSheet = sheet.name"
+                            :title="sheet.name"
+                            :class="[
+                                'flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] transition-colors',
+                                selectedSheet === sheet.name
+                                    ? 'border-[#005740] bg-[#005740] text-white'
+                                    : 'border-gray-300 bg-white text-gray-600 hover:border-[#005740]/40',
+                            ]"
+                        >
+                            <span class="font-bold">{{ index + 1 }}</span>
+                            <span class="max-w-[7rem] truncate">
+                                {{ sheet.name }}
+                            </span>
+                        </button>
+                    </div>
+
+                    <select
+                        v-model="selectedSheet"
+                        class="mt-2 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700 focus:border-[#005740] focus:outline-none"
+                    >
+                        <option
+                            v-for="(sheet, index) in sheets"
+                            :key="'sheet-' + sheet.name"
+                            :value="sheet.name"
+                        >
+                            {{ index + 1 }} — {{ sheet.name }}
+                            {{ sheet.active ? " (active)" : "" }}
+                        </option>
+                    </select>
+                </div>
+
+                <p v-if="sheetError" class="text-xs text-red-500">
+                    {{ sheetError }}
+                </p>
+
                 <!-- File picker -->
                 <div>
                     <input
@@ -260,7 +358,7 @@ function closeWithAnimation() {
                             Click to choose a file, or drag it here
                         </p>
                         <p class="text-xs text-gray-500">
-                            .xlsx, .xls, or .csv · up to 20 MB
+                            .xlsx, .xls, or .csv · maximum {{ MAX_MB }} MB
                         </p>
                     </div>
 
@@ -277,7 +375,9 @@ function closeWithAnimation() {
                             >
                                 {{ selectedFile.name }}
                             </p>
-                            <p class="text-xs text-gray-500">{{ fileSize }}</p>
+                            <p class="text-xs text-gray-500">
+                                {{ fileSize }} · maximum {{ MAX_MB }} MB
+                            </p>
                         </div>
                         <button
                             type="button"
@@ -300,8 +400,9 @@ function closeWithAnimation() {
                 class="flex flex-col gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0 sm:flex-row sm:items-center sm:justify-between"
             >
                 <p class="text-xs text-gray-500">
-                    Review checks the file and shows the report without saving
-                    anything. Import writes it to the database.
+                    Maximum file size: {{ MAX_MB }} MB. Review checks the file
+                    and shows the report without saving anything. Import writes
+                    it to the database.
                 </p>
 
                 <div class="flex flex-wrap items-center justify-end gap-3">
@@ -316,7 +417,7 @@ function closeWithAnimation() {
                     <button
                         type="button"
                         @click="review"
-                        :disabled="!selectedFile"
+                        :disabled="!canSubmit"
                         class="flex items-center gap-2 rounded-lg border border-[#005740]/30 px-6 py-2.5 text-sm font-semibold text-[#005740] transition-colors hover:bg-[#005740]/5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
                         title="Show the report without importing"
                     >
@@ -327,7 +428,7 @@ function closeWithAnimation() {
                     <button
                         type="button"
                         @click="submit"
-                        :disabled="!selectedFile"
+                        :disabled="!canSubmit"
                         class="bg-gradient-to-r from-[#005740] to-[#00795a] text-white px-8 py-2.5 rounded-lg text-sm font-semibold hover:shadow-md hover:from-[#00432f] hover:to-[#006548] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {{ content.importLabel }}

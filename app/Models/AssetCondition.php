@@ -5,9 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class AssetCondition extends Model
 {
+    use LogsActivity;
+
     /** What the condition means to the process, not to the reader. */
     public const DISPOSITION_SERVICEABLE = 'serviceable';
     public const DISPOSITION_FOR_DISPOSAL = 'for_disposal';
@@ -26,6 +30,16 @@ class AssetCondition extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('asset_condition')
+            ->logFillable()
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn (string $eventName) => "Asset condition \"{$this->condition_name}\" was {$eventName}");
+    }
 
     public function inspections(): HasMany
     {

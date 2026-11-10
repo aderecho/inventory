@@ -4,9 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class ItemBorrowingItem extends Model
 {
+    use LogsActivity;
+
     protected $fillable = [
         'item_borrowing_id',
         'inventory_item_id',
@@ -22,6 +26,20 @@ class ItemBorrowingItem extends Model
     ];
 
     protected $appends = ['is_returned'];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('borrowing_item')
+            ->logFillable()
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(function (string $eventName) {
+                $item = $this->inventoryItem?->property_number ?? "Item #{$this->inventory_item_id}";
+
+                return "Borrowed item {$item} was {$eventName}";
+            });
+    }
 
     public function borrowing(): BelongsTo
     {

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Categories;
 use App\Http\Controllers\PrintController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ImportReportController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InventoryController;
@@ -121,7 +122,6 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
 
     // Update Profile
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::patch('/profile/property-number-preference', [ProfileController::class, 'updatePropertyNumberPreference'])->name('profile.property-number-preference');
 
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'searchBar'])->middleware('can:view dashboard')->name('dashboard.index');
@@ -143,7 +143,7 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
         Route::delete('/{apiClient}', [ApiClientController::class, 'destroy'])->middleware('can:delete users')->name('api_clients.destroy');
     });
 
-    Route::prefix('audit_logs')->middleware('can:view inventory')->group(function () {
+    Route::prefix('audit_logs')->middleware('can:view audit_logs')->group(function () {
         Route::get('/', [AuditLogsController::class, 'index'])->name('audit_logs.index');
     });
 
@@ -192,6 +192,7 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
         Route::post('/convert-excel-to-csv', [InventoryController::class, 'convert']);
         Route::post('/import-csv', [InventoryController::class, 'importCsv']);
         Route::post('/inventory/import', [InventoryController::class, 'import'])->name('inventory.import');
+        Route::post('/inventory/import/sheets', [InventoryController::class, 'importSheets'])->name('inventory.import.sheets');
         Route::get('/inventory/export/sample', [InventoryController::class, 'exportSample'])->name('inventory.export.sample');
         Route::get('/inventory/export', [InventoryController::class, 'exportExcel'])->name('inventory.export');
     });
@@ -327,6 +328,7 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
 
     // Reports
     Route::get('/report', [ReportController::class, 'searchBar'])->middleware('can:view reports')->name('reports.index');
+    Route::post('/import-report/download', [ImportReportController::class, 'download'])->name('import-report.download');
 
     // User Management
     Route::prefix('user-management')->group(function () {

@@ -1,10 +1,9 @@
 <script setup>
-import { useForm, usePage } from "@inertiajs/vue3";
+import { useForm } from "@inertiajs/vue3";
 import { computed, watch, ref, nextTick } from "vue";
 import Toast from "primevue/toast";
 import { useToast } from "primevue/usetoast";
 import Multiselect from "@vueform/multiselect";
-import axios from "axios";
 import "/node_modules/@vueform/multiselect/themes/default.css";
 import draggable from "vuedraggable";
 
@@ -33,8 +32,6 @@ const props = defineProps({
 });
 
 const toast = useToast();
-const page = usePage();
-
 const emit = defineEmits(["submit", "close", "created"]);
 
 const form = useForm({
@@ -54,9 +51,6 @@ const form = useForm({
     total_amount: 0,
     property_number: "",
     old_property_number: "",
-    free_text_property_number: Boolean(
-        page.props.auth?.user?.free_text_property_number,
-    ),
     sales_invoice_date: "",
     po_number_date: "",
     serial_numbers: [], // FOR ADD ITEM
@@ -99,9 +93,8 @@ function propertyNumberSuggestion() {
             ? acquired.getFullYear()
             : new Date().getFullYear();
 
-    const key = `${year}-${code}`;
-    const next = props.propertyNumberSuggestions?.[key];
-    return `${key}-${next?.number ?? 2000}-`;
+    const next = props.propertyNumberSuggestions?.[year];
+    return `${year}-${code}-${next?.number ?? 2000}-`;
 }
 
 function applyPropertyNumberSuggestion() {
@@ -115,7 +108,7 @@ function applyPropertyNumberSuggestion() {
 watch(
     () => form.item_classification_id,
     (newVal) => {
-        if (isEditing.value || form.free_text_property_number || !newVal) return;
+        if (isEditing.value || !newVal) return;
         applyPropertyNumberSuggestion();
     },
 );
@@ -125,7 +118,6 @@ watch(
     () => {
         if (
             isEditing.value ||
-            form.free_text_property_number ||
             !form.item_classification_id
         ) {
             return;
@@ -140,40 +132,6 @@ watch(
         if (!current || current === previous || current.endsWith("-")) {
             form.property_number = next;
             generatedPropertyNumber.value = next;
-        }
-    },
-);
-
-watch(
-    () => form.free_text_property_number,
-    (isFreeText) => {
-        if (isFreeText) {
-            form.item_classification_id = "";
-            generatedPropertyNumber.value = "";
-            if (props.mode === "create") form.property_number = "";
-        } else if (props.mode === "create" && form.item_classification_id) {
-            applyPropertyNumberSuggestion();
-        }
-
-        if (props.mode === "create") {
-            axios
-                .patch(route("profile.property-number-preference"), {
-                    free_text_property_number: isFreeText ? 1 : 0,
-                })
-                .then(({ data }) => {
-                    if (page.props.auth?.user) {
-                        page.props.auth.user.free_text_property_number =
-                            data.free_text_property_number;
-                    }
-                })
-                .catch(() => {
-                    toast.add({
-                        severity: "warn",
-                        summary: "Preference not saved",
-                        detail: "The free-text setting could not be saved.",
-                        life: 3000,
-                    });
-                });
         }
     },
 );
@@ -207,7 +165,6 @@ watch(
             : "";
         form.property_number = item.property_number ?? "";
         generatedPropertyNumber.value = "";
-        form.free_text_property_number = !item.item_classification_id;
         form.old_property_number = item.old_property_number ?? "";
         form.serial_number = item.serial_number ?? [];
         form.pr_number = item.pr_number ?? "";
@@ -742,9 +699,6 @@ function fieldByModel(fields, model) {
                                     <div
                                         class="flex flex-col md:flex-row gap-2 mb-4"
                                     >
-                                        <template
-                                            v-if="!form.free_text_property_number"
-                                        >
                                         <div
                                             v-for="fdp in firstDropdown"
                                             :key="fdp.model"
@@ -807,7 +761,6 @@ function fieldByModel(fields, model) {
                                                 {{ form.errors[fdp.model] }}
                                             </div>
                                         </div>
-                                        </template>
 
                                         <!-- FIRST INPUT FIELD SECTION -->
                                         <div
@@ -845,23 +798,6 @@ function fieldByModel(fields, model) {
                                                 ]"
                                             />
 
-                                            <label
-                                                v-if="
-                                                    fif.model ===
-                                                    'property_number'
-                                                "
-                                                class="mt-2 inline-flex items-center gap-1.5 text-[11px] text-gray-500"
-                                            >
-                                                <input
-                                                    v-model="
-                                                        form.free_text_property_number
-                                                    "
-                                                    type="checkbox"
-                                                    class="h-3.5 w-3.5 rounded border-gray-300 text-[#0E6021] focus:ring-[#0E6021]"
-                                                />
-                                                <span>Free text property number</span>
-                                            </label>
-
                                             <div
                                                 v-if="form.errors[fif.model]"
                                                 class="text-red-500 text-xs mt-1"
@@ -884,7 +820,9 @@ function fieldByModel(fields, model) {
                                                 <label
                                                     class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
                                                     >{{ sdf.label }}
-                                                    <span class="text-red-500"
+                                                    <span
+                                                        v-if="sdf.required !== false"
+                                                        class="text-red-500"
                                                         >*</span
                                                     ></label
                                                 >

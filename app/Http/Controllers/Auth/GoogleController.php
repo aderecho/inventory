@@ -65,6 +65,8 @@ class GoogleController extends Controller
 
         activity()
             ->causedBy($user)
+            ->performedOn($user)
+            ->useLog('authentication')
             ->event('login')
             ->log('User logged in via Google' . ($isMobile ? ' (mobile)' : ''));
 

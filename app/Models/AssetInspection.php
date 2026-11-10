@@ -4,9 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class AssetInspection extends Model
 {
+    use LogsActivity;
+
     protected $fillable = [
         'inventory_item_id',
         'asset_condition_id',
@@ -20,6 +24,21 @@ class AssetInspection extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('inspection')
+            ->logFillable()
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(function (string $eventName) {
+                $item = $this->inventoryItem?->property_number ?? "Item #{$this->inventory_item_id}";
+                $condition = $this->assetCondition?->condition_name ?? "Condition #{$this->asset_condition_id}";
+
+                return "Inspection for {$item} ({$condition}) was {$eventName}";
+            });
+    }
 
     public function inventoryItem(): BelongsTo
     {

@@ -6,9 +6,13 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class ItemBorrowing extends Model
 {
+    use LogsActivity;
+
     public const TYPE_STAFF = 'staff';
     public const TYPE_STUDENT = 'student';
     public const TYPE_OUTSIDER = 'outsider';
@@ -43,6 +47,16 @@ class ItemBorrowing extends Model
     ];
 
     protected $appends = ['is_overdue'];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('borrowing')
+            ->logFillable()
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn (string $eventName) => "Borrowing \"{$this->reference_code}\" was {$eventName}");
+    }
 
     public function items(): HasMany
     {

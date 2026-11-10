@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class PropertyNumberPreferenceRequest extends FormRequest
+class ImportReportDownloadRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -14,7 +14,9 @@ class PropertyNumberPreferenceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'free_text_property_number' => ['required', 'boolean'],
+            'report' => 'required|string|max:2097152',
+            'format' => 'required|in:csv,xlsx',
+            'filename' => 'nullable|string|max:100',
         ];
     }
 }

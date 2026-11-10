@@ -3,7 +3,6 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use App\Support\PropertyNumber;
 
 class InventoryStoreRequest extends FormRequest
@@ -24,13 +23,7 @@ class InventoryStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'item_classification_id' => [
-                'nullable',
-                'integer',
-                'exists:item_classifications,id',
-                Rule::requiredIf(fn () => ! $this->boolean('free_text_property_number')),
-            ],
-            'free_text_property_number' => 'nullable|boolean',
+            'item_classification_id' => 'required|integer|exists:item_classifications,id',
             'supplier_id' => 'required|integer|exists:suppliers,id',
             'room_id' => 'nullable|integer',
             'unit' => 'required|string|max:50',
@@ -54,7 +47,7 @@ class InventoryStoreRequest extends FormRequest
             'serial_numbers' => 'nullable|array|min:1',
             'serial_numbers.*' => 'nullable|max:50',
             'is_private' => 'required|boolean',
-            'asset_condition_id' => 'required|integer|exists:asset_conditions,id',
+            'asset_condition_id' => 'nullable|integer|exists:asset_conditions,id',
             'property_number' => [
                 'required',
                 'string',

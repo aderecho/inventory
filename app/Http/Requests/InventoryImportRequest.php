@@ -15,6 +15,7 @@ class InventoryImportRequest extends FormRequest
     {
         return [
             'file' => 'required|file|mimes:xlsx,xls,csv,txt|max:20480',
+            'sheet' => 'nullable|string|max:255',
         ];
     }
 

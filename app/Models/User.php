@@ -19,11 +19,7 @@ class User extends Authenticatable
 
     public const ROLE_STUDENT = 'STUDENT';
 
-    protected $fillable = ['email', 'status', 'last_activity', 'free_text_property_number'];
-
-    protected $casts = [
-        'free_text_property_number' => 'boolean',
-    ];
+    protected $fillable = ['email', 'status', 'last_activity'];
 
     protected $hidden = ['password'];
 

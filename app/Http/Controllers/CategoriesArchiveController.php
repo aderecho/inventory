@@ -54,6 +54,10 @@ class CategoriesArchiveController extends Controller
             ->whereIn('id', $data['ids'])
             ->get();
 
+        if ($categories->isEmpty()) {
+            return back()->with('error', 'No archived categories were found to restore.');
+        }
+
         foreach ($categories as $category) {
             $category->restore();
         }

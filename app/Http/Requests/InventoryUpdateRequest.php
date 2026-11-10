@@ -23,13 +23,7 @@ class InventoryUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'item_classification_id' => [
-                'nullable',
-                'integer',
-                'exists:item_classifications,id',
-                Rule::requiredIf(fn () => ! $this->boolean('free_text_property_number')),
-            ],
-            'free_text_property_number' => 'nullable|boolean',
+            'item_classification_id' => 'required|integer|exists:item_classifications,id',
             'supplier_id' => 'required|integer',
             'room_id' => 'nullable|integer',
             'invoice' => 'required|string|max:50',

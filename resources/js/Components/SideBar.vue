@@ -357,7 +357,7 @@ defineProps({ isOpen: { type: Boolean, default: true } });
                     class="overflow-hidden transition-all duration-500 ease-in-out"
                     :class="
                         openDropdown === item.name
-                            ? 'max-h-60 opacity-100 mt-1 mb-2'
+                            ? 'max-h-96 opacity-100 mt-1 mb-2'
                             : 'max-h-0 opacity-0'
                     "
                 >

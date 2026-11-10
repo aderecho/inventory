@@ -40,6 +40,8 @@ class AuthService
             // Log successful login
             activity()
                 ->causedBy($user)
+                ->performedOn($user)
+                ->useLog('authentication')
                 ->event('login')
                 ->log('User logged in');
 
@@ -72,6 +74,8 @@ class AuthService
 
             activity()
                 ->causedBy($user)
+                ->performedOn($user)
+                ->useLog('authentication')
                 ->event('logout')
                 ->log('user logged out');
         }
