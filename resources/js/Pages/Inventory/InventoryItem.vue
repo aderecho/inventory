@@ -401,6 +401,7 @@ const secondDropdown = [
     {
         label: "Unit",
         model: "unit",
+        required: true,
         allowCustom: true,
         options: [
             { label: "unit", value: "unit" },
@@ -413,6 +414,7 @@ const secondDropdown = [
     {
         label: "Condition",
         model: "asset_condition_id",
+        required: false,
         name: "assetConditions",
         option: "condition_name",
         value: "id",
@@ -503,6 +505,7 @@ const importResult = ref(null);
 
 // The file shown in a review, kept so it can be imported after.
 const pendingImportFile = ref(null);
+const pendingImportSheet = ref(null);
 
 // Saves a receipt PDF under the name the server chose, e.g. "ITR_223-2026-10-900.pdf".
 function downloadReceipt(response) {
@@ -542,15 +545,17 @@ function confirmExport(format) {
 
 // Review runs the whole import without saving, so the report can be checked
 // before anything is written to the database.
-async function handleReviewFile(file) {
+async function handleReviewFile(file, sheet = null) {
     if (!file) return;
 
     showImportModal.value = false;
     pendingImportFile.value = file;
+    pendingImportSheet.value = sheet;
 
     const formData = new FormData();
     formData.append("file", file);
     formData.append("dry_run", 1);
+    if (sheet) formData.append("sheet", sheet);
 
     startLoading(
         "Reviewing Items...",
@@ -589,21 +594,23 @@ async function handleReviewFile(file) {
 // "Import now" on the review report saves the file for real.
 function importPendingFile() {
     const file = pendingImportFile.value;
+    const sheet = pendingImportSheet.value;
 
     importResult.value = null;
 
     if (file) {
-        handleImportFile(file);
+        handleImportFile(file, sheet);
     }
 }
 
-async function handleImportFile(file) {
+async function handleImportFile(file, sheet = null) {
     if (!file) return;
 
     showImportModal.value = false;
 
     const formData = new FormData();
     formData.append("file", file);
+    if (sheet) formData.append("sheet", sheet);
 
     startLoading(
         "Importing Items...",
@@ -614,6 +621,7 @@ async function handleImportFile(file) {
         const { data } = await axios.post(route("inventory.import"), formData);
         importResult.value = data;
         pendingImportFile.value = null;
+        pendingImportSheet.value = null;
 
         if (data.imported_rows > 0) {
             router.reload({
@@ -1420,6 +1428,7 @@ function handleAssignSubmit(ids) {
             <ImportItemsModal
                 v-if="showImportModal"
                 :canDownloadSample="canImportInventory"
+                :sheetEndpoint="route('inventory.import.sheets')"
                 @close="showImportModal = false"
                 @download-sample="downloadExportSample"
                 @import="handleImportFile"

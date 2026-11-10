@@ -317,13 +317,15 @@ class InventoryService
                 'is_private' => $data['is_private'] ?? 0,
             ]);
 
-            AssetInspection::create([
-                'inventory_item_id' => $inventoryItem->id,
-                'asset_condition_id' => $data['asset_condition_id'],
-                'inspected_by' => auth()->id(),
-                'inspection_date' => now(),
-                'remarks' => 'Initial condition recorded on item creation.',
-            ]);
+            if (!empty($data['asset_condition_id'])) {
+                AssetInspection::create([
+                    'inventory_item_id' => $inventoryItem->id,
+                    'asset_condition_id' => $data['asset_condition_id'],
+                    'inspected_by' => auth()->id(),
+                    'inspection_date' => now(),
+                    'remarks' => 'Initial condition recorded on item creation.',
+                ]);
+            }
 
             ItemHistoryLocation::create([
                 'inventory_item_id' => $inventoryItem->id,
@@ -333,13 +335,13 @@ class InventoryService
     }
 
     /**
-     * Next property-number sequence per year-classification prefix.
-     * The sequence starts at 2000 and is the last segment of the number.
+     * Next property-number sequence per year, across every classification.
+     * The sequence starts at 2000; below that, the next number is 2000.
      *
      * @param  iterable<int, object>  $classifications
      * @return array<string, array{number: int}>
      */
-    public function nextPropertyNumbersByClassification(iterable $classifications): array
+    public function nextPropertyNumbersByYear(iterable $classifications): array
     {
         $codes = collect($classifications)
             ->pluck('classification_code')
@@ -352,23 +354,32 @@ class InventoryService
 
         $highest = [];
 
-        foreach (InventoryItem::withTrashed()->whereNotNull('property_number')->pluck('property_number') as $propertyNumber) {
+        foreach (InventoryItem::whereNotNull('property_number')->pluck('property_number') as $propertyNumber) {
+            $propertyNumber = PropertyNumber::withoutLegacyQuantitySuffix((string) $propertyNumber);
+
             foreach ($codes as $code) {
-                $pattern = '/^(\d{4})-' . preg_quote($code, '/') . '-(\d+)/';
+                $pattern = '/^(\d{4})-' . preg_quote($code, '/') . '-(\d+)(?:-.*)?$/';
 
                 if (! preg_match($pattern, (string) $propertyNumber, $matches)) {
                     continue;
                 }
 
-                $key = $matches[1] . '-' . $code;
-                $highest[$key] = max($highest[$key] ?? 0, (int) $matches[2]);
+                $year = $matches[1];
+                $sequence = (int) $matches[2];
+
+                // Keep the highest sequence across all classifications.
+                if (! isset($highest[$year]) || $sequence > $highest[$year]['sequence']) {
+                    $highest[$year] = ['sequence' => $sequence];
+                }
 
                 break;
             }
         }
 
         return collect($highest)
-            ->map(fn (int $sequence) => ['number' => max(2000, $sequence + 1)])
+            ->map(fn (array $entry) => [
+                'number' => max(2000, $entry['sequence'] + 1),
+            ])
             ->all();
     }
 

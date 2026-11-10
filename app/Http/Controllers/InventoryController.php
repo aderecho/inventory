@@ -103,7 +103,7 @@ class InventoryController extends Controller
             'assetConditions' => $assetConditions,
             'transferTypes' => $transferTypes,
             'biggestCategories' => $biggestCategories,
-            'propertyNumberSuggestions' => $this->inventoryService->nextPropertyNumbersByClassification($itemClassifications),
+            'propertyNumberSuggestions' => $this->inventoryService->nextPropertyNumbersByYear($itemClassifications),
         ]);
     }
 
@@ -377,12 +377,24 @@ class InventoryController extends Controller
             $result = $importer->import(
                 file: $request->file('file'),
                 dryRun: $request->boolean('dry_run'),
+                sheetName: $request->input('sheet'),
             );
         } catch (InventoryImportException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
         return response()->json($result);
+    }
+
+    public function importSheets(InventoryImportRequest $request, InventoryImportService $importer)
+    {
+        try {
+            return response()->json([
+                'sheets' => $importer->sheetNames($request->file('file')),
+            ]);
+        } catch (InventoryImportException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
     }
 
     public function exportCsv()

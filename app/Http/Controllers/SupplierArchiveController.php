@@ -52,6 +52,10 @@ class SupplierArchiveController extends Controller
 
         $suppliers = Supplier::onlyTrashed()->whereIn('id', $data['ids'])->get();
 
+        if ($suppliers->isEmpty()) {
+            return back()->with('error', 'No archived suppliers were found to restore.');
+        }
+
         foreach ($suppliers as $supplier) {
             $supplier->restore();
         }

@@ -27,28 +27,25 @@ class InventoryExportService
      * Column header => [width, type]. Types: text, money, int, date, wrap.
      */
     public const COLUMNS = [
-        'PAR/ICS number'    => [22, 'text'],
-        'PAR/ICS date'      => [16, 'date'],
-        'Property number'   => [20, 'text'],
-        'old property number' => [22, 'text'],
-        'qty'               => [10, 'int'],
-        'unit'              => [14, 'text'],
-        'unit cost'         => [15, 'money'],
-        'total amount'      => [15, 'money'],
-        'item name'         => [30, 'wrap'],
-        'brand'             => [14, 'text'],
-        'model'             => [14, 'text'],
-        'description'       => [46, 'wrap'],
-        'serial number'     => [24, 'wrap'],
-        'accountable person' => [18, 'int'],
-        'fund source'       => [14, 'text'],
-        'pr number'         => [17, 'text'],
-        'po number'         => [17, 'text'],
-        'location'          => [12, 'int'],
-        'supplier'          => [12, 'int'],
-        'invoice'           => [15, 'text'],
-        'remarks'           => [30, 'wrap'],
-        'issued by'         => [12, 'int'],
+        'PAR/ICS Number'    => [22, 'text'],
+        'PAR/ICS Date'      => [16, 'date'],
+        'New Property No.'  => [20, 'text'],
+        'Property No.'      => [20, 'text'],
+        'Qty'               => [10, 'int'],
+        'Unit'              => [14, 'text'],
+        'Unit Cost'         => [15, 'money'],
+        'Total Amount'      => [15, 'money'],
+        'Description'       => [46, 'wrap'],
+        'Date Acquired'     => [16, 'date'],
+        'Accountable Person' => [18, 'int'],
+        'Fund Source'       => [14, 'text'],
+        'PR#'               => [17, 'text'],
+        'PO#'               => [17, 'text'],
+        'Location'          => [12, 'int'],
+        'Supplier'          => [12, 'int'],
+        'Invoice'           => [15, 'text'],
+        'Remarks'           => [30, 'wrap'],
+        'Issued By'         => [12, 'int'],
     ];
 
     /**
@@ -58,23 +55,20 @@ class InventoryExportService
     public const SAMPLE_ROWS = [
         [
             '221-2024-03-512', '2024-03-11', '221-905-001', null, 1, 'unit', 68500, 68500,
-            'Split-type Air Conditioner 2.0 HP', 'Coolwave', 'CW-SPL20X',
             "2.0 HP wall-mounted split-type inverter aircon with remote\nIndoor: CW-SPL20X-IN / Outdoor: CW-SPL20X-OUT",
-            'CWX4471A20 / CWX4471B20', 1, '164', 'PR-2024-02-118', 'PO-2024-02-071', 1, 1, 'SI-20417',
+            '2024-03-08', 1, '164', 'PR-2024-02-118', 'PO-2024-02-071', 1, 1, 'SI-20417',
             'Installed beside the conference room door', 1,
         ],
         [
             '223-2025-06-533', '2025-06-17', '223-918-001', null, 1, 'unit', 54990, 54990,
-            'Laptop Computer, 14-inch', 'Nexora', 'NX-14 Pro',
             'Laptop, Intel Core i5, 16GB RAM, 512GB SSD, 14-inch FHD display, Windows 11 Pro',
-            'NXP14K9T2271', 2, '101', 'PR-2025-05-044', 'PO-2025-05-019', 2, 2, 'SI-88203',
+            '2025-06-16', 2, '101', 'PR-2025-05-044', 'PO-2025-05-019', 2, 2, 'SI-88203',
             'For field data collection', 2,
         ],
         [
             '222-2019-09-488', '2019-09-30', '222-931-001', null, 1, 'unit', 52300, 52300,
-            'Steel Filing Cabinet, 4 Drawers', 'Ironvale', 'IV-FC4',
             'Heavy-duty steel filing cabinet, 4 lockable drawers, legal size, gray finish',
-            null, 3, '164', 'PR-2019-09-210', 'PO-2019-09-088', 3, 3, 'SI-50981',
+            '2019-09-27', 3, '164', 'PR-2019-09-210', 'PO-2019-09-088', 3, 3, 'SI-50981',
             'Rusted drawer rails; recommended for disposal', 3,
         ],
     ];
@@ -108,7 +102,7 @@ class InventoryExportService
                 $rows,
                 self::COLUMNS,
                 fn ($value, $index) => ($types[$index] ?? null) === 'date'
-                    ? Carbon::parse($value)->format('Y-m-d')
+                    ? Carbon::parse($value)->format('m-d-Y')
                     : (string) $value,
             );
         }
@@ -133,11 +127,8 @@ class InventoryExportService
             $item->unit,
             $item->unit_cost,
             $item->total_amount,
-            $item->item_name,
-            $item->brand,
-            $item->model,
             $item->description,
-            $item->serial_number,
+            $item->date_acquired,
             $acknowledgement?->accountable_person_id,
             $item->fund_source,
             $item->pr_number,
@@ -217,7 +208,7 @@ class InventoryExportService
             match ($type) {
                 'money' => $sheet->getStyle($range)->getNumberFormat()->setFormatCode('"₱"#,##0.00'),
                 'int'   => $sheet->getStyle($range)->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER),
-                'date'  => $sheet->getStyle($range)->getNumberFormat()->setFormatCode('yyyy-mm-dd'),
+                'date'  => $sheet->getStyle($range)->getNumberFormat()->setFormatCode('mm-dd-yyyy'),
                 'wrap'  => $sheet->getStyle($range)->getAlignment()->setWrapText(true),
                 default => null,
             };

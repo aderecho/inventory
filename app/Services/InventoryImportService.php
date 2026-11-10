@@ -25,6 +25,7 @@ use PhpOffice\PhpSpreadsheet\RichText\RichText;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Throwable;
+use ZipArchive;
 
 /**
  * Imports inventory items from the Batch Add workbook, including their location
@@ -76,8 +77,12 @@ class InventoryImportService
         'model'                 => 'model',
         'description'           => 'description',
         'itemdescription'       => 'description',
+        'dateacquired'          => 'date_acquired',
         'serialnumber'          => 'serial_number',
         'serialno'              => 'serial_number',
+        'condition'             => 'item_condition',
+        'itemcondition'         => 'item_condition',
+        'assetcondition'        => 'item_condition',
         'accountableperson'     => 'accountable_person',
         'accountablepersonid'   => 'accountable_person',
         'fundsource'            => 'fund_source',
@@ -122,7 +127,9 @@ class InventoryImportService
         'brand'              => 'brand',
         'model'              => 'model',
         'description'        => 'description',
+        'date_acquired'      => 'Date Acquired',
         'serial_number'      => 'serial number',
+        'item_condition'     => 'item condition',
         'accountable_person' => 'accountable person',
         'fund_source'        => 'fund source',
         'pr_number'          => 'pr number',
@@ -180,6 +187,12 @@ class InventoryImportService
     protected array $filePropertyNumbers = [];
     protected array $receipts = [];
     protected ?int $serviceableConditionId = null;
+    /** @var array<string, int> upper-case condition name => id */
+    protected array $conditionIds = [];
+    /** @var string[] */
+    protected array $conditionNames = [];
+    /** @var array<int, true> */
+    protected array $disposalConditionIds = [];
 
     public function __construct(protected RoomApiService $roomApi)
     {
@@ -193,16 +206,17 @@ class InventoryImportService
     public function import(
         UploadedFile $file,
         int $startRow = self::DEFAULT_START_ROW,
-        bool $dryRun = false
+        bool $dryRun = false,
+        ?string $sheetName = null,
     ): array {
         if (! $dryRun) {
-            return $this->runImport($file, $startRow);
+            return $this->runImport($file, $startRow, $sheetName);
         }
 
         DB::beginTransaction();
 
         try {
-            $result = $this->runImport($file, $startRow);
+            $result = $this->runImport($file, $startRow, $sheetName);
         } finally {
             DB::rollBack();
         }
@@ -212,12 +226,12 @@ class InventoryImportService
         return $result;
     }
 
-    protected function runImport(UploadedFile $file, int $startRow): array
+    protected function runImport(UploadedFile $file, int $startRow, ?string $sheetName = null): array
     {
         @set_time_limit(600);
 
         $extension = strtolower($file->getClientOriginalExtension());
-        $this->sheet = $this->loadFirstSheet($file->getRealPath(), $extension);
+        $this->sheet = $this->loadActiveSheet($file->getRealPath(), $extension, $sheetName);
 
         $this->mapHeader();
         $this->loadLookups();
@@ -284,6 +298,7 @@ class InventoryImportService
             $result['imported_rows']++;
             $result['imported_items'] += count($plan['items']);
             $result['receipts_created'] += $receiptCreated ? 1 : 0;
+            $result['disposal_items'] += $plan['is_disposal'] ? count($plan['items']) : 0;
 
             if ($warnings) {
                 $result['warnings'][] = ['row' => $row, 'property_number' => $label, 'messages' => $warnings];
@@ -297,7 +312,7 @@ class InventoryImportService
      | Loading
      * ------------------------------------------------------------------ */
 
-    protected function loadFirstSheet(string $path, string $extension): Worksheet
+    protected function loadActiveSheet(string $path, string $extension, ?string $sheetName = null): Worksheet
     {
         $type = match ($extension) {
             'xlsx'       => 'Xlsx',
@@ -311,11 +326,13 @@ class InventoryImportService
 
             if ($reader instanceof CsvReader) {
                 $reader->setInputEncoding(CsvReader::GUESS_ENCODING);
-            } else {
-                // Only the first sheet is imported; skip loading the other office tabs.
-                $names = $reader->listWorksheetNames($path);
-                if ($names) {
-                    $reader->setLoadSheetsOnly([$names[0]]);
+            } elseif ($sheetName !== null && $sheetName !== '') {
+                $reader->setLoadSheetsOnly([$sheetName]);
+            } elseif ($type === 'Xlsx') {
+                $activeSheet = $this->activeXlsxSheetName($path);
+
+                if ($activeSheet !== null) {
+                    $reader->setLoadSheetsOnly([$activeSheet]);
                 }
             }
 
@@ -324,7 +341,90 @@ class InventoryImportService
             throw new InventoryImportException('The file could not be read: ' . $e->getMessage());
         }
 
-        return $spreadsheet->getSheet(0);
+        return $spreadsheet->getActiveSheet();
+    }
+
+    /** @return array<int, array{name: string, active: bool}> */
+    public function sheetNames(UploadedFile $file): array
+    {
+        $extension = strtolower($file->getClientOriginalExtension());
+        $path = $file->getRealPath();
+
+        if ($extension === 'xlsx') {
+            $info = $this->xlsxSheetInfo($path);
+
+            return collect($info['names'])
+                ->map(fn (string $name, int $index) => [
+                    'name' => $name,
+                    'active' => $index === $info['active'],
+                ])
+                ->values()
+                ->all();
+        }
+
+        if ($extension === 'xls') {
+            try {
+                $reader = IOFactory::createReader('Xls');
+                $names = $reader->listWorksheetNames($path);
+                $active = $reader->load($path)->getActiveSheetIndex();
+
+                return collect($names)
+                    ->map(fn (string $name, int $index) => [
+                        'name' => $name,
+                        'active' => $index === $active,
+                    ])
+                    ->values()
+                    ->all();
+            } catch (Throwable $e) {
+                throw new InventoryImportException('The file could not be read: ' . $e->getMessage());
+            }
+        }
+
+        return [];
+    }
+
+    /** Reads only the active worksheet name from an XLSX workbook. */
+    protected function activeXlsxSheetName(string $path): ?string
+    {
+        $info = $this->xlsxSheetInfo($path);
+
+        return $info['names'][$info['active']] ?? ($info['names'][0] ?? null);
+    }
+
+    /** @return array{names: string[], active: int} */
+    protected function xlsxSheetInfo(string $path): array
+    {
+        $zip = new ZipArchive();
+
+        if ($zip->open($path) !== true) {
+            return ['names' => [], 'active' => 0];
+        }
+
+        $workbookXml = $zip->getFromName('xl/workbook.xml');
+        $zip->close();
+
+        if ($workbookXml === false) {
+            return ['names' => [], 'active' => 0];
+        }
+
+        $workbook = @simplexml_load_string($workbookXml);
+
+        if ($workbook === false) {
+            return ['names' => [], 'active' => 0];
+        }
+
+        $activeTab = (int) ($workbook->bookViews->workbookView['activeTab'] ?? 0);
+        $names = [];
+
+        foreach ($workbook->sheets->sheet as $sheet) {
+            $names[] = (string) $sheet['name'];
+        }
+
+        if (! isset($names[$activeTab])) {
+            $activeTab = 0;
+        }
+
+        return ['names' => $names, 'active' => $activeTab];
     }
 
     protected function mapHeader(): void
@@ -375,9 +475,21 @@ class InventoryImportService
 
     protected function loadLookups(): void
     {
-        $this->serviceableConditionId = AssetCondition::query()
-            ->where('disposition', AssetCondition::DISPOSITION_SERVICEABLE)
-            ->value('id');
+        $conditions = AssetCondition::all(['id', 'condition_name', 'disposition']);
+        $this->serviceableConditionId = $conditions
+            ->firstWhere('disposition', AssetCondition::DISPOSITION_SERVICEABLE)?->id;
+        $this->conditionIds = [];
+        $this->conditionNames = [];
+        $this->disposalConditionIds = [];
+
+        foreach ($conditions as $condition) {
+            $this->conditionIds[strtoupper(trim((string) $condition->condition_name))] = $condition->id;
+            $this->conditionNames[] = $condition->condition_name;
+
+            if ($condition->isOnDisposalPath()) {
+                $this->disposalConditionIds[$condition->id] = true;
+            }
+        }
 
         $rooms = $this->roomApi->fetchRooms()['data'] ?? [];
         foreach ($rooms as $room) {
@@ -490,6 +602,22 @@ class InventoryImportService
             $errors[] = $this->label('old_property_number') . ' is longer than ' . self::MAX_LENGTHS['old_property_number'] . ' characters.';
         }
 
+        $conditionName = $this->singleLine($v['item_condition'] ?? null);
+        $conditionId = $this->serviceableConditionId;
+
+        if ($conditionName !== null) {
+            $conditionId = $this->conditionIds[strtoupper(trim($conditionName))] ?? null;
+
+            if ($conditionId === null) {
+                $available = $this->conditionNames
+                    ? ' Use one of: ' . implode(', ', $this->conditionNames) . '.'
+                    : '';
+                $errors[] = $this->label('item_condition') . ' "' . $conditionName . '" does not exist.' . $available;
+            }
+        }
+
+        $isDisposal = $conditionId !== null && isset($this->disposalConditionIds[$conditionId]);
+
         $supplierId = null;
         if (! $this->isEmpty($v['supplier'] ?? null)) {
             $supplierId = $this->integerId($v['supplier']);
@@ -531,6 +659,11 @@ class InventoryImportService
         }
 
         $remarks = $this->text($v['remarks'] ?? null);
+        $dateAcquired = $this->date($row, 'date_acquired', $errors);
+
+        if ($dateAcquired && $dateAcquired->isFuture()) {
+            $warnings[] = $this->label('date_acquired') . ' ' . $dateAcquired->toDateString() . ' is in the future.';
+        }
 
         $items = [];
         foreach ($propertyNumbers['numbers'] as $index => $number) {
@@ -542,6 +675,7 @@ class InventoryImportService
 
             $items[] = [
                 'property_number' => $number,
+                'old_property_number' => $oldNumber ?? $oldPropertyNumber,
                 'serial_number'   => $serials[$index] ?? null,
                 'remarks'         => $itemRemarks,
             ];
@@ -558,7 +692,9 @@ class InventoryImportService
             'unit_cost'         => $unitCost,
             'total_amount'      => $totalAmount,
             'old_property_number' => $oldPropertyNumber,
-            'condition_id'      => $this->serviceableConditionId,
+            'date_acquired'     => $dateAcquired?->toDateString(),
+            'condition_id'      => $conditionId,
+            'is_disposal'       => $isDisposal,
             'assignment'        => $assignment,
         ] + $text;
     }
@@ -827,11 +963,12 @@ class InventoryImportService
                 'unit_cost'              => $plan['unit_cost'],
                 'total_amount'           => $totalPerItem,
                 'property_number'        => $item['property_number'],
-                'old_property_number'    => $plan['old_property_number'],
+                'old_property_number'    => $item['old_property_number'] ?? null,
                 'serial_number'          => $item['serial_number'],
                 'pr_number'              => $plan['pr_number'] ?? null,
                 'po_number'              => $plan['po_number'] ?? null,
                 'remarks'                => $item['remarks'],
+                'date_acquired'          => $plan['date_acquired'],
                 'brand'                  => $plan['brand'] ?? null,
                 'model'                  => $plan['model'] ?? null,
             ]);
@@ -1070,7 +1207,7 @@ class InventoryImportService
             }
         }
 
-        $errors[] = $label . ' "' . $text . '" is not a valid date. Use a date like 2022-01-31 or 01/31/2022.';
+        $errors[] = $label . ' "' . $text . '" is not a valid date. Use a date like 01-31-2022 or 01/31/2022.';
 
         return null;
     }

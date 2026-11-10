@@ -1,9 +1,11 @@
 <script setup>
 import { computed, ref } from "vue";
+import axios from "axios";
 import {
     Copy,
     Check,
     CircleAlert,
+    Download,
     Eye,
     TriangleAlert,
     Upload,
@@ -27,6 +29,9 @@ const emit = defineEmits(["close", "import"]);
 const isClosing = ref(false);
 const copied = ref(false);
 const reportBox = ref(null);
+const downloadFormat = ref("csv");
+const downloading = ref(false);
+const downloadError = ref("");
 
 const isFatal = computed(() => Boolean(props.result.fatal));
 // A review report comes back with dry_run: true - it describes what would
@@ -108,6 +113,40 @@ async function copyReport() {
 
     copied.value = true;
     setTimeout(() => (copied.value = false), 2000);
+}
+
+async function downloadReport() {
+    const sourceName = (props.result.file || "import")
+        .replace(/\.[^.]+$/, "")
+        .replace(/[^\w.-]+/g, "-");
+    const prefix = isPreview.value ? "import-review" : "import-results";
+    const filename = `${prefix}-${sourceName || "import"}`;
+
+    downloading.value = true;
+    downloadError.value = "";
+
+    try {
+        const { data } = await axios.post(
+            route("import-report.download"),
+            {
+                report: reportText.value,
+                format: downloadFormat.value,
+                filename,
+            },
+            { responseType: "blob" },
+        );
+        const url = URL.createObjectURL(data);
+        const link = document.createElement("a");
+
+        link.href = url;
+        link.download = `${filename}.${downloadFormat.value}`;
+        link.click();
+        URL.revokeObjectURL(url);
+    } catch {
+        downloadError.value = "The report could not be downloaded. Please try again.";
+    } finally {
+        downloading.value = false;
+    }
 }
 
 function closeWithAnimation() {
@@ -302,12 +341,15 @@ function closeWithAnimation() {
                         class="w-full h-40 rounded-md border border-gray-300 bg-[#F8F8F8] px-3 py-2 font-mono text-xs text-[#3B3B3B] focus:ring-1 focus:ring-[#005740] focus:border-[#005740] focus:outline-none"
                         @focus="$event.target.select()"
                     ></textarea>
+                    <p v-if="downloadError" class="mt-1 text-xs text-red-500">
+                        {{ downloadError }}
+                    </p>
                 </section>
             </div>
 
             <!-- Footer -->
             <div
-                class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0"
+                class="flex flex-wrap justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0"
             >
                 <button
                     type="button"
@@ -318,6 +360,25 @@ function closeWithAnimation() {
                     <Copy v-else class="w-4 h-4" />
                     {{ copied ? "Copied" : "Copy report" }}
                 </button>
+                <div class="flex items-center gap-2">
+                    <select
+                        v-model="downloadFormat"
+                        class="h-[42px] rounded-lg border border-[#005740]/30 bg-white px-2 text-xs font-medium text-[#005740] focus:border-[#005740] focus:outline-none"
+                        title="Report file format"
+                    >
+                        <option value="csv">CSV</option>
+                        <option value="xlsx">Excel (XLSX)</option>
+                    </select>
+                    <button
+                        type="button"
+                        :disabled="downloading"
+                        @click="downloadReport"
+                        class="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-[#005740] border border-[#005740]/30 hover:bg-[#005740]/5 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        <Download class="w-4 h-4" />
+                        {{ downloading ? "Downloading…" : "Download report" }}
+                    </button>
+                </div>
                 <button
                     v-if="isPreview && canImport"
                     type="button"

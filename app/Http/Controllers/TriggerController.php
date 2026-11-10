@@ -13,6 +13,7 @@ class TriggerController extends Controller
         protected TriggerService $triggerService
     ) {}
 
+    
     public function store(Request $request): JsonResponse
     {
         try {

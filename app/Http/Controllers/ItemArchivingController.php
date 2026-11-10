@@ -92,6 +92,10 @@ class ItemArchivingController extends Controller
             ->whereIn('id', $data['ids'])
             ->get();
 
+        if ($items->isEmpty()) {
+            return back()->with('error', 'No archived items were found to restore.');
+        }
+
         $restored = 0;
         $skipped = [];
 
@@ -110,6 +114,17 @@ class ItemArchivingController extends Controller
             $restored++;
         }
 
+        $preview = implode(', ', array_slice($skipped, 0, 5));
+        $more = count($skipped) > 5 ? ' and ' . (count($skipped) - 5) . ' more' : '';
+
+        if ($restored === 0) {
+            return back()->with(
+                'error',
+                'No items were restored because the property number already exists: '
+                    . $preview . $more
+            );
+        }
+
         $message = $restored === 1
             ? 'Item restored successfully.'
             : $restored . ' items restored successfully.';
@@ -117,9 +132,6 @@ class ItemArchivingController extends Controller
         if (empty($skipped)) {
             return back()->with('success', $message);
         }
-
-        $preview = implode(', ', array_slice($skipped, 0, 5));
-        $more = count($skipped) > 5 ? ' and ' . (count($skipped) - 5) . ' more' : '';
 
         return back()
             ->with('success', $message)

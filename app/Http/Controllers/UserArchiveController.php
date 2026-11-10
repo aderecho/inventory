@@ -52,6 +52,10 @@ class UserArchiveController extends Controller
 
         $users = User::onlyTrashed()->whereIn('id', $data['ids'])->get();
 
+        if ($users->isEmpty()) {
+            return back()->with('error', 'No archived users were found to restore.');
+        }
+
         foreach ($users as $user) {
             $user->restore();
         }

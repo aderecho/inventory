@@ -22,18 +22,31 @@ class RolePermissionService
         if (!empty($permissions)) {
             $role->syncPermissions($permissions);
         }
+
+        $this->logActivity('role', "Role \"{$role->name}\" was created", $role, 'created', [
+            'permissions' => $permissions,
+        ]);
+
         return $role;
     }
 
     public function updateRole(Role $role, string $name, array $permissions = []): Role
     {
+        $oldName = $role->name;
         $role->update(['name' => $name]);
         $role->syncPermissions($permissions);
+
+        $this->logActivity('role', "Role \"{$role->name}\" was updated", $role, 'updated', [
+            'old_name' => $oldName,
+            'permissions' => $permissions,
+        ]);
+
         return $role;
     }
 
     public function deleteRole(Role $role): void
     {
+        $this->logActivity('role', "Role \"{$role->name}\" was deleted", $role, 'deleted');
         $role->delete();
     }
 
@@ -45,17 +58,28 @@ class RolePermissionService
 
     public function createPermission(string $name): Permission
     {
-        return Permission::create(['name' => $name, 'guard_name' => 'web']);
+        $permission = Permission::create(['name' => $name, 'guard_name' => 'web']);
+
+        $this->logActivity('permission', "Permission \"{$permission->name}\" was created", $permission, 'created');
+
+        return $permission;
     }
 
     public function updatePermission(Permission $permission, string $name): Permission
     {
+        $oldName = $permission->name;
         $permission->update(['name' => $name]);
+
+        $this->logActivity('permission', "Permission \"{$permission->name}\" was updated", $permission, 'updated', [
+            'old_name' => $oldName,
+        ]);
+
         return $permission;
     }
 
     public function deletePermission(Permission $permission): void
     {
+        $this->logActivity('permission', "Permission \"{$permission->name}\" was deleted", $permission, 'deleted');
         $permission->delete();
     }
 
@@ -102,5 +126,29 @@ class RolePermissionService
         }
 
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
+
+        $this->logActivity('user_permission', "Permissions for {$user->email} were updated", $user, 'permissions_updated', [
+            'given' => array_values(array_diff($give, $revoke)),
+            'revoked' => array_values($revoke),
+        ]);
+    }
+
+    private function logActivity(
+        string $logName,
+        string $description,
+        mixed $subject = null,
+        string $event = 'updated',
+        array $properties = [],
+    ): void {
+        $logger = activity($logName)
+            ->causedBy(auth()->user())
+            ->event($event)
+            ->withProperties($properties);
+
+        if ($subject !== null) {
+            $logger->performedOn($subject);
+        }
+
+        $logger->log($description);
     }
 }
