@@ -27,9 +27,9 @@ const props = defineProps({
             introBody:
                 "Your file must use the same column headers as the sample, in the first row. Each row below the headers is one item. Download the sample, replace the example rows with your items, and keep the headers as they are.",
             requiredColumns:
-                "PAR/ICS Number, PAR/ICS Date, New Property No., Property No., Qty, Unit, Unit Cost, Total Amount, Description, Date Acquired, Accountable Person, Fund Source, PR#, PO#, Location, Supplier, Invoice, Remarks, Issued By",
+                "PAR/ICS Number, PAR/ICS Date, New Property No., Old Property No., Qty, Unit, Unit Cost, Total Amount, Description, Serial No., Date Acquired, Accountable Person, Fund Source, PR#, PO#, Location, Supplier, Invoice, Remarks, Issued By",
             requiredNote:
-                "Only New Property No. (or Property No.) and Qty are required. Leave any other cell blank to import it as empty. Accountable Person and PAR/ICS Number must both be filled to create an assignment.",
+                "Only New Property No. and Qty are required. Leave any other cell blank to import it as empty. Accountable Person and PAR/ICS Number must both be filled to create an assignment.",
             mustExist: [
                 "accountable person, location, supplier, and issued by are numeric IDs, not names",
                 "supplier is the id from the Suppliers page",

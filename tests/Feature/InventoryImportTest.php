@@ -460,7 +460,7 @@ class InventoryImportTest extends TestCase
         unlink($path);
     }
 
-    public function test_new_property_number_and_property_number_are_imported_separately(): void
+    public function test_new_old_property_numbers_and_serial_are_imported_separately(): void
     {
         $this->mock(RoomApiService::class, function ($mock) {
             $mock->shouldReceive('fetchRooms')->andReturn(['data' => []]);
@@ -468,8 +468,8 @@ class InventoryImportTest extends TestCase
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-        $sheet->fromArray(['New Property No.', 'Property No.', 'Qty'], null, 'A1');
-        $sheet->fromArray(['2026-50-30-2000-234', '2016-70-10-1066-123', 1], null, 'A2');
+        $sheet->fromArray(['New Property No.', 'Old Property No.', 'Serial No.', 'Qty'], null, 'A1');
+        $sheet->fromArray(['2026-50-30-2000-234', '2016-70-10-1066-123', 'SERIAL-001', 1], null, 'A2');
 
         $path = tempnam(sys_get_temp_dir(), 'import_property_pair_') . '.xlsx';
         (new Xlsx($spreadsheet))->save($path);
@@ -487,6 +487,7 @@ class InventoryImportTest extends TestCase
         $this->assertSame(1, $result['imported_rows']);
         $item = InventoryItem::where('property_number', '2026-50-30-2000-234')->firstOrFail();
         $this->assertSame('2016-70-10-1066-123', $item->old_property_number);
+        $this->assertSame('SERIAL-001', $item->serial_number);
 
         unlink($path);
     }

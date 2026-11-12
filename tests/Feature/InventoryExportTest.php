@@ -16,11 +16,11 @@ class InventoryExportTest extends TestCase
     {
         $path = app(InventoryExportService::class)->sampleToFile();
         $sheet = IOFactory::load($path)->getActiveSheet();
-        $headers = $sheet->rangeToArray('A1:S1')[0];
+        $headers = $sheet->rangeToArray('A1:T1')[0];
 
         $this->assertSame(array_keys(InventoryExportService::COLUMNS), $headers);
         $this->assertSame('mm-dd-yyyy', $sheet->getStyle('B2')->getNumberFormat()->getFormatCode());
-        $this->assertSame('mm-dd-yyyy', $sheet->getStyle('J2')->getNumberFormat()->getFormatCode());
+        $this->assertSame('mm-dd-yyyy', $sheet->getStyle('K2')->getNumberFormat()->getFormatCode());
 
         unlink($path);
     }
@@ -30,6 +30,7 @@ class InventoryExportTest extends TestCase
         $item = InventoryItem::factory()->create([
             'property_number' => 'NEW-001',
             'old_property_number' => 'OLD-001',
+            'serial_number' => 'SERIAL-001',
             'date_acquired' => '2016-05-04',
         ]);
 
@@ -37,7 +38,8 @@ class InventoryExportTest extends TestCase
         $data = array_combine(array_keys(InventoryExportService::COLUMNS), $row);
 
         $this->assertSame('NEW-001', $data['New Property No.']);
-        $this->assertSame('OLD-001', $data['Property No.']);
+        $this->assertSame('OLD-001', $data['Old Property No.']);
+        $this->assertSame('SERIAL-001', $data['Serial No.']);
         $this->assertSame('2016-05-04', $data['Date Acquired']);
     }
 }
