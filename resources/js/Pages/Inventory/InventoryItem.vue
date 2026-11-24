@@ -266,6 +266,7 @@ const inputFieldsEdit = [
         model: "serial_number",
         placeholder: "SER-####.",
         type: "text",
+        maxlength: 255,
         readonly: true,
     },
     {
@@ -307,6 +308,7 @@ const requestFields = [
         model: "pr_number",
         placeholder: "PR-###",
         type: "text",
+        maxlength: 255,
         required: true,
     },
     {
@@ -314,6 +316,7 @@ const requestFields = [
         model: "po_number",
         placeholder: "PO-###",
         type: "text",
+        maxlength: 255,
         required: true,
     },
     {
@@ -352,6 +355,7 @@ const invoicesFundFields = [
         model: "fund_source",
         placeholder: "000",
         type: "text",
+        maxlength: 255,
         readonly: false,
         required: true,
     },

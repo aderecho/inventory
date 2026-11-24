@@ -40,6 +40,7 @@ const props = defineProps({
             values: [
                 "PAR/ICS Date and Date Acquired use MM-DD-YYYY, for example 06-16-2025. Excel date cells are accepted in any display format.",
                 "Property No. is limited to 19 characters including hyphens, for example 2016-50-30-0031-161.",
+                "Fund Source, PO#, PR#, and each Serial No. can contain up to 255 characters.",
                 "For several units, write the property number range like 223-918-(001-003).",
                 "accountable person, location, supplier, and issued by expect numeric IDs from the database.",
                 "The IDs in the sample are examples and may not exist in your database; replace them before importing.",
