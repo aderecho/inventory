@@ -1054,6 +1054,7 @@ function fieldByModel(fields, model) {
                                                 @paste="onSerialPaste"
                                                 @blur="commitSerialToken"
                                                 type="text"
+                                                maxlength="255"
                                                 :placeholder="
                                                     form.serial_numbers.filter(
                                                         Boolean,
@@ -1149,6 +1150,7 @@ function fieldByModel(fields, model) {
                                                 :required="ip.required"
                                                 :type="ip.type || 'text'"
                                                 :placeholder="ip.placeholder"
+                                                :maxlength="ip.maxlength"
                                                 :class="[
                                                     'w-full rounded-md border px-3 py-3 text-sm focus:ring-1 focus:outline-none',
                                                     ip.readonly
@@ -1370,6 +1372,7 @@ function fieldByModel(fields, model) {
                                         <input
                                             v-model="form.pr_number"
                                             type="text"
+                                            maxlength="255"
                                             :placeholder="
                                                 fieldByModel(
                                                     requestFields,
@@ -1445,6 +1448,7 @@ function fieldByModel(fields, model) {
                                         <input
                                             v-model="form.po_number"
                                             type="text"
+                                            maxlength="255"
                                             :placeholder="
                                                 fieldByModel(
                                                     requestFields,
@@ -1672,6 +1676,7 @@ function fieldByModel(fields, model) {
                                     <input
                                         v-model="form.fund_source"
                                         type="text"
+                                        maxlength="255"
                                         :placeholder="
                                             fieldByModel(
                                                 invoicesFundFields,

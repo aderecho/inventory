@@ -62,6 +62,7 @@ const {
 const columns = [
     { label: "", key: "select_all" },
     { label: "Item Name", key: "item_name" },
+    { label: "Classification", key: "item_classification.classification_name" },
     { label: "Brand", key: "brand" },
     { label: "Model", key: "model" },
     { label: "Description", key: "description", cellClass: "min-w-[14rem]" },
@@ -266,6 +267,7 @@ const inputFieldsEdit = [
         model: "serial_number",
         placeholder: "SER-####.",
         type: "text",
+        maxlength: 255,
         readonly: true,
     },
     {
@@ -307,6 +309,7 @@ const requestFields = [
         model: "pr_number",
         placeholder: "PR-###",
         type: "text",
+        maxlength: 255,
         required: true,
     },
     {
@@ -314,6 +317,7 @@ const requestFields = [
         model: "po_number",
         placeholder: "PO-###",
         type: "text",
+        maxlength: 255,
         required: true,
     },
     {
@@ -352,6 +356,7 @@ const invoicesFundFields = [
         model: "fund_source",
         placeholder: "000",
         type: "text",
+        maxlength: 255,
         readonly: false,
         required: true,
     },
@@ -452,6 +457,17 @@ const rooms = computed(() => page.props.rooms || []);
 const itemClassifications = computed(
     () => page.props.itemClassifications || [],
 );
+const classificationFilter = computed(() => [
+    {
+        label: "Classification",
+        options: itemClassifications.value.map((classification) => ({
+            label: [classification.classification_code, classification.classification_name]
+                .filter(Boolean)
+                .join(" - "),
+            value: classification.id,
+        })),
+    },
+]);
 const propertyNumberSuggestions = computed(
     () => page.props.propertyNumberSuggestions || {},
 );
@@ -472,6 +488,9 @@ const cost_range = ref(null);
 const asset_condition_id = ref("");
 const acknowledgement_status = ref("");
 const room_id = ref("");
+const classification_id = ref(
+    new URLSearchParams(window.location.search).get("classification_id") ?? "",
+);
 
 // The table header pins itself right below the sticky toolbar, so the
 // toolbar's height is published as a CSS variable that the table reads.
@@ -501,6 +520,7 @@ const toast = useToast();
 
 // IMPORT (CSV / Excel)
 const showImportModal = ref(false);
+const batchUpdateMode = ref(false);
 const importResult = ref(null);
 
 // The file shown in a review, kept so it can be imported after.
@@ -526,7 +546,30 @@ function downloadReceipt(response) {
 }
 
 function openImportModal() {
+    batchUpdateMode.value = false;
     showImportModal.value = true;
+}
+
+const batchUpdateContent = {
+    title: "Batch Update Items",
+    subtitle: "Update existing inventory items from an Excel or CSV file.",
+    introTitle: "Use the Batch Add headers.",
+    introBody: "Each row matches an existing item by New Property No. Non-empty cells update that field; blank cells leave the current value unchanged.",
+    requiredColumns: "PAR/ICS Number, PAR/ICS Date, New Property No., Classification ID, Old Property No., Qty, Unit, Unit Cost, Total Amount, Description, Serial No., Date Acquired, Accountable Person, Fund Source, PR#, PO#, Location, Supplier, Invoice, Remarks, Issued By",
+    requiredNote: "New Property No. is required. Classification ID is optional; if blank, it is derived from the second and third parts of the property number (for example, 2017-50-20-0054-101 uses classification 50-20).",
+    mustExist: ["New Property No. must match an active inventory item", "Classification ID, when provided, must exist in the Categories export", "Accountable Person, Location, Supplier, and Issued By use IDs"],
+    values: ["An unknown classification code produces a warning and does not stop the other updates in that row.", "Rows with validation errors are skipped and listed in the review report."],
+    footer: "Review the rows and warnings before applying the updates.",
+    importLabel: "Update Items",
+};
+
+function openBatchUpdateModal() {
+    batchUpdateMode.value = true;
+    showImportModal.value = true;
+}
+
+function downloadBatchUpdateSample() {
+    window.location.href = route("inventory.batch-update.sample");
 }
 
 // Downloads the fixed three-row sample (used inside the Batch Add window).
@@ -563,7 +606,7 @@ async function handleReviewFile(file, sheet = null) {
     );
 
     try {
-        const { data } = await axios.post(route("inventory.import"), formData);
+        const { data } = await axios.post(route(batchUpdateMode.value ? "inventory.batch-update" : "inventory.import"), formData);
         importResult.value = data;
     } catch (error) {
         // Keep the real cause in the console; the user gets a short message.
@@ -573,7 +616,9 @@ async function handleReviewFile(file, sheet = null) {
         let message = "The file could not be reviewed. Please try again.";
 
         if (response?.status === 403) {
-            message = "You do not have permission to import items.";
+            message = batchUpdateMode.value
+                ? "You do not have permission to update inventory items."
+                : "You do not have permission to import items.";
         } else if (response?.status === 413) {
             message = "The file is too large to upload.";
         } else if (response?.data?.message) {
@@ -613,12 +658,12 @@ async function handleImportFile(file, sheet = null) {
     if (sheet) formData.append("sheet", sheet);
 
     startLoading(
-        "Importing Items...",
+        batchUpdateMode.value ? "Updating Items..." : "Importing Items...",
         "Reading the spreadsheet and checking every row. This can take a minute.",
     );
 
     try {
-        const { data } = await axios.post(route("inventory.import"), formData);
+        const { data } = await axios.post(route(batchUpdateMode.value ? "inventory.batch-update" : "inventory.import"), formData);
         importResult.value = data;
         pendingImportFile.value = null;
         pendingImportSheet.value = null;
@@ -633,7 +678,9 @@ async function handleImportFile(file, sheet = null) {
         let message = "The import could not be completed. Please try again.";
 
         if (response?.status === 403) {
-            message = "You do not have permission to import items.";
+            message = batchUpdateMode.value
+                ? "You do not have permission to update inventory items."
+                : "You do not have permission to import items.";
         } else if (response?.status === 413) {
             message = "The file is too large to upload.";
         } else if (response?.data?.errors?.file?.[0]) {
@@ -737,6 +784,7 @@ function refreshItems() {
             search: search.value,
             cost_range: cost_range.value,
             acknowledgement_status: acknowledgement_status.value,
+            classification_id: classification_id.value,
         },
         { preserveState: true, preserveScroll: true, only: ["items"] },
     );
@@ -1108,6 +1156,7 @@ function handleAssignSubmit(ids) {
             search: search.value,
             cost_range: cost_range.value,
             acknowledgement_status: acknowledgement_status.value,
+            classification_id: classification_id.value,
         },
         {
             preserveState: true,
@@ -1159,6 +1208,16 @@ function handleAssignSubmit(ids) {
                         >
                             <FileUp class="w-4 h-4 mr-2" />
                             Batch Add
+                        </Button>
+
+                        <Button
+                            v-if="inventoryActions.includes('edit')"
+                            @click="openBatchUpdateModal"
+                            variant="outline"
+                            class="w-full justify-center border-[#0E6021] text-xs text-[#0E6021] hover:bg-[#0E6021]/5 sm:text-sm"
+                        >
+                            <FileUp class="w-4 h-4 mr-2" />
+                            Batch Update
                         </Button>
 
                         <Button
@@ -1220,7 +1279,10 @@ function handleAssignSubmit(ids) {
                             :unitCostOptions="unitCostOptions"
                             :filterCondition="filterCondition"
                             :acknowledgementFilter="acknowledgementFilter"
+                            :classificationFilter="classificationFilter"
+                            :classification_id="classification_id"
                             @update:search="search = $event"
+                            @update:classification_id="classification_id = $event"
                             @update:asset_condition_id="
                                 asset_condition_id = $event
                             "
@@ -1427,10 +1489,11 @@ function handleAssignSubmit(ids) {
 
             <ImportItemsModal
                 v-if="showImportModal"
-                :canDownloadSample="canImportInventory"
-                :sheetEndpoint="route('inventory.import.sheets')"
+                :canDownloadSample="batchUpdateMode ? inventoryActions.includes('edit') : canImportInventory"
+                :sheetEndpoint="route(batchUpdateMode ? 'inventory.batch-update.sheets' : 'inventory.import.sheets')"
+                :content="batchUpdateMode ? batchUpdateContent : undefined"
                 @close="showImportModal = false"
-                @download-sample="downloadExportSample"
+                @download-sample="batchUpdateMode ? downloadBatchUpdateSample() : downloadExportSample()"
                 @import="handleImportFile"
                 @review="handleReviewFile"
             />
@@ -1439,6 +1502,8 @@ function handleAssignSubmit(ids) {
                 v-if="importResult"
                 :result="importResult"
                 :canImport="Boolean(pendingImportFile)"
+                :actionLabel="batchUpdateMode ? 'Update now' : 'Import now'"
+                :operationLabel="batchUpdateMode ? 'Update' : 'Import'"
                 @import="importPendingFile"
                 @close="importResult = null"
             />

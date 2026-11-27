@@ -61,7 +61,8 @@ class InventoryService
         ?string $acknowledgementStatus = null,
         ?int $roomId = null,
         int $perPage = 10,
-        ?string $status = null
+        ?string $status = null,
+        ?int $classificationId = null,
     ) {
         return InventoryItem::with([
             'itemClassification',
@@ -96,6 +97,10 @@ class InventoryService
                 fn($query) => $query->whereHas('latestInspection', function ($q) use ($assetConditionId) {
                     $q->where('asset_condition_id', $assetConditionId);
                 })
+            )
+            ->when(
+                $classificationId,
+                fn ($query, $classificationId) => $query->where('item_classification_id', $classificationId),
             )
             ->when($acknowledgementStatus, function ($query, $acknowledgementStatus) {
 
@@ -509,17 +514,17 @@ class InventoryService
                 'item_classification_id' => 'required|integer',
                 'supplier_id' => 'required|integer',
                 'invoice' => 'required|string|max:50',
-                'fund_source' => 'required|string|max:50',
+                'fund_source' => 'required|string|max:255',
                 'item_name' => 'required|string|max:255',
                 'description' => 'nullable|string',
                 'category' => 'nullable|string|max:255',
                 'quantity' => 'required|integer|min:1',
                 'unit' => 'required|string|max:50',
                 'unit_cost' => 'required|numeric',
-                'serial_numbers' => 'required|string', // CSV: comma-separated
+                'serial_numbers' => 'required|string|max:255', // CSV: comma-separated
                 'property_number' => 'required|string|max:50',
-                'pr_number' => 'required|string|max:50',
-                'po_number' => 'required|string|max:50',
+                'pr_number' => 'required|string|max:255',
+                'po_number' => 'required|string|max:255',
                 'remarks' => 'required|string|max:50',
                 'date_acquired' => 'required|date',
                 'status' => 'nullable|string|max:50',

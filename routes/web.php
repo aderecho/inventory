@@ -196,6 +196,11 @@ Route::middleware(['auth', 'check.session.timeout'])->group(function () {
         Route::get('/inventory/export/sample', [InventoryController::class, 'exportSample'])->name('inventory.export.sample');
         Route::get('/inventory/export', [InventoryController::class, 'exportExcel'])->name('inventory.export');
     });
+    Route::middleware('can:edit inventory')->group(function () {
+        Route::post('/inventory/batch-update', [InventoryController::class, 'batchUpdate'])->name('inventory.batch-update');
+        Route::post('/inventory/batch-update/sheets', [InventoryController::class, 'batchUpdateSheets'])->name('inventory.batch-update.sheets');
+        Route::get('/inventory/batch-update/sample', [InventoryController::class, 'batchUpdateSample'])->name('inventory.batch-update.sample');
+    });
     Route::get('/export-csv', [InventoryController::class, 'exportCsv'])->middleware('can:export inventory');
 
     // Suppliers

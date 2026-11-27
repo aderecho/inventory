@@ -47,6 +47,56 @@ class DownloadPngService
         return $lines;
     }
 
+    protected function wrapPropertyNumber(string $text, int $fontSize, string $font, int $maxWidth): array
+    {
+        $lines = [];
+        $current = '';
+        $segments = explode('-', $text);
+
+        foreach ($segments as $index => $segment) {
+            $separator = $index > 0 ? '-' : '';
+            $candidate = $current . $separator . $segment;
+            $bounds = imagettfbbox($fontSize, 0, $font, $candidate);
+
+            if ($current !== '' && ($bounds[2] - $bounds[0]) > $maxWidth) {
+                $lineWithSeparator = $current . '-';
+                $bounds = imagettfbbox($fontSize, 0, $font, $lineWithSeparator);
+                if (($bounds[2] - $bounds[0]) <= $maxWidth) {
+                    $lines[] = $lineWithSeparator;
+                    $current = $segment;
+                } else {
+                    $lines[] = $current;
+                    $current = '-' . $segment;
+                }
+            } else {
+                $current = $candidate;
+            }
+
+            $bounds = imagettfbbox($fontSize, 0, $font, $current);
+            if (($bounds[2] - $bounds[0]) > $maxWidth) {
+                $characters = preg_split('//u', $current, -1, PREG_SPLIT_NO_EMPTY) ?: str_split($current);
+                $current = '';
+
+                foreach ($characters as $character) {
+                    $candidate = $current . $character;
+                    $bounds = imagettfbbox($fontSize, 0, $font, $candidate);
+                    if ($current !== '' && ($bounds[2] - $bounds[0]) > $maxWidth) {
+                        $lines[] = $current;
+                        $current = $character;
+                    } else {
+                        $current = $candidate;
+                    }
+                }
+            }
+        }
+
+        if ($current !== '') {
+            $lines[] = $current;
+        }
+
+        return $lines ?: ['N/A'];
+    }
+
     private function generateItemQrPng(InventoryItem $item): string
     {
         $scale      = 2;
@@ -56,6 +106,15 @@ class DownloadPngService
         $qrSize     = 220;
         $qrX        = 620;
         $maxWidth   = ($qrX - $valueX - 20) * $scale;
+        $propertyNumber = (string) $item->property_number;
+        $propertyFontSize = 28 * $scale;
+        $propertyLineHeight = 38;
+        $propertyLines = $this->wrapPropertyNumber(
+            $propertyNumber,
+            $propertyFontSize,
+            $this->fontBold,
+            ($qrX - 210 - 20) * $scale,
+        );
 
         $roomName = 'N/A';
         if ($item->latestHistoryLocation) {
@@ -68,7 +127,7 @@ class DownloadPngService
         $fields = [
             'Date Acquired'      => $item->date_acquired ?? 'N/A',
             'Cost'               => number_format($item->unit_cost, 2),
-            'Product'            => $item->item_name,
+            'Product'            => $item->item_name ?: 'N/A',
             'Serial Model#'      => $item->serial_number ?? 'N/A',
             'Accountable Person' => $item->latestAcknowledgementItem?->accountablePerson?->full_name ?? 'N/A',
             'Supplier'           => $item->supplier?->supplier_name ?? 'N/A',
@@ -81,7 +140,7 @@ class DownloadPngService
             $totalExtraLines += count($lines) - 1;
         }
 
-        $startY        = 155;
+        $startY        = 155 + ((count($propertyLines) - 1) * $propertyLineHeight);
         $fieldsHeight  = (count($fields) + $totalExtraLines) * $lineHeight;
         $contentHeight = $startY + $fieldsHeight + 40;
         $minHeight     = 420;
@@ -104,7 +163,18 @@ class DownloadPngService
         imagettftext($img, 14 * $scale, 0, 90 * $scale, 42 * $scale, $black, $this->fontBold, 'University of the Philippines CEBU');
         imagettftext($img, 11 * $scale, 0, 90 * $scale, 64 * $scale, $black, $this->fontBold, 'PROPERTY INVENTORY STICKER');
         imagettftext($img, 14 * $scale, 0, $leftX * $scale, 125 * $scale, $black, $this->fontBold, 'Property Code:');
-        imagettftext($img, 28 * $scale, 0, 210 * $scale, 125 * $scale, $black, $this->fontBold, $item->property_number);
+        foreach ($propertyLines as $index => $line) {
+            imagettftext(
+                $img,
+                $propertyFontSize,
+                0,
+                210 * $scale,
+                (125 + ($index * $propertyLineHeight)) * $scale,
+                $black,
+                $this->fontBold,
+                $line,
+            );
+        }
 
         $y = $startY;
         foreach ($fields as $label => $value) {

@@ -20,6 +20,8 @@ const props = defineProps({
     showReceipts: { type: Boolean, default: true },
     // Shows the "Import now" button on a review report.
     canImport: { type: Boolean, default: false },
+    actionLabel: { type: String, default: "Import now" },
+    operationLabel: { type: String, default: "Import" },
 });
 
 const plural = (count) => (count === 1 ? "" : "s");
@@ -37,6 +39,8 @@ const isFatal = computed(() => Boolean(props.result.fatal));
 // A review report comes back with dry_run: true - it describes what would
 // happen, and nothing has been written yet.
 const isPreview = computed(() => Boolean(props.result.dry_run));
+const operationVerb = computed(() => props.operationLabel.toLowerCase());
+const operationPast = computed(() => props.operationLabel === "Update" ? "Updated" : "Imported");
 const failed = computed(() => props.result.failed ?? []);
 const warnings = computed(() => props.result.warnings ?? []);
 const skipped = computed(() => props.result.skipped_rows ?? []);
@@ -71,12 +75,12 @@ const reportText = computed(() => {
 
     const r = props.result;
     const lines = [
-        (isPreview.value ? "Import review: " : "Inventory import: ") +
+        (isPreview.value ? props.operationLabel + " review: " : "Inventory " + operationVerb.value + ": ") +
             r.file + " (sheet \"" + r.sheet + "\"), rows " + r.start_row + "–" + r.end_row,
-        (isPreview.value ? "Would import: " : "Imported: ") +
+        (isPreview.value ? "Would " + operationVerb.value + ": " : operationPast.value + ": ") +
             r.imported_rows + " row(s), " + r.imported_items + " item(s), " + r.receipts_created + " new receipt(s), " + r.disposal_items + " Disposal item(s)",
         "Not imported: " + failed.value.length + " row(s)",
-        (isPreview.value ? "Would import with warnings: " : "Imported with warnings: ") +
+        (isPreview.value ? "Would " + operationVerb.value + " with warnings: " : operationPast.value + " with warnings: ") +
             warnings.value.length + " row(s)",
     ];
 
@@ -174,7 +178,7 @@ function closeWithAnimation() {
             >
                 <div>
                     <h3 class="text-lg font-bold text-white">
-                        {{ isPreview ? "Import Review" : "Import Results" }}
+                        {{ isPreview ? operationLabel + " Review" : operationLabel + " Results" }}
                     </h3>
                     <p v-if="!isFatal" class="text-xs text-white/70 mt-0.5">
                         {{ result.file }} · sheet "{{ result.sheet }}" · rows
@@ -210,7 +214,7 @@ function closeWithAnimation() {
                         <p>
                             <span class="font-semibold">Review only.</span>
                             Nothing has been saved. Check the rows below, then
-                            press <span class="font-semibold">Import now</span>
+                            press <span class="font-semibold">{{ actionLabel }}</span>
                             to write the file to the database.
                         </p>
                     </div>
@@ -219,7 +223,7 @@ function closeWithAnimation() {
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                         <div class="rounded-lg border border-green-200 bg-green-50 p-3">
                             <p class="text-xs font-semibold uppercase tracking-wide text-green-700">
-                                {{ isPreview ? "Will import" : "Imported" }}
+                                {{ isPreview ? "Will " + operationVerb : operationPast }}
                             </p>
                             <p class="text-2xl font-bold text-green-800">
                                 {{ result.imported_rows }}
@@ -386,7 +390,7 @@ function closeWithAnimation() {
                     class="flex items-center gap-2 bg-gradient-to-r from-[#005740] to-[#00795a] text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:shadow-md hover:from-[#00432f] hover:to-[#006548] transition-all"
                 >
                     <Upload class="w-4 h-4" />
-                    Import now
+                            {{ actionLabel }}
                 </button>
                 <button
                     type="button"

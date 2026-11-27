@@ -7,6 +7,7 @@ use App\Http\Controllers\Concerns\StreamsProgress;
 use App\Http\Requests\InventoryAcknowledgementStoreRequest;
 use App\Http\Requests\DisposeItemsRequest;
 use App\Http\Requests\InventoryImportRequest;
+use App\Http\Requests\InventoryBatchUpdateRequest;
 use App\Http\Requests\InventoryStoreRequest;
 use App\Http\Requests\InventoryUpdateRequest;
 use App\Http\Requests\UpdateInventoryCategoryRequest;
@@ -23,6 +24,7 @@ use App\Services\DownloadPngService;
 use App\Services\DownloadPdfService;
 use App\Services\InventoryExportService;
 use App\Services\InventoryImportService;
+use App\Services\InventoryBatchUpdateService;
 use App\Services\InventoryService;
 use App\Services\RoomApiService;
 use Illuminate\Http\Request;
@@ -63,6 +65,9 @@ class InventoryController extends Controller
         $assetConditionId = $request->input('asset_condition_id');
         $acknowledgementStatus = $request->input('acknowledgement_status');
         $roomId = $request->input('room_id');
+        $classificationId = $request->filled('classification_id')
+            ? (int) $request->input('classification_id')
+            : null;
 
         $itemClassifications = ItemClassification::all();
         $suppliers = Supplier::all();
@@ -78,6 +83,7 @@ class InventoryController extends Controller
             $assetConditionId,
             $acknowledgementStatus,
             $roomId,
+            classificationId: $classificationId,
         );
 
         $items->getCollection()->transform(function ($item) use ($roomsLookup) {
@@ -395,6 +401,33 @@ class InventoryController extends Controller
         } catch (InventoryImportException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
+    }
+
+    public function batchUpdate(InventoryBatchUpdateRequest $request, InventoryBatchUpdateService $updater)
+    {
+        try {
+            return response()->json($updater->update(
+                $request->file('file'),
+                $request->boolean('dry_run'),
+                $request->input('sheet'),
+            ));
+        } catch (InventoryImportException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    public function batchUpdateSheets(InventoryBatchUpdateRequest $request, InventoryBatchUpdateService $updater)
+    {
+        try {
+            return response()->json(['sheets' => $updater->sheetNames($request->file('file'))]);
+        } catch (InventoryImportException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    public function batchUpdateSample(InventoryBatchUpdateService $updater)
+    {
+        return response()->download($updater->sampleToFile(), 'Inventory_Batch_Update_Sample.xlsx')->deleteFileAfterSend(true);
     }
 
     public function exportCsv()
