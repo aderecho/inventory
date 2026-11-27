@@ -30,6 +30,7 @@ class InventoryExportService
         'PAR/ICS Number'    => [22, 'text'],
         'PAR/ICS Date'      => [16, 'date'],
         'New Property No.'  => [20, 'text'],
+        'Classification ID' => [16, 'int'],
         'Old Property No.'  => [20, 'text'],
         'Qty'               => [10, 'int'],
         'Unit'              => [14, 'text'],
@@ -55,19 +56,19 @@ class InventoryExportService
      */
     public const SAMPLE_ROWS = [
         [
-            '221-2024-03-512', '2024-03-11', '221-905-001', null, 1, 'unit', 68500, 68500,
+            '221-2024-03-512', '2024-03-11', '2024-50-20-0512-001', null, null, 1, 'unit', 68500, 68500,
             "2.0 HP wall-mounted split-type inverter aircon with remote\nIndoor: CW-SPL20X-IN / Outdoor: CW-SPL20X-OUT",
             'CWX4471A20 / CWX4471B20', '2024-03-08', 1, '164', 'PR-2024-02-118', 'PO-2024-02-071', 1, 1, 'SI-20417',
             'Installed beside the conference room door', 1,
         ],
         [
-            '223-2025-06-533', '2025-06-17', '223-918-001', null, 1, 'unit', 54990, 54990,
+            '223-2025-06-533', '2025-06-17', '2025-51-30-0918-001', null, null, 1, 'unit', 54990, 54990,
             'Laptop, Intel Core i5, 16GB RAM, 512GB SSD, 14-inch FHD display, Windows 11 Pro',
             'NXP14K9T2271', '2025-06-16', 2, '101', 'PR-2025-05-044', 'PO-2025-05-019', 2, 2, 'SI-88203',
             'For field data collection', 2,
         ],
         [
-            '222-2019-09-488', '2019-09-30', '222-931-001', null, 1, 'unit', 52300, 52300,
+            '222-2019-09-488', '2019-09-30', '2019-40-10-0488-001', null, null, 1, 'unit', 52300, 52300,
             'Heavy-duty steel filing cabinet, 4 lockable drawers, legal size, gray finish',
             null, '2019-09-27', 3, '164', 'PR-2019-09-210', 'PO-2019-09-088', 3, 3, 'SI-50981',
             'Rusted drawer rails; recommended for disposal', 3,
@@ -123,6 +124,7 @@ class InventoryExportService
             $receipt?->category,
             $receipt?->par_date,
             $item->property_number,
+            $item->item_classification_id,
             $item->old_property_number,
             $item->quantity,
             $item->unit,

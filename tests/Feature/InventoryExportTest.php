@@ -16,11 +16,11 @@ class InventoryExportTest extends TestCase
     {
         $path = app(InventoryExportService::class)->sampleToFile();
         $sheet = IOFactory::load($path)->getActiveSheet();
-        $headers = $sheet->rangeToArray('A1:T1')[0];
+        $headers = $sheet->rangeToArray('A1:U1')[0];
 
         $this->assertSame(array_keys(InventoryExportService::COLUMNS), $headers);
         $this->assertSame('mm-dd-yyyy', $sheet->getStyle('B2')->getNumberFormat()->getFormatCode());
-        $this->assertSame('mm-dd-yyyy', $sheet->getStyle('K2')->getNumberFormat()->getFormatCode());
+        $this->assertSame('mm-dd-yyyy', $sheet->getStyle('L2')->getNumberFormat()->getFormatCode());
 
         unlink($path);
     }

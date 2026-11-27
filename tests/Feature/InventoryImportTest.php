@@ -21,6 +21,44 @@ class InventoryImportTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_import_derives_classification_from_property_number_and_warns_for_unknown_codes(): void
+    {
+        $this->mock(RoomApiService::class, function ($mock) {
+            $mock->shouldReceive('fetchRooms')->andReturn(['data' => []]);
+        });
+
+        $classification = ItemClassification::create([
+            'classification_code' => '50-20',
+            'classification_name' => 'Office Equipment',
+            'status' => 1,
+        ]);
+
+        $known = array_fill(0, 23, '');
+        $known[2] = '2017-50-20-0054-101';
+        $known[4] = 1;
+        $known[11] = 'Desk description';
+
+        $unknown = array_fill(0, 23, '');
+        $unknown[2] = '2017-51-30-0055-101';
+        $unknown[4] = 1;
+        $unknown[11] = 'Chair description';
+
+        $invalidOverride = array_fill(0, 23, '');
+        $invalidOverride[2] = '2017-50-20-0056-101';
+        $invalidOverride[4] = 1;
+        $invalidOverride[22] = '999999';
+
+        $result = app(InventoryImportService::class)->import(
+            UploadedFile::fake()->createWithContent('items.csv', $this->csv([$known, $unknown, $invalidOverride]))
+        );
+
+        $this->assertSame(2, $result['imported_rows']);
+        $this->assertCount(1, $result['warnings']);
+        $this->assertCount(1, $result['failed']);
+        $this->assertSame($classification->id, InventoryItem::where('property_number', $known[2])->value('item_classification_id'));
+        $this->assertNull(InventoryItem::where('property_number', $unknown[2])->value('item_classification_id'));
+    }
+
     public function test_it_imports_the_new_batch_add_columns_and_accepts_blank_optional_cells(): void
     {
         $this->mock(RoomApiService::class, function ($mock) {
@@ -185,7 +223,7 @@ class InventoryImportTest extends TestCase
         $this->actingAs($user);
         $profile = UserProfile::factory()->create(['user_id' => $user->id]);
         $classification = ItemClassification::create([
-            'classification_code' => '222',
+            'classification_code' => '70-10',
             'classification_name' => 'Office Equipment',
             'status' => 1,
         ]);
@@ -552,6 +590,7 @@ class InventoryImportTest extends TestCase
             'total amount', 'item name', 'brand', 'model', 'description', 'serial number',
             'accountable person', 'fund source', 'pr number', 'po number', 'location',
             'supplier', 'invoice', 'remarks', 'issued by',
+            'classification id',
         ]);
 
         foreach ($rows as $row) {

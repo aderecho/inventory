@@ -28,6 +28,13 @@ class CategoryExportService
         'Status (Active / Inactive)' => 16,
     ];
 
+    private const EXPORT_COLUMNS = [
+        'ID'                          => 12,
+        'Classification Code'        => 20,
+        'Classification Name'        => 34,
+        'Status (Active / Inactive)' => 16,
+    ];
+
     /** Fixed, made-up rows: the sample must never look like real category data. */
     public const SAMPLE_ROWS = [
         ['901', 'Sample Classification', 'Active'],
@@ -48,13 +55,13 @@ class CategoryExportService
     {
         $rows = ItemClassification::orderBy('classification_code')
             ->get()
-            ->map(fn (ItemClassification $category) => $this->rowFor($category));
+            ->map(fn (ItemClassification $category) => [$category->id, ...$this->rowFor($category)]);
 
         if ($format === 'csv') {
-            return $this->writeCsvFile($rows, self::COLUMNS);
+            return $this->writeCsvFile($rows, self::EXPORT_COLUMNS);
         }
 
-        return $this->writeToFile($rows, 'Categories');
+        return $this->writeToFile($rows, 'Categories', self::EXPORT_COLUMNS);
     }
 
     /**
@@ -72,20 +79,20 @@ class CategoryExportService
     /**
      * Builds the formatted workbook and saves it to a temporary file.
      */
-    public function writeToFile(iterable $rows, string $sheetTitle): string
+    public function writeToFile(iterable $rows, string $sheetTitle, array $columns = self::COLUMNS): string
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle($sheetTitle);
 
-        $headers = array_keys(self::COLUMNS);
+        $headers = array_keys($columns);
         $lastColumn = Coordinate::stringFromColumnIndex(count($headers));
         $sheet->fromArray($headers, null, 'A1');
 
         $rowNumber = 1;
         foreach ($rows as $row) {
             $rowNumber++;
-            foreach (array_values(self::COLUMNS) as $index => $width) {
+            foreach (array_values($columns) as $index => $width) {
                 $value = $row[$index] ?? null;
 
                 if ($value === null || $value === '') {
@@ -115,7 +122,7 @@ class CategoryExportService
         $sheet->getStyle("A2:{$lastColumn}{$rowNumber}")
             ->getAlignment()->setVertical(Alignment::VERTICAL_TOP)->setWrapText(true);
 
-        foreach (array_values(self::COLUMNS) as $index => $width) {
+        foreach (array_values($columns) as $index => $width) {
             $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($index + 1))->setWidth($width);
         }
 

@@ -61,7 +61,8 @@ class InventoryService
         ?string $acknowledgementStatus = null,
         ?int $roomId = null,
         int $perPage = 10,
-        ?string $status = null
+        ?string $status = null,
+        ?int $classificationId = null,
     ) {
         return InventoryItem::with([
             'itemClassification',
@@ -96,6 +97,10 @@ class InventoryService
                 fn($query) => $query->whereHas('latestInspection', function ($q) use ($assetConditionId) {
                     $q->where('asset_condition_id', $assetConditionId);
                 })
+            )
+            ->when(
+                $classificationId,
+                fn ($query, $classificationId) => $query->where('item_classification_id', $classificationId),
             )
             ->when($acknowledgementStatus, function ($query, $acknowledgementStatus) {
 

@@ -27,7 +27,7 @@ const props = defineProps({
             introBody:
                 "Your file must use the same column headers as the sample, in the first row. Each row below the headers is one item. Download the sample, replace the example rows with your items, and keep the headers as they are.",
             requiredColumns:
-                "PAR/ICS Number, PAR/ICS Date, New Property No., Old Property No., Qty, Unit, Unit Cost, Total Amount, Description, Serial No., Date Acquired, Accountable Person, Fund Source, PR#, PO#, Location, Supplier, Invoice, Remarks, Issued By",
+                "PAR/ICS Number, PAR/ICS Date, New Property No., Classification ID, Old Property No., Qty, Unit, Unit Cost, Total Amount, Description, Serial No., Date Acquired, Accountable Person, Fund Source, PR#, PO#, Location, Supplier, Invoice, Remarks, Issued By",
             requiredNote:
                 "Only New Property No. and Qty are required. Leave any other cell blank to import it as empty. Accountable Person and PAR/ICS Number must both be filled to create an assignment.",
             mustExist: [
@@ -35,7 +35,7 @@ const props = defineProps({
                 "supplier is the id from the Suppliers page",
                 "location is the room id supplied by the rooms API",
                 "accountable person and issued by are user profile ids",
-                "Classification is optional; it is used when the PAR/ICS or property-number prefix matches an existing classification",
+                "Classification ID is optional; if provided, it must exist. If blank, it is looked up from the second and third parts of New Property No.",
             ],
             values: [
                 "PAR/ICS Date and Date Acquired use MM-DD-YYYY, for example 06-16-2025. Excel date cells are accepted in any display format.",
@@ -44,6 +44,7 @@ const props = defineProps({
                 "For several units, write the property number range like 223-918-(001-003).",
                 "accountable person, location, supplier, and issued by expect numeric IDs from the database.",
                 "The IDs in the sample are examples and may not exist in your database; replace them before importing.",
+                "If the property-number classification code is not in Categories, the item is still imported without a classification and a warning is shown.",
                 "Approval status, private flag, lifespan, sales invoice date, PO date, and receipt remarks are not imported.",
                 "remarks are saved on the item.",
             ],

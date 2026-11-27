@@ -60,6 +60,8 @@ class InventoryImportService
         'receiptdate'           => 'par_date',
         'newpropertyno'         => 'new_property_no',
         'newpropertynumber'     => 'new_property_no',
+        'classificationid'      => 'classification_id',
+        'itemclassificationid'  => 'classification_id',
         'propertyno'            => 'property_no',
         'propertynumber'        => 'property_no',
         'oldpropertyno'         => 'old_property_number',
@@ -117,6 +119,7 @@ class InventoryImportService
         'par_number'         => 'PAR/ICS number',
         'par_date'           => 'PAR/ICS date',
         'new_property_no'    => 'New Property No.',
+        'classification_id'  => 'Classification ID',
         'property_no'        => 'Property number',
         'old_property_number'=> 'old property number',
         'qty'                => 'qty',
@@ -177,6 +180,8 @@ class InventoryImportService
     protected array $supplierIds = [];
     /** @var array<string, int> classification code => id */
     protected array $classificationIds = [];
+    /** @var array<int, true> classification id => exists */
+    protected array $classificationRecordIds = [];
     /** @var array<int, true> */
     protected array $roomIds = [];
     /** @var array<int, true> */
@@ -504,6 +509,7 @@ class InventoryImportService
 
         foreach (ItemClassification::all(['id', 'classification_code']) as $classification) {
             $this->classificationIds[trim((string) $classification->classification_code)] ??= $classification->id;
+            $this->classificationRecordIds[(int) $classification->id] = true;
         }
 
         foreach (UserProfile::pluck('id') as $profileId) {
@@ -595,7 +601,12 @@ class InventoryImportService
             }
         }
 
-        $classificationId = $this->resolveClassification($v, $propertyNumbers['numbers'][0] ?? null);
+        $classificationId = $this->resolveClassification(
+            $v,
+            $propertyNumbers['numbers'][0] ?? null,
+            $errors,
+            $warnings,
+        );
 
         $oldPropertyNumber = $this->singleLine($v['old_property_number'] ?? null);
         if ($oldPropertyNumber !== null && mb_strlen($oldPropertyNumber) > self::MAX_LENGTHS['old_property_number']) {
@@ -849,20 +860,33 @@ class InventoryImportService
         return rtrim($number, '-') . '-(001-' . str_pad((string) $qty, 3, '0', STR_PAD_LEFT) . ')';
     }
 
-    /** Uses a matching PAR/ICS or property-number prefix when one exists. */
-    protected function resolveClassification(array $v, ?string $propertyNumber): ?int
+    /** Uses an optional Classification ID, otherwise the second and third property-number segments. */
+    protected function resolveClassification(array $v, ?string $propertyNumber, array &$errors, array &$warnings): ?int
     {
-        $candidates = [];
-        foreach ([$this->singleLine($v['par_number'] ?? null), $propertyNumber] as $value) {
-            if ($value !== null && preg_match('/^(\d+)-/', $value, $m)) {
-                $candidates[$m[1]] = true;
+        $classificationRaw = $this->text($v['classification_id'] ?? null);
+        if ($classificationRaw !== null) {
+            $classificationId = $this->integerId($classificationRaw);
+            if ($classificationId === null || ! isset($this->classificationRecordIds[$classificationId])) {
+                $errors[] = $this->label('classification_id') . ' must be an existing classification ID.';
+                return null;
             }
+
+            return $classificationId;
         }
 
-        foreach (array_keys($candidates) as $code) {
+        $parts = explode('-', (string) $propertyNumber);
+        if (isset($parts[1], $parts[2]) && ctype_digit($parts[1]) && ctype_digit($parts[2])) {
+            $code = $parts[1] . '-' . $parts[2];
             if (isset($this->classificationIds[$code])) {
                 return $this->classificationIds[$code];
             }
+
+            $warnings[] = 'Classification code ' . $code . ' from the second and third property-number segments does not exist. The item will be imported without a classification.';
+            return null;
+        }
+
+        if ($propertyNumber !== null) {
+            $warnings[] = 'Could not read a classification code from the second and third property-number segments. The item will be imported without a classification.';
         }
 
         return null;

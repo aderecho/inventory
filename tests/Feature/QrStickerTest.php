@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\InventoryItem;
 use App\Models\User;
 use App\Services\RoomApiService;
+use App\Services\DownloadPngService;
+use App\Services\QrImageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Spatie\Permission\Models\Permission;
@@ -47,7 +49,12 @@ class QrStickerTest extends TestCase
 
     public function test_the_png_stream_reports_stages_then_the_file(): void
     {
-        $item = InventoryItem::factory()->create();
+        $item = InventoryItem::factory()->create([
+            'property_number' => '2017-50-30-0031-161-VERY-LONG-PROPERTY-CODE-1234567890',
+            'item_name' => null,
+            'date_acquired' => null,
+            'unit_cost' => null,
+        ]);
 
         $response = $this->actingAs($this->stickerPrinter())
             ->post(route('inventory.qr.pngs.stream'), ['ids' => [$item->id]])
@@ -62,6 +69,29 @@ class QrStickerTest extends TestCase
         $this->assertStringStartsWith("\x89PNG", base64_decode($completed['file']));
 
         $this->assertContains('Rendering the sticker', collect($events)->pluck('step')->all());
+    }
+
+    public function test_long_property_numbers_wrap_within_the_area_left_of_the_qr_code(): void
+    {
+        $propertyNumber = '2017-50-30-0031-161-VERY-LONG-PROPERTY-CODE-1234567890';
+        $maxWidth = (620 - 210 - 20) * 2;
+        $font = public_path('fonts/DejaVuSans-Bold.ttf');
+        $fontSize = 28 * 2;
+        $renderer = new class(app(RoomApiService::class), app(QrImageService::class)) extends DownloadPngService {
+            public function wrapCode(string $text, int $fontSize, string $font, int $maxWidth): array
+            {
+                return $this->wrapPropertyNumber($text, $fontSize, $font, $maxWidth);
+            }
+        };
+
+        $lines = $renderer->wrapCode($propertyNumber, $fontSize, $font, $maxWidth);
+
+        $this->assertGreaterThan(1, count($lines));
+        $this->assertSame($propertyNumber, implode('', $lines));
+        foreach ($lines as $line) {
+            $bounds = imagettfbbox($fontSize, 0, $font, $line);
+            $this->assertLessThanOrEqual($maxWidth, $bounds[2] - $bounds[0]);
+        }
     }
 
     public function test_the_zip_stream_reports_each_sticker_and_the_pack_step(): void

@@ -8,12 +8,14 @@ const props = defineProps({
     unitCostOptions: { type: Array, default: () => [] },
     filterCondition: { type: Array, default: () => [] },
     acknowledgementFilter: { type: Array, default: () => [] },
+    classificationFilter: { type: Array, default: () => [] },
     rooms: { type: Array, default: () => [] },
     search: { type: String, default: "" },
     asset_condition_id: { type: [String, Number], default: "" },
     cost_range: { type: String, default: "" },
     acknowledgement_status: { type: String, default: "" },
     room_id: { type: [String, Number], default: "" },
+    classification_id: { type: [String, Number], default: "" },
     mode: { type: String, default: "inventory" },
 
     // Filters sit behind a "more filters" button instead of filling the row.
@@ -26,6 +28,7 @@ const emit = defineEmits([
     "update:cost_range",
     "update:acknowledgement_status",
     "update:room_id",
+    "update:classification_id",
 ]);
 
 // Filters and search used to be restored from localStorage. They are not
@@ -50,6 +53,9 @@ const acknowledgement_status = ref(
     initialValue("acknowledgement_status", props.acknowledgement_status),
 );
 const room_id = ref(initialValue("room_id", props.room_id));
+const classification_id = ref(
+    initialValue("classification_id", props.classification_id),
+);
 
 const refs = {
     search,
@@ -57,6 +63,7 @@ const refs = {
     cost_range,
     acknowledgement_status,
     room_id,
+    classification_id,
 };
 
 const { fetchNow, debouncedFetch, placeholder, activeFields } = useModeFetcher(
@@ -121,6 +128,7 @@ watchField(
     "update:acknowledgement_status",
 );
 watchField(room_id, "room_id", "update:room_id");
+watchField(classification_id, "classification_id", "update:classification_id");
 
 const searchPlaceholder = computed(() => placeholder);
 const showRoomFilter = computed(() => activeFields.includes("room_id"));
@@ -135,6 +143,7 @@ const activeFilterCount = computed(() => {
 
     if (cost_range.value) count++;
     if (acknowledgement_status.value) count++;
+    if (classification_id.value) count++;
     if (
         asset_condition_id.value !== "" &&
         asset_condition_id.value !== null &&
@@ -151,6 +160,7 @@ function clearFilters() {
     acknowledgement_status.value = "";
     asset_condition_id.value = "";
     room_id.value = "";
+    classification_id.value = "";
 }
 </script>
 
@@ -241,6 +251,16 @@ function clearFilters() {
                 :options="stats.options"
                 include-select-all
             />
+
+            <FilterSelect
+                v-for="(group, gIndex) in classificationFilter"
+                :key="'classification-' + gIndex"
+                v-model="classification_id"
+                :label="group.label"
+                :options="group.options"
+                width-class="sm:w-48"
+                include-select-all
+            />
         </div>
 
         <!-- FILTERS: behind the more-filters button -->
@@ -323,6 +343,16 @@ function clearFilters() {
                         v-model="asset_condition_id"
                         :label="stats.label"
                         :options="stats.options"
+                        width-class="w-full"
+                        include-select-all
+                    />
+
+                    <FilterSelect
+                        v-for="(group, gIndex) in classificationFilter"
+                        :key="'classification-' + gIndex"
+                        v-model="classification_id"
+                        :label="group.label"
+                        :options="group.options"
                         width-class="w-full"
                         include-select-all
                     />

@@ -7,6 +7,7 @@ export const filterModes = {
             "acknowledgement_status",
             "asset_condition_id",
             "room_id",
+            "classification_id",
         ],
         requestOptions: { only: ["items"] },
         placeholder: "Search Item, Property Number, Serial Number...",
